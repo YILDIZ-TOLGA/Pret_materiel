@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: pret
+      POSTGRES_PASSWORD: pret
+      POSTGRES_DB: pret
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+
+  app:
+    build: .
+    depends_on: [db]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://pret:pret@db:5432/pret
+    ports: ["3000:3000"]
+    profiles: [prod]
+
+volumes:
+  pgdata:

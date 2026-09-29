@@ -1,0 +1,9 @@
+{
+  "appId": "fr.pretmateriel.app",
+  "appName": "Prêt Matériel",
+  "webDir": "public",
+  "server": {
+    "url": "https://ton-domaine.fr",
+    "cleartext": false
+  }
+}

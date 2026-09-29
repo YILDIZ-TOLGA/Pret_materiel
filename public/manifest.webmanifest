@@ -1,0 +1,13 @@
+{
+  "name": "Prêt Matériel",
+  "short_name": "Prêts",
+  "description": "Prête tes affaires, on s'occupe des rappels.",
+  "start_url": "/prets",
+  "display": "standalone",
+  "background_color": "#f4f4f2",
+  "theme_color": "#2a78d6",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
