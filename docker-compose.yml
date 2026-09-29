@@ -1,21 +1,71 @@
+# Tout le projet en une commande :   docker compose up -d --build
+#   Site             → http://localhost:3000
+#   Boîte mail test  → http://localhost:8025  (tous les e-mails envoyés par le site arrivent ici)
+# Les réglages se changent dans le fichier .env (facultatif, voir .env.example).
+
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: pret
-      POSTGRES_PASSWORD: pret
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pret}
       POSTGRES_DB: pret
-    ports: ["5432:5432"]
-    volumes: [pgdata:/var/lib/postgresql/data]
+    # accessible seulement depuis ta machine (pgAdmin, DBeaver, npm run dev…)
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pret -d pret"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
   app:
     build: .
-    depends_on: [db]
-    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: postgresql://pret:pret@db:5432/pret
-    ports: ["3000:3000"]
-    profiles: [prod]
+      DATABASE_URL: postgresql://pret:${DB_PASSWORD:-pret}@db:5432/pret
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      JWT_SECRET: ${JWT_SECRET:-change-moi-avant-de-mettre-en-ligne}
+      CRON_SECRET: ${CRON_SECRET:-change-moi-cron}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@pret.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin1234}
+      # Par défaut les e-mails partent dans Mailpit (boîte de test). Mets ton vrai SMTP dans .env.
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-Prêt Matériel <no-reply@pret.local>}
+      # Sans clés Stripe : true = les offres s'activent sans payer (pour tester)
+      DEMO_BILLING: ${DEMO_BILLING:-true}
+    ports:
+      - "${PORT:-3000}:3000"
+
+  # Boîte mail de test : http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    environment:
+      MP_SMTP_BIND_ADDR: 0.0.0.0:587
+    ports:
+      - "8025:8025"
+
+  # Rappels automatiques : appelle /api/cron/reminders toutes les heures
+  cron:
+    image: curlimages/curl:latest
+    restart: unless-stopped
+    depends_on: [app]
+    environment:
+      CRON_SECRET: ${CRON_SECRET:-change-moi-cron}
+    entrypoint: ["sh", "-c", "sleep 60; while true; do curl -s -H \"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/cron/reminders; echo; sleep 3600; done"]
 
 volumes:
   pgdata:

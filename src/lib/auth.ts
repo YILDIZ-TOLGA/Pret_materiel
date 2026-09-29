@@ -27,7 +27,8 @@ export async function setSessionCookie(token: string) {
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    // cookie « secure » seulement en HTTPS (sinon la connexion échoue sur http://localhost)
+    secure: (process.env.APP_URL || "").startsWith("https://"),
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });

@@ -22,11 +22,35 @@ Appli de rappel de prêts d'objets **et d'argent** : tu notes à qui tu as prêt
 | Admin | Encaissé du mois / mois précédent / total, MRR, ARR, abonnés par offre, conversion, revenu moyen par utilisateur, revenus par mois et par jour, derniers paiements · visiteurs uniques, pages vues, pages/visiteur, taux visiteur→inscrit, top pages, sources, appareils, navigateurs, pays · prêts en cours/en retard/rendus, durée moyenne, taux de retour en retard, e-mails envoyés/échoués · gestion des utilisateurs (recherche, offrir un abonnement, désactiver, nommer admin, supprimer). Comparaison avec la période précédente, filtre 7 j / 30 j / 90 j / 12 mois |
 | Analytics | Maison, sans service tiers ni cookie publicitaire (table `PageView`) |
 
-## Démarrer en local
+## Lancer avec Docker (le plus simple, Windows / Mac / Linux)
+
+Tout tourne dans Docker : la base PostgreSQL, le site, une boîte mail de test et les rappels automatiques. Rien d'autre à installer.
+
+1. Installe **Docker Desktop** : https://www.docker.com/products/docker-desktop/ et lance-le.
+2. Récupère le projet dans un dossier, par exemple `C:\Users\<toi>\Desktop\pret_materiel_projet` :
+   - avec Git : `git clone https://github.com/YILDIZ-TOLGA/Pret_materiel.git C:\Users\<toi>\Desktop\pret_materiel_projet`
+   - ou sur GitHub : bouton vert **Code → Download ZIP**, puis décompresse.
+3. **Windows** : double-clique sur `demarrer.bat`.
+   **Mac / Linux** : `docker compose up -d --build` dans le dossier.
+
+Le premier lancement prend quelques minutes (téléchargement et construction), les suivants quelques secondes.
+
+| | |
+|---|---|
+| Site | http://localhost:3000 |
+| Boîte mail de test (tous les e-mails envoyés par le site) | http://localhost:8025 |
+| Compte admin | `admin@pret.local` / `admin1234` |
+
+- Arrêter : `arreter.bat` (ou `docker compose down`). Les données sont conservées.
+- Tout effacer, base comprise : `docker compose down -v`.
+- Changer les réglages (mot de passe admin, vrai SMTP, Stripe…) : copie `.env.example` en `.env`, modifie-le, relance `demarrer.bat`.
+- Sans clés Stripe, cliquer sur une offre l'active sans payer (`DEMO_BILLING=true`), pratique pour tester. Mets `DEMO_BILLING=false` avant d'ouvrir le site au public.
+
+## Démarrer en local (sans Docker, pour développer)
 
 ```bash
 cp .env.example .env              # puis remplis ADMIN_EMAIL / ADMIN_PASSWORD
-docker compose up -d db           # PostgreSQL (ou ta propre instance)
+docker compose up -d db           # juste PostgreSQL (ou ta propre instance)
 npm install
 npx prisma migrate deploy         # crée les tables
 npm run db:seed                   # crée le compte admin
@@ -40,9 +64,9 @@ Sans SMTP, les e-mails sont affichés dans la console.
 ## Mise en production
 
 1. **Base** : n'importe quel PostgreSQL (Neon, Supabase, Scaleway, OVH, Railway…). Mets l'URL dans `DATABASE_URL`.
-2. **Hébergement** : `docker compose --profile prod up -d --build` sur un VPS, ou Vercel / Railway / Render (build : `npm run build`, puis `npx prisma migrate deploy`).
+2. **Hébergement** : sur un VPS, la même commande `docker compose up -d --build` (avec un `.env` rempli, `APP_URL` en `https://…` et un reverse proxy HTTPS comme Caddy), ou Vercel / Railway / Render (build : `npm run build`, puis `npx prisma migrate deploy`).
 3. **E-mails** : un fournisseur SMTP (Brevo, Resend, Mailgun…) → variables `SMTP_*` et `MAIL_FROM`.
-4. **Rappels automatiques** : appeler toutes les heures
+4. **Rappels automatiques** : déjà inclus avec Docker (service `cron`). Sinon, appeler toutes les heures
    `curl -H "Authorization: Bearer $CRON_SECRET" https://ton-site/api/cron/reminders`
    (cron du serveur, Vercel Cron, cron-job.org…) ou `npm run cron`.
 5. **Stripe** :
