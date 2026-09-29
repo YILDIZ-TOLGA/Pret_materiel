@@ -1,19 +1,15 @@
-FROM node:22-alpine AS build
+# Image Node complète (Debian) : contient déjà OpenSSL, nécessaire à Prisma
+FROM node:22-bookworm AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:22-alpine
+FROM node:22-bookworm
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app/.next/standalone ./
-COPY --from=build /app/.next/static ./.next/static
-COPY --from=build /app/public ./public
-COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/node_modules/prisma ./node_modules/prisma
-COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app ./
 EXPOSE 3000
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
+# Au démarrage : crée/met à jour les tables, crée le compte admin, lance le site
+CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts && npx next start -p 3000"]
