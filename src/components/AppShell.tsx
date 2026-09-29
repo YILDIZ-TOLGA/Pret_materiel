@@ -6,6 +6,7 @@ import { useMe } from "./Providers";
 
 const TABS = [
   { href: "/prets", label: "Mes prêts", ico: "📦" },
+  { href: "/bilan", label: "Bilan", ico: "📊" },
   { href: "/emprunts", label: "Emprunts", ico: "🤝" },
   { href: "/notifications", label: "Alertes", ico: "🔔" },
   { href: "/abonnement", label: "Offre", ico: "⭐" },

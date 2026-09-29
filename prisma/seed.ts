@@ -46,8 +46,13 @@ async function main() {
       const lent = daysAgo(rand(120));
       const due = new Date(lent.getTime() + (7 + rand(30)) * 86400000);
       const returned = Math.random() < 0.6 && due < new Date() ? new Date(due.getTime() + (rand(10) - 5) * 86400000) : null;
+      const money = Math.random() < 0.3;
+      const amountCents = money ? (1 + rand(20)) * 1000 : null;
       await prisma.loan.create({
-        data: { lenderId: u.id, item: pick(items), borrowerName: pick(names), borrowerEmail: `ami${rand(100)}@exemple.com`, lentAt: lent, dueAt: due, createdAt: lent, status: returned ? "RETURNED" : "ACTIVE", returnedAt: returned },
+        data: {
+          lenderId: u.id, item: money ? pick(["Resto", "Billet de train", "Prêt d'argent", "Courses"]) : pick(items),
+          kind: money ? "MONEY" : "OBJECT", amountCents, repaidCents: money ? (returned ? amountCents! : rand(2) * Math.floor(amountCents! / 2)) : 0,
+          borrowerName: pick(names), borrowerEmail: `ami${rand(100)}@exemple.com`, lentAt: lent, dueAt: due, createdAt: lent, status: returned ? "RETURNED" : "ACTIVE", returnedAt: returned },
       });
     }
   }

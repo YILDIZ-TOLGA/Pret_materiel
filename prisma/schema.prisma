@@ -19,6 +19,11 @@ enum Plan {
   YEARLY_20 // 24 €/an, 20 prêts
 }
 
+enum LoanKind {
+  OBJECT
+  MONEY
+}
+
 enum LoanStatus {
   ACTIVE
   RETURNED
@@ -46,7 +51,13 @@ model User {
 
 model Loan {
   id             String     @id @default(cuid())
+  kind           LoanKind   @default(OBJECT)
+  // objet prêté, ou motif pour un prêt d'argent
   item           String
+  // prêt d'argent : montant prêté et déjà remboursé (en centimes)
+  amountCents    Int?
+  repaidCents    Int        @default(0)
+  currency       String     @default("eur")
   description    String?
   borrowerName   String
   borrowerEmail  String
@@ -70,9 +81,23 @@ model Loan {
   borrowerId String?
   borrower   User?   @relation("borrower", fields: [borrowerId], references: [id], onDelete: SetNull)
 
+  repayments Repayment[]
+
   @@index([lenderId, status])
   @@index([borrowerEmail])
   @@index([status, dueAt])
+}
+
+/** Remboursement (partiel ou total) d'un prêt d'argent. */
+model Repayment {
+  id          String   @id @default(cuid())
+  loanId      String
+  loan        Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  amountCents Int
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([loanId])
 }
 
 model Notification {

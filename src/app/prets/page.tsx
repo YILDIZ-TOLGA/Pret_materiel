@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { LoanRow, type LoanDTO } from "@/components/LoanList";
 import { useMe } from "@/components/Providers";
-import { api } from "@/lib/client";
+import { api, euros, loanTitle } from "@/lib/client";
 
 export default function LoansPage() {
   return <AppShell><Loans /></AppShell>;
@@ -21,7 +21,7 @@ function Loans() {
 
   const now = Date.now();
   const overdue = (loans ?? []).filter((l) => l.status === "ACTIVE" && new Date(l.dueAt).getTime() < now);
-  const shown = (loans ?? []).filter((l) => l.status === tab && (!q || `${l.item} ${l.borrowerName} ${l.borrowerEmail}`.toLowerCase().includes(q.toLowerCase())));
+  const shown = (loans ?? []).filter((l) => l.status === tab && (!q || `${l.item} ${l.amountCents ? euros(l.amountCents) : ""} ${l.borrowerName} ${l.borrowerEmail}`.toLowerCase().includes(q.toLowerCase())));
   const max = me.plan.maxLoans;
   const full = me.activeLoans >= max;
 
@@ -39,7 +39,7 @@ function Loans() {
         <div className="alert bad">
           <span>⚠</span>
           <div><strong>{overdue.length} prêt{overdue.length > 1 ? "s" : ""} en retard</strong><br />
-            <span className="small">{overdue.map((l) => `${l.item} (${l.borrowerName})`).join(", ")}</span></div>
+            <span className="small">{overdue.map((l) => `${loanTitle(l)} (${l.borrowerName})`).join(", ")}</span></div>
         </div>
       )}
 
@@ -56,7 +56,7 @@ function Loans() {
         <button className={tab === "ACTIVE" ? "active" : ""} onClick={() => setTab("ACTIVE")}>En cours</button>
         <button className={tab === "RETURNED" ? "active" : ""} onClick={() => setTab("RETURNED")}>Rendus</button>
       </div>
-      {(loans?.length ?? 0) > 5 && <input placeholder="Rechercher un objet, une personne…" value={q} onChange={(e) => setQ(e.target.value)} />}
+      {(loans?.length ?? 0) > 5 && <input placeholder="Rechercher un objet, un montant, une personne…" value={q} onChange={(e) => setQ(e.target.value)} />}
 
       {loans === null ? <div className="empty">Chargement…</div>
         : shown.length === 0 ? (

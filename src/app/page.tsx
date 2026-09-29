@@ -4,7 +4,9 @@ import { useMe } from "@/components/Providers";
 import { PLANS } from "@/lib/plans";
 
 const FEATURES = [
-  ["📝", "Note chaque prêt en 10 secondes", "L'objet, la personne, son e-mail, la date de retour. C'est tout."],
+  ["📝", "Note chaque prêt en 10 secondes", "Un objet ou de l'argent, la personne, son e-mail, la date de retour. C'est tout."],
+  ["💶", "Prêts d'argent", "Suis ce qu'on te doit, note les remboursements partiels, le reste se calcule tout seul."],
+  ["📊", "Ton bilan", "Qui a quoi, qui te doit combien, qui rend à l'heure : tout sur un seul écran."],
   ["📧", "Rappels automatiques", "La personne reçoit un e-mail au moment du prêt, la veille de l'échéance, puis des relances si c'est en retard."],
   ["🔔", "Alertes pour toi", "Tu es prévenu dès qu'un prêt dépasse sa date. Tu clôtures en un clic quand l'objet revient."],
   ["🤝", "Notifications entre membres", "Si l'emprunteur a un compte, il voit ses emprunts et reçoit les alertes directement dans l'appli."],
@@ -28,7 +30,7 @@ export default function Home() {
       <main className="container">
         <section className="landing-hero">
           <h1>Tu prêtes. On pense à te le faire rendre.</h1>
-          <p>Perceuse, livre, console, tente… Note tes prêts, et Prêt Matériel relance la personne pour toi.</p>
+          <p>Perceuse, livre, console, 50 € pour le resto… Note tes prêts, et Prêt Matériel relance la personne pour toi.</p>
           <Link href={me ? "/prets/nouveau" : "/inscription"} className="btn primary">Commencer gratuitement</Link>
         </section>
         <div className="grid grid-2">

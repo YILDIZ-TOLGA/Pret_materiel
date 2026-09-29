@@ -30,8 +30,8 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
 export const euros = (cents: number) => (cents / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: cents % 100 ? 2 : 0 });
 export const dateFr = (d: string | Date) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 
-export function dueLabel(dueAt: string, status: string) {
-  if (status === "RETURNED") return { text: "Rendu", tone: "good" as const };
+export function dueLabel(dueAt: string, status: string, kind?: string) {
+  if (status === "RETURNED") return { text: kind === "MONEY" ? "Remboursé" : "Rendu", tone: "good" as const };
   const days = Math.ceil((new Date(dueAt).getTime() - Date.now()) / 86400000);
   if (new Date(dueAt).getTime() < Date.now()) {
     const late = Math.max(1, -days);
@@ -51,3 +51,13 @@ export function itemEmoji(item: string) {
   ];
   return map.find(([r]) => r.test(s))?.[1] ?? "📦";
 }
+
+type LoanLike = { kind?: string; item: string; amountCents?: number | null; repaidCents?: number };
+export const isMoney = (l: LoanLike) => l.kind === "MONEY" && !!l.amountCents;
+export const remainingCents = (l: LoanLike) => (isMoney(l) ? Math.max(0, l.amountCents! - (l.repaidCents ?? 0)) : 0);
+/** Titre affiché : « Perceuse » ou « 50 € · resto » */
+export function loanTitle(l: LoanLike) {
+  if (!isMoney(l)) return l.item;
+  return l.item && l.item !== "Prêt d'argent" ? `${euros(l.amountCents!)} · ${l.item}` : euros(l.amountCents!);
+}
+export const loanEmoji = (l: LoanLike) => (isMoney(l) ? "💶" : itemEmoji(l.item));

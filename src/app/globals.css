@@ -193,3 +193,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .feature .loan-ico { background: var(--accent-soft); }
 .dot-unread { position: absolute; top: 0; right: calc(50% - 16px); min-width: 16px; height: 16px; border-radius: 99px; background: var(--bad); color: #fff; font-size: 10px; display: grid; place-items: center; padding: 0 4px; }
 .pill-count { background: var(--bad); color: #fff; border-radius: 99px; font-size: 11px; padding: 1px 6px; margin-left: 4px; }
+.person { all: unset; box-sizing: border-box; display: flex; gap: 12px; align-items: center; width: 100%; cursor: pointer; color: var(--text); }
+.person:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
+.avatar { width: 40px; height: 40px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; flex: none; }

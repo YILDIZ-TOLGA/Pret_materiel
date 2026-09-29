@@ -120,6 +120,7 @@ function Dashboard() {
             <Kpi label="Rendus" value={nb(k.loansReturned)} />
             <Kpi label="Durée moyenne d'un prêt" value={k.avgLoanDays == null ? "—" : `${k.avgLoanDays.toFixed(1)} j`} />
             <Kpi label="Rendus en retard" value={k.lateReturnRate == null ? "—" : pct(k.lateReturnRate)} />
+            <Kpi label="Prêts d'argent" value={nb(k.moneyLoans)} hint={`${euros(k.moneyLentCents)} prêtés · ${euros(k.moneyRepaidCents)} remboursés`} />
             <Kpi label={`E-mails envoyés (${days} j)`} value={nb(k.emailsOk)} hint={k.emailsFail ? `⚠ ${nb(k.emailsFail)} échecs` : "0 échec"} />
           </div>
           <div className="card"><h2>Prêts créés par jour</h2><TimeChart data={s.daily} x="day" xLabel={dayLabel} series={[{ key: "loans", label: "Prêts", color: "var(--series-1)" }]} /></div>

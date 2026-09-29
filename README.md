@@ -1,6 +1,6 @@
 # Prêt Matériel
 
-Appli de rappel de prêts d'objets : tu notes à qui tu as prêté quoi, l'appli prévient la personne par e-mail, la relance en cas de retard, et tu clôtures le prêt quand l'objet revient.
+Appli de rappel de prêts d'objets **et d'argent** : tu notes à qui tu as prêté quoi, l'appli prévient la personne par e-mail, la relance en cas de retard, et tu clôtures le prêt quand l'objet revient (ou quand tout est remboursé).
 
 - **Stack** : Next.js 15 (site + API REST) · PostgreSQL · Prisma · Stripe · Nodemailer
 - **Mobile** : interface mobile-first, installable (PWA), API utilisable telle quelle par une appli iOS / Android
@@ -10,7 +10,9 @@ Appli de rappel de prêts d'objets : tu notes à qui tu as prêté quoi, l'appli
 | | |
 |---|---|
 | Comptes | Inscription / connexion (e-mail + mot de passe, sessions JWT : cookie sur le web, `Bearer` sur mobile) |
-| Prêts | Objet, détails, emprunteur (nom, e-mail, tél.), date de prêt, date de retour, note perso. Modifier, clôturer, rouvrir, supprimer |
+| Prêts d'objets | Objet, détails, emprunteur (nom, e-mail, tél.), date de prêt, date de retour, note perso. Modifier, clôturer, rouvrir, supprimer |
+| Prêts d'argent | Montant + motif (resto, billet de train…). Remboursements partiels avec historique, reste dû calculé, clôture automatique quand tout est remboursé. Les e-mails parlent de montants (« les 30 € restants sur 50 € ») |
+| Bilan | Tableau de bord de tout ce que tu as prêté : combien on te doit (dont en retard), objets chez les autres, taux de retour à l'heure, durée moyenne, prêts par mois, et **par personne** : ce qu'elle a, ce qu'elle doit, sa fiabilité, son historique. Export CSV (Excel) |
 | Options de rappel | Rappel la veille de l'échéance · relance automatique tous les 3 jours en cas de retard · relance manuelle en 1 clic (max 1/h) |
 | E-mails | À la création du prêt, la veille, en cas de retard. Tous journalisés (visibles dans l'admin) |
 | Entre membres | Si l'e-mail de l'emprunteur a un compte : notifications dans l'appli + onglet « Emprunts ». Un compte créé plus tard récupère automatiquement ses emprunts |
@@ -81,6 +83,6 @@ prisma/schema.prisma        modèle de données (User, Loan, Notification, Payme
 src/lib/plans.ts            offres et limites
 src/lib/loans.ts            e-mails, notifications, tâche de rappels
 src/app/api/…               API REST (utilisée par le web et le mobile)
-src/app/prets, emprunts, notifications, abonnement   pages utilisateur
+src/app/prets, bilan, emprunts, notifications, abonnement   pages utilisateur
 src/app/admin/…             tableau de bord et gestion des utilisateurs
 ```

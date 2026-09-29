@@ -71,6 +71,8 @@ export const GET = withAdmin(async (_user, req) => {
     FROM "PageView" WHERE "createdAt" >= ${since} GROUP BY 1 ORDER BY n DESC LIMIT 10`);
   const [pages, referrers, devices, browsers, countries] = await Promise.all([top("path"), top("referrer"), top("device"), top("browser"), top("country")]);
 
+  const moneyLoans = await prisma.loan.aggregate({ where: { kind: "MONEY" }, _count: true, _sum: { amountCents: true, repaidCents: true } });
+
   const [recentPayments, recentUsers, revenueByPlan] = await Promise.all([
     prisma.payment.findMany({ orderBy: { createdAt: "desc" }, take: 10, include: { user: { select: { email: true, name: true } } } }),
     prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 10, select: { id: true, name: true, email: true, plan: true, createdAt: true } }),
@@ -103,6 +105,9 @@ export const GET = withAdmin(async (_user, req) => {
       avgLoanDays: avgDurRow?.d == null ? null : num(avgDurRow.d),
       lateReturnRate: avgDurRow?.late == null ? null : num(avgDurRow.late),
       emailsOk, emailsFail,
+      moneyLoans: moneyLoans._count,
+      moneyLentCents: moneyLoans._sum.amountCents ?? 0,
+      moneyRepaidCents: moneyLoans._sum.repaidCents ?? 0,
       views: viewsRange, viewsPrev,
       visitors, visitorsPrev: num(visitorsPrevRow?.n),
       viewsPerVisitor: visitors ? viewsRange / visitors : 0,

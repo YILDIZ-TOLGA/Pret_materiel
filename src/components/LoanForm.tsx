@@ -6,13 +6,15 @@ const toInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 6000
 const inDays = (n: number) => toInput(new Date(Date.now() + n * 86400000));
 
 export type LoanInput = {
-  item: string; description: string; borrowerName: string; borrowerEmail: string; borrowerPhone: string;
+  kind: "OBJECT" | "MONEY"; amount: string; item: string; description: string; borrowerName: string; borrowerEmail: string; borrowerPhone: string;
   lentAt: string; dueAt: string; autoReminder: boolean; remindBefore: boolean; notes: string;
 };
 
 export function LoanForm({ initial, submitLabel, onSubmit }: { initial?: LoanDTO; submitLabel: string; onSubmit: (v: LoanInput) => Promise<void> }) {
   const [v, setV] = useState<LoanInput>({
-    item: initial?.item ?? "", description: initial?.description ?? "",
+    kind: initial?.kind ?? "OBJECT",
+    amount: initial?.amountCents ? String(initial.amountCents / 100).replace(".", ",") : "",
+    item: initial?.kind === "MONEY" && initial.item === "Prêt d'argent" ? "" : initial?.item ?? "", description: initial?.description ?? "",
     borrowerName: initial?.borrowerName ?? "", borrowerEmail: initial?.borrowerEmail ?? "", borrowerPhone: initial?.borrowerPhone ?? "",
     lentAt: initial ? toInput(new Date(initial.lentAt)) : inDays(0),
     dueAt: initial ? toInput(new Date(initial.dueAt)) : inDays(14),
@@ -32,11 +34,26 @@ export function LoanForm({ initial, submitLabel, onSubmit }: { initial?: LoanDTO
   return (
     <form className="stack" onSubmit={submit}>
       {err && <div className="alert bad">{err}</div>}
-      <div className="card stack">
-        <h3>L&apos;objet</h3>
-        <label className="field">Quoi ?<input value={v.item} onChange={set("item")} placeholder="Perceuse Bosch, Dune tome 1…" required maxLength={120} /></label>
-        <label className="field">Détails (optionnel)<textarea value={v.description} onChange={set("description")} rows={2} placeholder="État, accessoires fournis…" /></label>
+      <div className="tabs" role="tablist" aria-label="Type de prêt">
+        <button type="button" className={v.kind === "OBJECT" ? "active" : ""} onClick={() => setV({ ...v, kind: "OBJECT" })}>📦 Un objet</button>
+        <button type="button" className={v.kind === "MONEY" ? "active" : ""} onClick={() => setV({ ...v, kind: "MONEY" })}>💶 De l&apos;argent</button>
       </div>
+      {v.kind === "OBJECT" ? (
+        <div className="card stack">
+          <h3>L&apos;objet</h3>
+          <label className="field">Quoi ?<input value={v.item} onChange={set("item")} placeholder="Perceuse Bosch, Dune tome 1…" required maxLength={120} /></label>
+          <label className="field">Détails (optionnel)<textarea value={v.description} onChange={set("description")} rows={2} placeholder="État, accessoires fournis…" /></label>
+        </div>
+      ) : (
+        <div className="card stack">
+          <h3>Le montant</h3>
+          <label className="field">Combien ? (€)
+            <input inputMode="decimal" value={v.amount} onChange={set("amount")} placeholder="50" required pattern="[0-9]+([.,][0-9]{1,2})?" style={{ fontSize: 22, fontWeight: 600 }} />
+          </label>
+          <label className="field">Pour quoi ? (optionnel)<input value={v.item} onChange={set("item")} placeholder="Resto, billet de train, avance loyer…" maxLength={120} /></label>
+          {initial && initial.repaidCents > 0 && <p className="tiny muted" style={{ margin: 0 }}>Déjà remboursé : {(initial.repaidCents / 100).toLocaleString("fr-FR")} €</p>}
+        </div>
+      )}
       <div className="card stack">
         <h3>À qui ?</h3>
         <label className="field">Nom<input value={v.borrowerName} onChange={set("borrowerName")} required maxLength={80} /></label>
@@ -67,8 +84,12 @@ export function LoanForm({ initial, submitLabel, onSubmit }: { initial?: LoanDTO
 
 /** Convertit le formulaire en payload API (dates à midi local pour éviter les décalages de fuseau). */
 export function toPayload(v: LoanInput) {
+  const { amount, ...rest } = v;
+  const amountCents = v.kind === "MONEY" ? Math.round(Number(amount.replace(",", ".").replace(/\s/g, "")) * 100) : null;
+  if (v.kind === "MONEY" && (!amountCents || amountCents <= 0)) throw new Error("Montant invalide");
   return {
-    ...v,
+    ...rest,
+    amountCents,
     description: v.description || null, borrowerPhone: v.borrowerPhone || null, notes: v.notes || null,
     lentAt: new Date(`${v.lentAt}T12:00:00`).toISOString(),
     dueAt: new Date(`${v.dueAt}T23:59:00`).toISOString(),
