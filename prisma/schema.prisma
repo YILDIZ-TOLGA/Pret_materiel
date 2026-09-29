@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Plan {
+  FREE
+  MONTHLY // 2 €/mois, sans engagement, 10 prêts
+  YEARLY_10 // 12 €/an, 10 prêts
+  YEARLY_20 // 24 €/an, 20 prêts
+}
+
+enum LoanStatus {
+  ACTIVE
+  RETURNED
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  name                 String
+  passwordHash         String
+  role                 Role      @default(USER)
+  disabled             Boolean   @default(false)
+  plan                 Plan      @default(FREE)
+  planExpiresAt        DateTime?
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  createdAt            DateTime  @default(now())
+  lastLoginAt          DateTime?
+
+  loansGiven    Loan[]         @relation("lender")
+  loansReceived Loan[]         @relation("borrower")
+  notifications Notification[]
+  payments      Payment[]
+}
+
+model Loan {
+  id             String     @id @default(cuid())
+  item           String
+  description    String?
+  borrowerName   String
+  borrowerEmail  String
+  borrowerPhone  String?
+  lentAt         DateTime   @default(now())
+  dueAt          DateTime
+  status         LoanStatus @default(ACTIVE)
+  returnedAt     DateTime?
+  // rappel automatique par e-mail à l'emprunteur quand l'échéance est passée
+  autoReminder   Boolean    @default(true)
+  // rappel J-1 avant l'échéance
+  remindBefore   Boolean    @default(true)
+  lastReminderAt DateTime?
+  reminderCount  Int        @default(0)
+  notes          String?
+  createdAt      DateTime   @default(now())
+
+  lenderId   String
+  lender     User    @relation("lender", fields: [lenderId], references: [id], onDelete: Cascade)
+  // renseigné si l'e-mail de l'emprunteur correspond à un compte
+  borrowerId String?
+  borrower   User?   @relation("borrower", fields: [borrowerId], references: [id], onDelete: SetNull)
+
+  @@index([lenderId, status])
+  @@index([borrowerEmail])
+  @@index([status, dueAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  amountCents   Int
+  currency      String   @default("eur")
+  plan          Plan
+  provider      String   @default("stripe")
+  providerRef   String   @unique
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model PageView {
+  id        String   @id @default(cuid())
+  path      String
+  referrer  String?
+  visitorId String
+  userId    String?
+  device    String?
+  browser   String?
+  country   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([visitorId])
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  kind      String
+  ok        Boolean
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
