@@ -63,4 +63,7 @@ export const RETENTION = {
   visitorIdMonths: 13, // identifiant de mesure d'audience (recommandation CNIL : 13 mois max)
   emailLogMonths: 12, // journal technique des e-mails envoyés
   readNotificationMonths: 12, // notifications lues
+  sessionDays: 30, // session de connexion sur un appareil
+  verifyEmailLinkHours: 48, // lien de confirmation d'adresse e-mail
+  resetPasswordLinkHours: 1, // lien de réinitialisation du mot de passe
 };

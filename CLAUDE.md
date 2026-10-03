@@ -129,12 +129,12 @@ Voir `.env.example`. Les principales :
 
 ## Non testé, ou à faire (par priorité)
 
-1. **Sécurité et vie privée, avant toute mise en ligne**
-   - **Pas de vérification d'e-mail.** Quelqu'un qui s'inscrit avec l'e-mail d'un autre voit ses emprunts (`/api/borrowed` et la liaison à l'inscription se basent sur l'e-mail). Ajouter une vérification par lien e-mail, et ne lier ou afficher qu'aux comptes vérifiés.
-   - **Pas de « mot de passe oublié ».**
-   - **Pas de limitation de débit** sur login, register, remind et track.
-   - Les JWT durent 30 jours et ne sont pas révocables : la déconnexion efface seulement le cookie.
-   - `DEMO_BILLING=true` par défaut (voir plus haut).
+1. **Sécurité des comptes : fait** (`src/lib/account.ts`, table `Session`, table `AuthToken`).
+   - Adresse e-mail confirmée par lien (`emailVerifiedAt`). Sans confirmation : pas de rattachement des emprunts, `/api/borrowed` vide, création de prêt refusée (403 `EMAIL_NOT_VERIFIED`), pas de rôle admin via `ADMIN_EMAIL`.
+   - Mot de passe oublié, changement de mot de passe et d'adresse e-mail (page Mon compte), alertes e-mail au titulaire.
+   - Sessions en base : le JWT porte `sid`, la déconnexion supprime la session, « Déconnecter les autres appareils ».
+   - Limitation de débit sur login, register, mot de passe oublié, renvoi de lien, relance et track. Elle reste en mémoire (remise à zéro au redémarrage, une seule instance) : passer à Redis si plusieurs instances.
+   - `DEMO_BILLING` est ignoré dès que `APP_URL` est en `https://`.
 2. **Stripe réel** : créer les 3 prix et le webhook (`customer.subscription.created/updated/deleted`, `invoice.paid`), puis tester le parcours complet en mode test.
    - Le code vise l'API Stripe 2025 « basil » : `current_period_end` est lu sur l'item d'abonnement, et le prix d'une facture sur `lines.data[0].pricing.price_details.price`.
    - Le propriétaire n'a pas encore d'entreprise. Il crée une micro-entreprise, en attendant bêta gratuite.

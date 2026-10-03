@@ -2,11 +2,13 @@ import { prisma } from "@/lib/db";
 import { error, json, withUser } from "@/lib/api";
 import { sendOverdueReminder } from "@/lib/loans";
 import { isOptedOut } from "@/lib/optout";
+import { rateLimited } from "@/lib/ratelimit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 /** Relance manuelle (max 1 par heure pour éviter le spam). */
 export const POST = withUser<Ctx>(async (user, _req, { params }) => {
+  if (await rateLimited("remind", 30, 60 * 60 * 1000, user.id)) return error("Trop de relances envoyées, réessaie plus tard", 429);
   const loan = await prisma.loan.findUnique({ where: { id: (await params).id }, include: { lender: true } });
   if (!loan || loan.lenderId !== user.id) return error("Prêt introuvable", 404);
   if (loan.status !== "ACTIVE") return error("Ce prêt est clôturé");

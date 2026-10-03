@@ -4,7 +4,7 @@ import { withUser } from "@/lib/api";
 
 /** Droits d'accès et à la portabilité (art. 15 et 20 RGPD) : toutes les données du compte en JSON. */
 export const GET = withUser(async (user) => {
-  const [loansGiven, loansReceived, notifications, payments] = await Promise.all([
+  const [loansGiven, loansReceived, notifications, payments, sessions] = await Promise.all([
     prisma.loan.findMany({ where: { lenderId: user.id }, include: { repayments: true }, orderBy: { createdAt: "asc" } }),
     prisma.loan.findMany({
       where: { borrowerId: user.id },
@@ -14,9 +14,10 @@ export const GET = withUser(async (user) => {
     }),
     prisma.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } }),
     prisma.payment.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } }),
+    prisma.session.findMany({ where: { userId: user.id }, select: { createdAt: true, expiresAt: true }, orderBy: { createdAt: "asc" } }),
   ]);
   const { stripeCustomerId: _c, stripeSubscriptionId: _s, ...account } = publicUser(user);
-  const data = { exportedAt: new Date().toISOString(), account, loansGiven, loansReceived, notifications, payments };
+  const data = { exportedAt: new Date().toISOString(), account, loansGiven, loansReceived, notifications, payments, sessions };
   return new Response(JSON.stringify(data, null, 2), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",

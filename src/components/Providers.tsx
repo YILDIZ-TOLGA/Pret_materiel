@@ -3,7 +3,9 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { api } from "@/lib/client";
 
 export type Me = {
-  user: { id: string; name: string; email: string; role: "USER" | "ADMIN"; plan: string; planExpiresAt: string | null; stripeSubscriptionId: string | null; cancelAtPeriodEnd: boolean; createdAt: string; termsAcceptedAt: string | null };
+  user: { id: string; name: string; email: string; role: "USER" | "ADMIN"; plan: string; planExpiresAt: string | null; stripeSubscriptionId: string | null; cancelAtPeriodEnd: boolean; createdAt: string; termsAcceptedAt: string | null;
+    /** null tant que l'adresse n'a pas été confirmée par le lien reçu par e-mail */
+    emailVerifiedAt: string | null; pendingEmail: string | null };
   plan: { id: string; name: string; maxLoans: number; priceLabel: string };
   activeLoans: number;
   /** Prêts en cours dont la date de retour est passée. */

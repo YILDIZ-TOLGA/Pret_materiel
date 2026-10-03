@@ -86,11 +86,17 @@ async function purgeInactiveAccounts() {
 export async function runRetention() {
   const renewalNotices = await sendRenewalNotices();
   const accounts = await purgeInactiveAccounts();
-  const [loans, pageViews, emailLogs, notifications] = await Promise.all([
+  const now = new Date();
+  const [loans, pageViews, emailLogs, notifications, sessions, authTokens] = await Promise.all([
     prisma.loan.deleteMany({ where: { status: "RETURNED", returnedAt: { lt: yearsAgo(RETENTION.returnedLoanYears) } } }),
     prisma.pageView.deleteMany({ where: { createdAt: { lt: monthsAgo(RETENTION.pageViewMonths) } } }),
     prisma.emailLog.deleteMany({ where: { createdAt: { lt: monthsAgo(RETENTION.emailLogMonths) } } }),
     prisma.notification.deleteMany({ where: { read: true, createdAt: { lt: monthsAgo(RETENTION.readNotificationMonths) } } }),
+    prisma.session.deleteMany({ where: { expiresAt: { lt: now } } }),
+    prisma.authToken.deleteMany({ where: { expiresAt: { lt: now } } }),
   ]);
-  return { renewalNotices, ...accounts, loans: loans.count, pageViews: pageViews.count, emailLogs: emailLogs.count, notifications: notifications.count };
+  return {
+    renewalNotices, ...accounts, loans: loans.count, pageViews: pageViews.count, emailLogs: emailLogs.count, notifications: notifications.count,
+    sessions: sessions.count, authTokens: authTokens.count,
+  };
 }

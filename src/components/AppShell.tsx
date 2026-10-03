@@ -6,7 +6,8 @@ import { Brand } from "./Brand";
 import { CommandPalette } from "./CommandPalette";
 import { Icon, type IconName } from "./Icon";
 import { useMe, type Me } from "./Providers";
-import { Avatar, DayNight, Menu, Meter, SkeletonRows, ThemeSwitch } from "./ui";
+import { Avatar, DayNight, Menu, Meter, SkeletonRows, Spinner, ThemeSwitch } from "./ui";
+import { api } from "@/lib/client";
 
 export { Brand } from "./Brand";
 
@@ -86,11 +87,34 @@ function Shell({ children, admin }: { children: React.ReactNode; admin: boolean 
           {me && <UserMenu me={me} logout={logout} side="bottom" align="end" compact />}
         </header>
         <main className="main">
-          <div className={`main-inner ${admin ? "wide" : ""}`}>{ready ? children : <Boot />}</div>
+          <div className={`main-inner ${admin ? "wide" : ""}`}>{ready ? <>{!me.user.emailVerifiedAt && <VerifyBanner me={me} />}{children}</> : <Boot />}</div>
         </main>
       </div>
       <TabBar me={me} path={path} />
       {me && <CommandPalette open={palette} onClose={() => setPalette(false)} isAdmin={me.user.role === "ADMIN"} />}
+    </div>
+  );
+}
+
+/** Tant que l'adresse n'est pas confirmée : pas de nouveau prêt ni d'emprunts visibles. */
+function VerifyBanner({ me }: { me: Me }) {
+  const [state, setState] = useState<"idle" | "busy" | "sent">("idle");
+  const [err, setErr] = useState("");
+  const to = me.user.pendingEmail ?? me.user.email;
+  async function resend() {
+    setState("busy"); setErr("");
+    try { await api("/api/auth/resend-verification", { method: "POST" }); setState("sent"); }
+    catch (x) { setErr((x as Error).message); setState("idle"); }
+  }
+  return (
+    <div className="banner soon" role="status" style={{ marginBottom: 20, flexWrap: "wrap" }}>
+      <Icon name="mail" size={16} />
+      <span style={{ flex: "1 1 260px" }}>
+        {state === "sent" ? <>Nouveau lien envoyé à <strong>{to}</strong>.</> : <>Confirme ton adresse avec le lien envoyé à <strong>{to}</strong> pour enregistrer des prêts.</>}
+        {err && <> {err}</>}
+        {" "}<Link href="/compte">Mauvaise adresse ?</Link>
+      </span>
+      {state !== "sent" && <button type="button" className="btn small" onClick={resend} disabled={state === "busy"}>{state === "busy" ? <><Spinner />Envoi…</> : "Renvoyer le lien"}</button>}
     </div>
   );
 }
