@@ -5,7 +5,7 @@ import { Brand } from "@/components/Brand";
 import { Icon, type IconName } from "@/components/Icon";
 import { useMe } from "@/components/Providers";
 import { SiteFooter } from "@/components/SiteFooter";
-import { Avatar, CountUp, Reveal, Stamp, useInView } from "@/components/ui";
+import { Avatar, CountUp, DayNight, Reveal, Stamp, useInView } from "@/components/ui";
 import { euros } from "@/lib/client";
 import { LEGAL } from "@/lib/legal";
 import { PLANS } from "@/lib/plans";
@@ -18,10 +18,10 @@ type DemoCard = {
 const CARDS: DemoCard[] = [
   { ref: "0142", kind: "Objet", title: "Perceuse Bosch", sub: "Avec les deux batteries", who: "Léa", lent: "12 sept.", due: "26 sept.",
     chip: ["Demain", "soon"], state: ["À rendre demain", "Rendue à l'instant"], p: [0.78, 0.93], note: ["mail", "Rappel envoyé à Léa", "la veille de l'échéance"], stamp: "Rendu" },
-  { ref: "0143", kind: "Argent", title: "50 €", sub: "Resto du vendredi", who: "Karim", lent: "3 oct.", due: "17 oct.",
-    chip: ["J-6", ""], state: ["30 € remboursés sur 50 €", "Soldé à l'instant"], p: [0.35, 0.6], note: ["banknote", "Karim a remboursé 30 €", "reste 20 € à récupérer"], stamp: "Soldé" },
-  { ref: "0144", kind: "Objet", title: "Dune, tome 1", sub: "Édition poche", who: "Inès", lent: "1er sept.", due: "15 sept.",
-    chip: ["+4 j", "late"], state: ["En retard de 4 jours", "Rendu à l'instant"], p: [0.9, 1], note: ["send", "Relance envoyée à Inès", "4 jours après l'échéance"], stamp: "Rendu" },
+  { ref: "0143", kind: "Argent", title: "50 €", sub: "Resto du vendredi", who: "Julien", lent: "3 oct.", due: "17 oct.",
+    chip: ["J-6", ""], state: ["30 € remboursés sur 50 €", "Soldé à l'instant"], p: [0.35, 0.6], note: ["banknote", "Julien a remboursé 30 €", "reste 20 € à récupérer"], stamp: "Soldé" },
+  { ref: "0144", kind: "Objet", title: "Dune, tome 1", sub: "Édition poche", who: "Margaux", lent: "1er sept.", due: "15 sept.",
+    chip: ["+4 j", "late"], state: ["En retard de 4 jours", "Rendu à l'instant"], p: [0.9, 1], note: ["send", "Relance envoyée à Margaux", "4 jours après l'échéance"], stamp: "Rendu" },
 ];
 
 function Deck() {
@@ -107,6 +107,30 @@ function Deck() {
   );
 }
 
+/** Saisie simulée, au rythme irrégulier d'une vraie frappe, puis choix de la durée. */
+function TypedField({ text }: { text: string }) {
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!inView) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setN(text.length); return; }
+    let i = 0;
+    let t = setTimeout(function tick() {
+      i++;
+      setN(i);
+      if (i < text.length) t = setTimeout(tick, 45 + Math.random() * 85);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [inView, text]);
+  const done = n >= text.length;
+  return (
+    <div className="art-input" ref={ref}>
+      <div className="art-field"><span className="typed">{text.slice(0, n)}</span><span className="caret" /></div>
+      <div className="art-chips"><span>1 sem.</span><span className={done ? "on" : ""}>2 sem.</span><span>1 mois</span></div>
+    </div>
+  );
+}
+
 function Steps() {
   return (
     <div className="steps">
@@ -114,12 +138,7 @@ function Steps() {
         <span className="step-n">01</span>
         <h3>Tu notes le prêt</h3>
         <p>Un objet ou une somme, la personne, la date de retour. Vingt secondes, montre en main.</p>
-        <div className="step-art">
-          <div className="art-input">
-            <div className="art-field"><span className="typed">Perceuse Bosch</span><span className="caret" /></div>
-            <div className="art-chips"><span>1 sem.</span><span className="on">2 sem.</span><span>1 mois</span></div>
-          </div>
-        </div>
+        <div className="step-art"><TypedField text="Perceuse Bosch" /></div>
       </Reveal>
       <Reveal className="step" delay={120}>
         <span className="step-n">02</span>
@@ -128,7 +147,7 @@ function Steps() {
         <div className="step-art">
           <div className="art-mail">
             <span className="ico"><Icon name="mail" size={15} /></span>
-            <div><b>Demain : « Perceuse Bosch » à rendre à Sam</b><span>Prêt Matériel · la veille de l&apos;échéance</span></div>
+            <div><b>Demain : « Perceuse Bosch » à rendre à Thomas</b><span>Prêt Matériel · la veille de l&apos;échéance</span></div>
           </div>
         </div>
       </Reveal>
@@ -224,6 +243,7 @@ export default function Home() {
             <a href="#questions">Questions</a>
           </nav>
           <div className="lp-nav-cta">
+            <DayNight />
             {me
               ? <Link href="/prets" className="btn primary">Ouvrir l&apos;application<Icon name="arrowRight" size={15} /></Link>
               : <><Link href="/connexion" className="btn ghost">Connexion</Link><Link href="/inscription" className="btn primary">Créer un compte</Link></>}

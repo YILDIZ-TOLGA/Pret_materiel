@@ -3,6 +3,7 @@ import { LEGAL_UPDATED_AT } from "@/lib/legal";
 import { Brand } from "./Brand";
 import { Icon } from "./Icon";
 import { SiteFooter } from "./SiteFooter";
+import { DayNight } from "./ui";
 
 export function LegalPage({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -10,7 +11,10 @@ export function LegalPage({ title, children }: { title: string; children: React.
       <header className="legal-top">
         <div className="legal-top-in">
           <Brand href="/" />
-          <Link href="/" className="crumb" style={{ margin: 0 }}><Icon name="arrowLeft" size={14} />Retour à l&apos;accueil</Link>
+          <div className="legal-top-end">
+            <Link href="/" className="crumb" style={{ margin: 0 }}><Icon name="arrowLeft" size={14} />Retour à l&apos;accueil</Link>
+            <DayNight />
+          </div>
         </div>
       </header>
       <main>

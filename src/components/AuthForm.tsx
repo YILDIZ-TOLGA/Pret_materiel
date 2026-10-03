@@ -7,7 +7,7 @@ import { Brand } from "./Brand";
 import { Icon } from "./Icon";
 import { useMe } from "./Providers";
 import { LegalLinks } from "./SiteFooter";
-import { Spinner, Stamp } from "./ui";
+import { DayNight, Spinner, Stamp } from "./ui";
 
 /** Règle CNIL appliquée côté serveur (src/lib/validation.ts) : 8 caractères et 3 types sur 4. */
 function pwChecks(pw: string) {
@@ -45,7 +45,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   return (
     <main className="auth">
       <div className="auth-main">
-        <Brand href="/" />
+        <div className="auth-top"><Brand href="/" /><DayNight /></div>
         <div className="auth-card">
           <div>
             <h1 className="auth-title">{register ? "Ouvre ton carnet." : "Bon retour."}</h1>

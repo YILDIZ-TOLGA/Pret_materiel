@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { Brand } from "@/components/Brand";
 import { Icon } from "@/components/Icon";
 import { LegalLinks } from "@/components/SiteFooter";
-import { Spinner } from "@/components/ui";
+import { DayNight, Spinner } from "@/components/ui";
 import { api } from "@/lib/client";
 
 export default function Page() {
@@ -27,7 +27,7 @@ function OptOut() {
   return (
     <main className="auth single">
       <div className="auth-main">
-        <Brand href="/" />
+        <div className="auth-top"><Brand href="/" /><DayNight /></div>
         <div className="auth-card">
           <div>
             <h1 className="auth-title">Ne plus recevoir d&apos;e-mails</h1>
@@ -39,7 +39,7 @@ function OptOut() {
             <div className="stack">
               {err && <div className="banner late"><Icon name="alert" size={16} />{err}</div>}
               <p className="small" style={{ margin: 0, color: "var(--ink-2)" }}>
-                Vous ne recevrez plus aucun e-mail de rappel lié à un prêt enregistré par un utilisateur de Prêt Matériel. Les personnes qui vous ont prêté quelque chose ne seront pas prévenues.
+                Vous ne recevrez plus aucun e-mail de rappel lié à un prêt enregistré par un utilisateur de Prêt Matériel. Les personnes qui vous ont prêté quelque chose ne reçoivent aucun message à ce sujet ; elles voient seulement que les rappels par e-mail ne sont plus possibles pour votre adresse.
               </p>
               <button type="button" className="btn primary lg block" disabled={state === "busy" || !e || !t} onClick={confirm}>
                 {state === "busy" ? <><Spinner />Un instant…</> : "Confirmer la désinscription"}

@@ -6,7 +6,7 @@ import { Brand } from "./Brand";
 import { CommandPalette } from "./CommandPalette";
 import { Icon, type IconName } from "./Icon";
 import { useMe, type Me } from "./Providers";
-import { Avatar, Menu, Meter, SkeletonRows, ThemeSwitch } from "./ui";
+import { Avatar, DayNight, Menu, Meter, SkeletonRows, ThemeSwitch } from "./ui";
 
 export { Brand } from "./Brand";
 
@@ -81,6 +81,7 @@ function Shell({ children, admin }: { children: React.ReactNode; admin: boolean 
         <header className={`mtop ${scrolled ? "scrolled" : ""}`}>
           <Brand />
           <span className="spacer" />
+          <DayNight />
           <button type="button" className="icon-btn" aria-label="Rechercher" onClick={() => setPalette(true)}><Icon name="search" size={19} /></button>
           {me && <UserMenu me={me} logout={logout} side="bottom" align="end" compact />}
         </header>
@@ -125,7 +126,7 @@ function Sidebar({ me, path, onSearch, logout }: { me: Me | null; path: string; 
   const late = me?.overdueLoans ?? 0;
   return (
     <aside className="sb">
-      <div className="sb-brand"><Brand /></div>
+      <div className="sb-brand"><Brand /><DayNight /></div>
       <div className="sb-quick">
         <Link href="/prets/nouveau" className="btn primary block sb-new"><Icon name="plus" size={16} />Nouveau prêt<kbd>N</kbd></Link>
         <button type="button" className="sb-search" onClick={onSearch}><Icon name="search" size={15} />Rechercher<kbd>{mod} K</kbd></button>
@@ -184,7 +185,7 @@ function UserMenu({ me, logout, side, align, compact }: { me: Me; logout: () => 
           <Link href="/abonnement" className="menu-item" role="menuitem" onClick={close}><Icon name="card" size={16} />Offre et facturation</Link>
           {compact && me.user.role === "ADMIN" && <Link href="/admin" className="menu-item" role="menuitem" onClick={close}><Icon name="shield" size={16} />Administration</Link>}
           <div className="menu-sep" />
-          <div className="menu-label">Thème</div>
+          <div className="menu-label">Mode jour / nuit</div>
           <ThemeSwitch />
           <div className="menu-sep" />
           <button type="button" className="menu-item" role="menuitem" onClick={() => { close(); logout(); }}><Icon name="logout" size={16} />Se déconnecter</button>

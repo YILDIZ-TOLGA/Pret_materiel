@@ -23,7 +23,7 @@ async function main() {
 
   if (!process.argv.includes("--demo")) return;
   const hash = await bcrypt.hash("demo1234", 10);
-  const names = ["Léa", "Hugo", "Chloé", "Lucas", "Emma", "Nathan", "Inès", "Louis", "Jade", "Tom", "Manon", "Yanis", "Sarah", "Adam", "Camille"];
+  const names = ["Léa", "Hugo", "Chloé", "Lucas", "Emma", "Nicolas", "Margaux", "Louis", "Claire", "Thomas", "Manon", "Julien", "Pauline", "Antoine", "Camille"];
   const items = ["Perceuse", "Dune tome 1", "Tente 4 places", "Manette PS5", "Appareil à raclette", "Échelle", "Vélo", "Enceinte JBL", "Objectif 50mm", "Scie sauteuse"];
   const plans: Plan[] = ["FREE", "FREE", "FREE", "FREE", "MONTHLY", "YEARLY_10", "YEARLY_20"];
 

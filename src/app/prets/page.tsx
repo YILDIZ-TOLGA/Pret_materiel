@@ -80,7 +80,7 @@ function Loans() {
       <span className="truncate">{l.borrowerName}</span>
       <span className="sep">·</span>
       <span className="nowrap">{l.status === "RETURNED" && l.returnedAt ? `${isMoney(l) ? "soldé" : "rendu"} le ${dateShort(l.returnedAt)}` : `prêté le ${dateShort(l.lentAt)}`}</span>
-      {l.status === "ACTIVE" && l.lastReminderAt && <><span className="sep">·</span><span className="nowrap">relancé {relTime(l.lastReminderAt)}</span></>}
+      {l.status === "ACTIVE" && l.lastReminderAt && <><span className="sep m-hide">·</span><span className="nowrap m-hide">relancé {relTime(l.lastReminderAt)}</span></>}
     </>
   );
 

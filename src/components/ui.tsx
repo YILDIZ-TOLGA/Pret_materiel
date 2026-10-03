@@ -246,34 +246,96 @@ export function Menu({ button, buttonClass, label, side = "bottom", align = "end
   );
 }
 
-/* ---------- Thème (système / clair / sombre), mémorisé sur l'appareil ---------- */
+/* ---------- Mode jour / nuit (système, jour ou nuit), mémorisé sur l'appareil ---------- */
 export type Theme = "system" | "light" | "dark";
-export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>("system");
-  useEffect(() => {
-    try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") setThemeState(t); } catch {}
-  }, []);
-  const setTheme = useCallback((t: Theme) => {
-    const apply = () => {
-      if (t === "system") delete document.documentElement.dataset.theme;
-      else document.documentElement.dataset.theme = t;
-    };
-    setThemeState(t);
-    try { if (t === "system") localStorage.removeItem("theme"); else localStorage.setItem("theme", t); } catch {}
-    const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
-    if (doc.startViewTransition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) doc.startViewTransition(apply);
-    else apply();
-  }, []);
-  return [theme, setTheme] as const;
+const THEME_KEY = "theme";
+const THEME_BG = { light: "#f2f0ea", dark: "#0e100f" };
+const themeListeners = new Set<() => void>();
+
+function readTheme(): Theme {
+  try { const t = localStorage.getItem(THEME_KEY); return t === "light" || t === "dark" ? t : "system"; } catch { return "system"; }
 }
 
-export function ThemeSwitch() {
-  const [theme, setTheme] = useTheme();
+/** Applique le thème au document, y compris la couleur de la barre du navigateur sur mobile. */
+function applyTheme(t: Theme) {
+  const root = document.documentElement;
+  if (t === "system") delete root.dataset.theme;
+  else root.dataset.theme = t;
+  document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((m) => {
+    if (m.dataset.orig === undefined) m.dataset.orig = m.content;
+    m.content = t === "system" ? m.dataset.orig : THEME_BG[t];
+  });
+}
+
+/**
+ * Change de thème. Avec `origin`, le nouveau thème se diffuse en cercle depuis ce point (View Transitions) ;
+ * sans, ou si l'utilisateur a demandé moins d'animations, le changement est immédiat.
+ */
+export function setTheme(t: Theme, origin?: { x: number; y: number }) {
+  try { if (t === "system") localStorage.removeItem(THEME_KEY); else localStorage.setItem(THEME_KEY, t); } catch {}
+  const run = () => { applyTheme(t); themeListeners.forEach((l) => l()); };
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => { ready: Promise<void> } };
+  if (!origin || !doc.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) { run(); return; }
+  const r = Math.hypot(Math.max(origin.x, window.innerWidth - origin.x), Math.max(origin.y, window.innerHeight - origin.y));
+  doc.startViewTransition(run).ready.then(() => {
+    document.documentElement.animate(
+      { clipPath: [`circle(0px at ${origin.x}px ${origin.y}px)`, `circle(${r}px at ${origin.x}px ${origin.y}px)`] },
+      { duration: 640, easing: "cubic-bezier(.22, .8, .24, 1)", pseudoElement: "::view-transition-new(root)" },
+    );
+  }).catch(() => {});
+}
+
+/** Thème choisi et thème réellement affiché ; synchronisés entre tous les interrupteurs et tous les onglets. */
+export function useTheme() {
+  const [theme, setT] = useState<Theme>("system");
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => { const t = readTheme(); setT(t); setDark(t === "dark" || (t === "system" && mq.matches)); };
+    const onStorage = (e: StorageEvent) => { if (e.key === THEME_KEY || e.key === null) { applyTheme(readTheme()); sync(); } };
+    applyTheme(readTheme());
+    sync();
+    themeListeners.add(sync);
+    mq.addEventListener("change", sync);
+    window.addEventListener("storage", onStorage);
+    return () => { themeListeners.delete(sync); mq.removeEventListener("change", sync); window.removeEventListener("storage", onStorage); };
+  }, []);
+  return { theme, dark, setTheme };
+}
+
+const centerOf = (el: Element | null) => {
+  if (!el || el === document.body) return undefined;
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
+
+/** Interrupteur jour / nuit. Sa position dépend du CSS du thème : elle est juste dès le premier affichage, sans attendre le JS. */
+export function DayNight({ className = "" }: { className?: string }) {
+  const { dark } = useTheme();
   return (
-    <Segmented<Theme> value={theme} onChange={setTheme} label="Thème" full options={[
+    <button type="button" role="switch" aria-checked={dark} aria-label="Mode nuit" title={dark ? "Passer en mode jour" : "Passer en mode nuit"}
+      className={`daynight ${className}`}
+      onClick={(e) => setTheme(dark ? "light" : "dark", e.detail > 0 ? { x: e.clientX, y: e.clientY } : centerOf(e.currentTarget))}>
+      <span className="dn-track" aria-hidden="true">
+        <Icon name="sun" size={13} className="dn-ico" stroke={2} />
+        <Icon name="moon" size={13} className="dn-ico" stroke={2} />
+        <span className="dn-knob">
+          <Icon name="sun" size={14} className="k-sun" stroke={2.2} />
+          <Icon name="moon" size={14} className="k-moon" stroke={2.2} />
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** Choix complet à trois positions (Système / Jour / Nuit), pour le menu du compte et la page Mon compte. */
+export function ThemeSwitch() {
+  const { theme } = useTheme();
+  return (
+    <Segmented<Theme> value={theme} onChange={(v) => setTheme(v, centerOf(document.activeElement))} label="Mode d'affichage" full options={[
       { value: "system", label: <span className="sr-only">Système</span>, icon: <Icon name="monitor" size={15} />, title: "Système" },
-      { value: "light", label: <span className="sr-only">Clair</span>, icon: <Icon name="sun" size={15} />, title: "Clair" },
-      { value: "dark", label: <span className="sr-only">Sombre</span>, icon: <Icon name="moon" size={15} />, title: "Sombre" },
+      { value: "light", label: <span className="sr-only">Jour</span>, icon: <Icon name="sun" size={15} />, title: "Jour" },
+      { value: "dark", label: <span className="sr-only">Nuit</span>, icon: <Icon name="moon" size={15} />, title: "Nuit" },
     ]} />
   );
 }

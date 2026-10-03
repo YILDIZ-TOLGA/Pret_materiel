@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prêt Matériel — vidéo de présentation</title>
+<!--
+  Vidéo de présentation (1920×1080, 30 i/s). Toute l'animation est une fonction du temps : render(t).
+  Aperçu : npm run preview (Espace = pause, ←/→ = ±1 s, ?t=12.5 pour figer un instant).
+  Rendu MP4 : npm run render. Les textes sont dans le HTML, le minutage dans build().
+-->
+<style>
+  @font-face { font-family: "Schibsted Grotesk"; src: url("assets/schibsted-grotesk.woff2") format("woff2"); font-weight: 400 900; font-display: block; }
+
+  /* Mêmes tokens que l'application (src/app/globals.css), en grand format */
+  :root {
+    --bg: #f2f0ea; --surface: #fff; --surface-3: #eeebe4; --line: #e4e0d6; --line-2: #d4cfc3;
+    --ink: #17191c; --ink-2: #4b4f56; --ink-3: #64686f;
+    --brand: #1e5b47; --brand-ink: #fbfaf6; --brand-soft: #e2ece6;
+    --late: #bf3620; --late-soft: #f8e6e0; --soon: #9a5f00; --soon-soft: #f5ecd8;
+    --f: "Schibsted Grotesk", system-ui, sans-serif;
+    --notch: 16px;
+    --notch-bottom: radial-gradient(circle var(--notch) at 0 100%, #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% 100%, #0000 97%, #000) right / 51% 100% no-repeat;
+    --notch-top: radial-gradient(circle var(--notch) at 0 0, #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% 0, #0000 97%, #000) right / 51% 100% no-repeat;
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -3 2.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+    --check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+    --fiche-shadow: drop-shadow(0 2px 2px rgba(23, 25, 28, .06)) drop-shadow(0 24px 40px rgba(23, 25, 28, .13));
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: #1b1d1c; overflow: hidden; }
+  body.render { background: var(--bg); }
+  #viewport { position: fixed; inset: 0; display: grid; place-items: center; }
+  body.render #viewport { position: static; display: block; }
+  #stage {
+    position: relative; width: 1920px; height: 1080px; overflow: hidden; flex: none; background: var(--bg);
+    color: var(--ink); font-family: var(--f); font-kerning: normal; -webkit-font-smoothing: antialiased;
+  }
+  .g { color: var(--brand); }
+  svg.i { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Titres */
+  .hook { position: absolute; left: 150px; top: 285px; font-weight: 700; font-size: 172px; line-height: 1; letter-spacing: -.05em; }
+  .ln { display: block; overflow: hidden; padding: 0 .06em .16em 0; margin-bottom: -.16em; }
+  .ln > span { display: block; }
+  .hook-sub { margin-top: 48px; font-size: 48px; font-weight: 500; letter-spacing: -.02em; color: var(--ink-2); }
+  .col { position: absolute; left: 150px; top: 290px; width: 840px; display: flex; flex-direction: column; align-items: flex-start; }
+  .label { display: flex; align-items: center; gap: 18px; margin-bottom: 30px; font-size: 21px; font-weight: 600; letter-spacing: .15em; text-transform: uppercase; color: var(--brand); }
+  .label::before { content: ""; width: 44px; height: 3px; border-radius: 2px; background: var(--brand); }
+  .t { font-weight: 700; font-size: 76px; line-height: 1.03; letter-spacing: -.045em; }
+  .sub { margin-top: 34px; max-width: 720px; font-size: 33px; line-height: 1.4; letter-spacing: -.01em; color: var(--ink-2); }
+  .gap { height: 34px; }
+
+  /* Fiche de prêt (ticket à encoches et perforation, comme dans l'application) */
+  .fiche { position: absolute; filter: var(--fiche-shadow); }
+  .part { position: relative; background: var(--surface); border: 1.5px solid var(--line); }
+  .head { border-bottom: 0; border-radius: 22px 22px 0 0; -webkit-mask: var(--notch-bottom); mask: var(--notch-bottom); }
+  .body { border-top: 0; border-radius: 0 0 22px 22px; -webkit-mask: var(--notch-top); mask: var(--notch-top); }
+  .body::before { content: ""; position: absolute; top: -1px; left: 30px; right: 30px; border-top: 2.5px dashed var(--line-2); }
+  .top { display: flex; gap: 14px; align-items: center; font-size: 17px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .top .sep { opacity: .5; }
+
+  .mini { width: 560px; }
+  .mini .head { padding: 26px 32px 24px; }
+  .mini .title { margin-top: 14px; font-size: 46px; font-weight: 700; line-height: 1.05; letter-spacing: -.035em; }
+  .mini .title small { margin-left: 12px; font-size: 27px; font-weight: 500; letter-spacing: -.01em; color: var(--ink-3); }
+  .mini .body { display: flex; align-items: center; gap: 14px; padding: 22px 32px 24px; font-size: 24px; font-weight: 500; }
+  .mini .body .due { margin-left: auto; }
+
+  #ficheWrap { position: absolute; left: 1010px; top: 165px; width: 780px; transform-origin: 50% 0; }
+  .fiche.big { position: relative; }
+  .big .head { padding: 40px 44px 38px; }
+  .big .title { display: flex; align-items: center; min-height: 78px; margin-top: 24px; font-size: 74px; font-weight: 700; line-height: 1.04; letter-spacing: -.04em; }
+  .caret { display: inline-block; width: 5px; height: 64px; margin-left: 6px; border-radius: 2px; background: var(--brand); }
+  .big .desc { margin-top: 12px; font-size: 27px; color: var(--ink-2); }
+  .big .state { display: flex; margin-top: 28px; }
+  .big .body { padding: 38px 44px 42px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px 40px; }
+  .grid dt { margin-bottom: 12px; font-size: 16px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .grid dd { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 500; }
+  .stamp-pos { position: absolute; right: 46px; bottom: 30px; }
+
+  /* Échéances, avatars, interrupteur, tampon, bouton */
+  .due { display: inline-flex; align-items: center; gap: 10px; height: 42px; padding: 0 16px; border-radius: 10px; font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink-2); background: var(--surface-3); }
+  .due.soon { color: var(--soon); background: var(--soon-soft); }
+  .due.late { color: var(--late); background: var(--late-soft); }
+  .due.done { color: var(--brand); background: var(--brand-soft); }
+  .due.late::before { content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+  .due.done::before { content: ""; flex: none; width: 17px; height: 17px; background: currentColor; -webkit-mask: var(--check) center / contain no-repeat; mask: var(--check) center / contain no-repeat; }
+  .mini .due { height: 36px; padding: 0 13px; font-size: 18px; }
+  .avatar { --h: 152; flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; font-size: 19px; font-weight: 600; background: hsl(var(--h) 30% 90%); color: hsl(var(--h) 38% 27%); }
+  .mini .avatar { width: 38px; height: 38px; font-size: 16px; }
+  .sw { position: relative; flex: none; width: 50px; height: 30px; border-radius: 99px; background: var(--brand); }
+  .sw::after { content: ""; position: absolute; top: 4px; left: 24px; width: 22px; height: 22px; border-radius: 50%; background: #fff; }
+  .stamp {
+    --c: var(--brand); position: relative; display: inline-flex; padding: 18px 30px 15px; border: 5px solid var(--c); border-radius: 14px;
+    color: var(--c); font-size: 42px; font-weight: 800; line-height: 1; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
+    -webkit-mask: var(--grain) center / 220px; mask: var(--grain) center / 220px; mix-blend-mode: multiply;
+  }
+  .stamp::before { content: ""; position: absolute; inset: 6px; border: 2px solid color-mix(in srgb, var(--c) 65%, transparent); border-radius: 9px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 14px; height: 80px; padding: 0 40px; border-radius: 16px; background: var(--brand); color: var(--brand-ink);
+    font-size: 29px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(23, 25, 28, .08), 0 16px 32px -12px rgba(30, 91, 71, .5);
+  }
+  .btn svg { width: 30px; height: 30px; }
+  #save { margin-top: 34px; }
+
+  /* Cartes e-mail / relance */
+  .card {
+    position: absolute; left: 1010px; width: 780px; display: flex; align-items: center; gap: 26px; padding: 28px 34px;
+    background: var(--surface); border: 1.5px solid var(--line); border-radius: 20px;
+    box-shadow: 0 2px 6px rgba(23, 25, 28, .05), 0 28px 52px -18px rgba(23, 25, 28, .26);
+  }
+  .card .ico { flex: none; display: grid; place-items: center; width: 66px; height: 66px; border-radius: 16px; background: var(--brand-soft); color: var(--brand); }
+  .card .ico svg { width: 32px; height: 32px; }
+  .card.soon .ico { background: var(--soon-soft); color: var(--soon); }
+  .card b { display: block; font-size: 27px; font-weight: 600; line-height: 1.28; letter-spacing: -.015em; }
+  .card span { display: block; margin-top: 7px; font-size: 20px; color: var(--ink-3); }
+  #mail { top: 650px; }
+  #relance { top: 797px; }
+
+  /* Marque */
+  #brandLayer { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #brandRow { display: flex; align-items: center; gap: 46px; transform-origin: 0 0; }
+  #logo { flex: none; width: 220px; height: 220px; }
+  #word { padding-right: .06em; font-size: 124px; font-weight: 700; line-height: 1.1; letter-spacing: -.05em; white-space: nowrap; }
+  #tagBox { position: relative; width: 1500px; height: 230px; margin-top: 50px; }
+  #tag { position: absolute; left: 0; right: 0; text-align: center; font-size: 50px; font-weight: 500; letter-spacing: -.02em; color: var(--ink-2); }
+  #cta { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; }
+  #cta1 { font-size: 56px; font-weight: 700; letter-spacing: -.035em; }
+  #cta2 { margin-top: 16px; font-size: 29px; color: var(--ink-3); }
+  #ctaBtn { margin-top: 40px; }
+
+  /* Bilan */
+  #s7a, #s7b { position: absolute; left: 0; right: 0; text-align: center; font-weight: 700; font-size: 86px; line-height: 1.04; letter-spacing: -.045em; }
+  #s7a { top: 205px; } #s7b { top: 297px; }
+  #stats { position: absolute; left: 170px; right: 170px; top: 540px; display: grid; grid-template-columns: repeat(3, 1fr); }
+  .stat { padding: 0 30px; text-align: center; }
+  .stat + .stat { border-left: 2px solid var(--line); }
+  .stat .v { font-size: 152px; font-weight: 700; line-height: 1; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+  .stat .k { margin-top: 24px; font-size: 29px; font-weight: 500; color: var(--ink-3); }
+  #st1 .v { color: var(--brand); }
+
+  /* Aperçu uniquement */
+  #hud { position: fixed; left: 16px; bottom: 12px; font: 13px/1.4 ui-monospace, monospace; color: #9aa09c; }
+  body.render #hud { display: none; }
+</style>
+</head>
+<body>
+<div id="viewport">
+<div id="stage">
+
+  <!-- 1. Accroche -->
+  <div class="hook">
+    <div class="ln"><span id="h1a">«&nbsp;Tu me la rends</span></div>
+    <div class="ln"><span id="h1b" class="g">quand&nbsp;?&nbsp;»</span></div>
+    <p class="hook-sub" id="h1sub">Tu n'auras plus à le demander.</p>
+  </div>
+
+  <!-- 2. Le problème -->
+  <div class="col" style="top: 255px">
+    <div class="t" id="p1">Une perceuse.</div>
+    <div class="t" id="p2">Un livre.</div>
+    <div class="t" id="p3">50&nbsp;€ pour le resto.</div>
+    <div class="gap"></div>
+    <div class="t g" id="q1">Qui a quoi,</div>
+    <div class="t g" id="q2">depuis quand&nbsp;?</div>
+  </div>
+  <div class="fiche mini" id="m1" style="left: 1100px; top: 185px">
+    <div class="part head"><div class="top"><span>Objet</span></div><div class="title">Perceuse Bosch</div></div>
+    <div class="part body"><span class="avatar">L</span>Léa<span class="due late">+4 j</span></div>
+  </div>
+  <div class="fiche mini" id="m2" style="left: 1215px; top: 425px">
+    <div class="part head"><div class="top"><span>Objet</span></div><div class="title">Dune, tome 1</div></div>
+    <div class="part body"><span class="avatar" style="--h: 28">J</span>Julien<span class="due">J-6</span></div>
+  </div>
+  <div class="fiche mini" id="m3" style="left: 1120px; top: 660px">
+    <div class="part head"><div class="top"><span>Argent</span></div><div class="title">50&nbsp;€<small>Resto</small></div></div>
+    <div class="part body"><span class="avatar" style="--h: 210">M</span>Margaux<span class="due soon">Demain</span></div>
+  </div>
+
+  <!-- 4 à 6. Textes des étapes -->
+  <div class="col">
+    <div class="label" id="s4l">01 · Noter</div>
+    <div class="t" id="s4a">Note le prêt</div>
+    <div class="t" id="s4b">en quelques secondes.</div>
+    <p class="sub" id="s4c">Objet ou argent, à qui, jusqu'à quand&nbsp;: c'est tout.</p>
+  </div>
+  <div class="col">
+    <div class="label" id="s5l">02 · Prévenir</div>
+    <div class="t" id="s5a">La veille,</div>
+    <div class="t" id="s5b">Léa reçoit un rappel.</div>
+    <p class="sub" id="s5c">En cas d'oubli, une relance part tous les 3&nbsp;jours. Plus besoin de demander.</p>
+  </div>
+  <div class="col">
+    <div class="label" id="s6l">03 · Récupérer</div>
+    <div class="t" id="s6a">Ce que tu prêtes</div>
+    <div class="t g" id="s6b">revient.</div>
+    <p class="sub" id="s6c">Un geste pour clôturer, et tout reste dans ton historique.</p>
+  </div>
+
+  <!-- 4 à 6. La fiche -->
+  <div id="ficheWrap">
+    <div class="fiche big" id="fiche">
+      <div class="part head">
+        <div class="top"><span>Fiche n° 0142</span><span class="sep">/</span><span>Objet</span></div>
+        <div class="title" id="fTitle"></div>
+        <div class="desc" id="fDesc">Avec les deux batteries</div>
+        <div class="state"><span id="fChip" class="due">J-14</span></div>
+        <div class="stamp-pos"><span class="stamp" id="stamp">Rendu</span></div>
+      </div>
+      <div class="part body">
+        <dl class="grid">
+          <div id="g1"><dt>Emprunteur</dt><dd><span class="avatar">L</span>Léa</dd></div>
+          <div id="g2"><dt>Retour prévu</dt><dd>26 sept.</dd></div>
+          <div id="g3"><dt>Prêté le</dt><dd>12 sept.</dd></div>
+          <div id="g4"><dt>Rappels</dt><dd><span class="sw"></span>Activés</dd></div>
+        </dl>
+      </div>
+    </div>
+    <div class="btn" id="save">Enregistrer le prêt</div>
+  </div>
+
+  <!-- 5. Rappel et relance -->
+  <div class="card" id="mail">
+    <div class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M3 5h18v14H3V5ZM3 6l9 7 9-7"/></svg></div>
+    <div><b>Demain&nbsp;: «&nbsp;Perceuse Bosch&nbsp;» à rendre à Thomas</b><span>E-mail envoyé à Léa · la veille de l'échéance</span></div>
+  </div>
+  <div class="card soon" id="relance">
+    <div class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15 6.7L3 16M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M3 21v-5h5"/></svg></div>
+    <div><b>Relance tous les 3&nbsp;jours</b><span>Seulement en cas de retard, jusqu'au retour</span></div>
+  </div>
+
+  <!-- 7. Bilan -->
+  <div id="s7a">Tout ce qui est dehors,</div>
+  <div id="s7b" class="g">en un coup d'œil.</div>
+  <div id="stats">
+    <div class="stat" id="st1"><div class="v" id="v1">120&#8239;€</div><div class="k">On te doit</div></div>
+    <div class="stat" id="st2"><div class="v" id="v2">3</div><div class="k">Objets chez les autres</div></div>
+    <div class="stat" id="st3"><div class="v" id="v3">92&#8239;%</div><div class="k">Rendus à l'heure</div></div>
+  </div>
+
+  <!-- 3 et 8. Marque, accroche finale -->
+  <div id="brandLayer">
+    <div id="brandRow">
+      <svg id="logo" viewBox="0 0 32 32">
+        <rect width="32" height="32" rx="8.5" fill="var(--brand)" />
+        <path fill="var(--brand-ink)" d="M7 10.5A1.5 1.5 0 0 1 8.5 9h15a1.5 1.5 0 0 1 1.5 1.5v3a2.5 2.5 0 0 0 0 5v3a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 7 21.5v-3a2.5 2.5 0 0 0 0-5v-3Z" />
+        <path stroke="var(--brand)" stroke-width="1.5" stroke-dasharray="1.7 1.6" d="M19.5 10.6v10.8" />
+      </svg>
+      <div id="word">Prêt Matériel</div>
+    </div>
+    <div id="tagBox">
+      <p id="tag">Le carnet de prêts qui relance <span class="g">à ta place.</span></p>
+      <div id="cta">
+        <div id="cta1">Gratuit pour un prêt en cours.</div>
+        <div id="cta2">Sans carte bancaire · Résiliable à tout moment</div>
+        <div class="btn" id="ctaBtn">Créer mon carnet</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<div id="hud"></div>
+
+<script>
+  const DURATION = 31500;
+  const CHECK = '<svg class="i" viewBox="0 0 24 24" style="stroke-width:2.6"><path d="M20 6 9 17l-5-5"/></svg>';
+
+  // Courbes : mêmes valeurs que --ease, --ease-spring, --ease-io de l'application
+  function bezier(x1, y1, x2, y2) {
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+    const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+    const fx = (t) => ((ax * t + bx) * t + cx) * t;
+    const fy = (t) => ((ay * t + by) * t + cy) * t;
+    const dx = (t) => (3 * ax * t + 2 * bx) * t + cx;
+    const solve = (x) => {
+      let t = x;
+      for (let i = 0; i < 8; i++) {
+        const e = fx(t) - x;
+        if (Math.abs(e) < 1e-6) return t;
+        const d = dx(t);
+        if (Math.abs(d) < 1e-6) break;
+        t -= e / d;
+      }
+      let lo = 0, hi = 1;
+      t = x;
+      while (hi - lo > 1e-7) {
+        const v = fx(t);
+        if (Math.abs(v - x) < 1e-6) return t;
+        if (x > v) lo = t; else hi = t;
+        t = (lo + hi) / 2;
+      }
+      return t;
+    };
+    return (p) => (p <= 0 ? 0 : p >= 1 ? 1 : fy(solve(p)));
+  }
+  const E = {
+    lin: (p) => p,
+    out: bezier(.22, .8, .24, 1),
+    spring: bezier(.34, 1.45, .64, 1),
+    io: bezier(.65, 0, .35, 1),
+    in: bezier(.6, 0, .9, .45),
+    hook: bezier(.2, .75, .12, 1),
+    stamp: bezier(.2, .7, .2, 1),
+  };
+
+  // Pistes d'animation : pour chaque élément et chaque propriété, des clés [temps ms, valeur, courbe pour l'atteindre]
+  const $ = (s) => { const el = document.querySelector(s); if (!el) throw new Error("Élément introuvable : " + s); return el; };
+  const tracks = new Map();
+  const updaters = [];
+  function key(sel, prop, t, v, ease = E.out) {
+    const el = $(sel);
+    if (!tracks.has(el)) tracks.set(el, {});
+    (tracks.get(el)[prop] ??= []).push([t, v, ease]);
+  }
+  function enter(sel, t, { d = 650, y = 36, x = 0, s = null, ease = E.out } = {}) {
+    key(sel, "o", t, 0); key(sel, "o", t + Math.min(d, 380), 1);
+    if (y) { key(sel, "y", t, y); key(sel, "y", t + d, 0, ease); }
+    if (x) { key(sel, "x", t, x); key(sel, "x", t + d, 0, ease); }
+    if (s !== null) { key(sel, "s", t, s); key(sel, "s", t + d, 1, ease); }
+  }
+  function exit(sel, t, { d = 380, y = -26, x = 0, o0 = 1 } = {}) {
+    key(sel, "o", t, o0); key(sel, "o", t + d, 0, E.in);
+    if (y) { key(sel, "y", t, 0); key(sel, "y", t + d, y, E.in); }
+    if (x) { key(sel, "x", t, 0); key(sel, "x", t + d, x, E.in); }
+  }
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+  function typer(sel, text, t0, cps, caretUntil) {
+    const el = $(sel); let last = null;
+    updaters.push((t) => {
+      const n = Math.max(0, Math.min(text.length, Math.floor(((t - t0) / 1000) * cps)));
+      const caret = t >= t0 - 300 && t < caretUntil;
+      const k = n + (caret ? "|" : "");
+      if (k === last) return;
+      last = k;
+      el.innerHTML = esc(text.slice(0, n)) + (caret ? '<i class="caret"></i>' : "");
+    });
+  }
+  function counter(sel, to, t0, d, fmt) {
+    const el = $(sel);
+    updaters.push((t) => { el.textContent = fmt(to * E.out(Math.max(0, Math.min(1, (t - t0) / d)))); });
+  }
+  function states(sel, list) {
+    const el = $(sel); let last = -1;
+    updaters.push((t) => {
+      let i = 0;
+      list.forEach(([at], j) => { if (t >= at) i = j; });
+      if (i === last) return;
+      last = i;
+      el.className = list[i][1];
+      el.innerHTML = list[i][2];
+    });
+  }
+
+  function sample(keys, t) {
+    if (t <= keys[0][0]) return keys[0][1];
+    for (let i = 1; i < keys.length; i++) {
+      const [t1, v1, ease] = keys[i];
+      if (t < t1) {
+        const [t0, v0] = keys[i - 1];
+        return v0 + (v1 - v0) * ease((t - t0) / (t1 - t0));
+      }
+    }
+    return keys[keys.length - 1][1];
+  }
+  const DEF = { x: 0, y: 0, s: 1, r: 0, o: 1 };
+  function render(t) {
+    for (const [el, tr] of tracks) {
+      const v = (p) => (tr[p] ? sample(tr[p], t) : DEF[p]);
+      el.style.transform = `translate(${v("x").toFixed(2)}px, ${v("y").toFixed(2)}px) rotate(${v("r").toFixed(3)}deg) scale(${v("s").toFixed(4)})`;
+      el.style.opacity = Math.max(0, Math.min(1, v("o"))).toFixed(3);
+      if (tr.clip) el.style.clipPath = `inset(-30% ${(100 - sample(tr.clip, t)).toFixed(2)}% -30% -2%)`;
+    }
+    for (const fn of updaters) fn(t);
+  }
+
+  // Positions dans la scène, mesurées avant toute transformation (getBoundingClientRect marche aussi pour le SVG du logo)
+  const box = (sel) => {
+    const r = $(sel).getBoundingClientRect(), s = $("#stage").getBoundingClientRect();
+    const x = r.left - s.left, y = r.top - s.top;
+    return { x, y, w: r.width, h: r.height, cx: x + r.width / 2, cy: y + r.height / 2 };
+  };
+
+  function build() {
+    // 1. Accroche (0 – 3,9 s)
+    key("#h1a", "y", 200, 200); key("#h1a", "y", 1150, 0, E.hook); key("#h1a", "y", 3300, 0); key("#h1a", "y", 3800, -200, E.in);
+    key("#h1b", "y", 340, 200); key("#h1b", "y", 1290, 0, E.hook); key("#h1b", "y", 3360, 0); key("#h1b", "y", 3860, -200, E.in);
+    enter("#h1sub", 1500, { y: 26, d: 700 }); exit("#h1sub", 3320, { y: -16 });
+
+    // 2. Le problème (3,9 – 8,2 s) : les fiches s'accumulent, puis se fondent dans le logo
+    enter("#p1", 3900, { y: 40 }); enter("#p2", 4050, { y: 40 }); enter("#p3", 4200, { y: 40 });
+    for (const p of ["#p1", "#p2", "#p3"]) { key(p, "o", 5900, 1); key(p, "o", 6300, .3); exit(p, 7600, { o0: .3 }); }
+    enter("#q1", 6000, { y: 40 }); enter("#q2", 6120, { y: 40 }); exit("#q1", 7600); exit("#q2", 7640);
+
+    const logo = box("#logo"), brandRow = box("#brandRow");
+    const popX = 960, popY = logo.cy;
+    [["#m1", -6, 4300], ["#m2", 3, 4450], ["#m3", -2, 4600]].forEach(([m, rot, t0], i) => {
+      const b = box(m);
+      key(m, "o", t0, 0); key(m, "o", t0 + 220, 1);
+      key(m, "x", t0, 760); key(m, "x", t0 + 850, 0, E.spring); key(m, "x", 7700 + i * 40, 0); key(m, "x", 8200 + i * 40, popX - b.cx, E.in);
+      key(m, "y", t0, 70); key(m, "y", t0 + 850, 0, E.spring); key(m, "y", 7700 + i * 40, -12, E.io); key(m, "y", 8200 + i * 40, popY - b.cy, E.in);
+      key(m, "r", t0, 12); key(m, "r", t0 + 850, rot, E.spring); key(m, "r", 7700, rot); key(m, "r", 8200, 0, E.in);
+      key(m, "s", 7700, 1); key(m, "s", 8200 + i * 40, .16, E.in);
+      key(m, "o", 8020 + i * 40, 1); key(m, "o", 8240 + i * 40, 0, E.lin);
+    });
+    key("#m1 .due", "s", 5500, 1); key("#m1 .due", "s", 5650, 1.14, E.out); key("#m1 .due", "s", 5950, 1, E.spring);
+
+    // 3. Marque (8,1 – 11,7 s), puis le logo se range en haut à gauche
+    const dx0 = popX - logo.cx;
+    key("#logo", "o", 8120, 0); key("#logo", "o", 8180, 1, E.lin);
+    key("#logo", "s", 8120, 0); key("#logo", "s", 8750, 1, E.spring);
+    key("#logo", "r", 8120, -24); key("#logo", "r", 8750, 0, E.spring);
+    key("#logo", "x", 8120, dx0); key("#logo", "x", 8950, dx0); key("#logo", "x", 9600, 0, E.out);
+    key("#word", "clip", 9000, 0); key("#word", "clip", 9700, 100, E.out);
+    key("#word", "x", 9000, -30); key("#word", "x", 9700, 0, E.out);
+    enter("#tag", 9750, { y: 26 }); exit("#tag", 10850, { y: -14 });
+    const corner = { x: 150 - brandRow.x, y: 62 - brandRow.y, s: .26 };
+    for (const [p, v, rest] of [["x", corner.x, 0], ["y", corner.y, 0], ["s", corner.s, 1]]) {
+      key("#brandRow", p, 11000, rest); key("#brandRow", p, 11650, v, E.out);
+      key("#brandRow", p, 27450, v); key("#brandRow", p, 28150, rest, E.out);
+    }
+
+    // 4. Noter (11,6 – 16 s)
+    enter("#s4l", 11650, { y: 20 }); enter("#s4a", 11750, { y: 40 }); enter("#s4b", 11870, { y: 40 }); enter("#s4c", 12250, { y: 24 });
+    ["#s4l", "#s4a", "#s4b", "#s4c"].forEach((s, i) => exit(s, 15650 + i * 40));
+    key("#ficheWrap", "o", 11650, 0); key("#ficheWrap", "o", 11900, 1);
+    key("#ficheWrap", "y", 11650, 170); key("#ficheWrap", "y", 12450, 0, E.spring);
+    key("#ficheWrap", "r", 11650, 4); key("#ficheWrap", "r", 12450, 0, E.spring);
+    typer("#fTitle", "Perceuse Bosch", 12450, 20, 13350);
+    enter("#fDesc", 13200, { y: 14, d: 500 });
+    key("#fChip", "o", 13350, 0); key("#fChip", "o", 13550, 1);
+    key("#fChip", "s", 13350, .7); key("#fChip", "s", 13700, 1, E.spring);
+    ["#g1", "#g2", "#g3", "#g4"].forEach((g, i) => enter(g, 13450 + i * 130, { y: 18, d: 500 }));
+    enter("#save", 14000, { y: 24, d: 600 });
+    key("#save", "s", 14800, 1); key("#save", "s", 14900, .94, E.out); key("#save", "s", 15200, 1, E.spring);
+    states("#save", [[0, "btn", "Enregistrer le prêt"], [14900, "btn", CHECK + "Prêt enregistré"]]);
+    exit("#save", 15600, { y: 16 });
+    for (const [t, dy, ds] of [[14950, 5, .994], [21750, 7, .99]]) {
+      key("#fiche", "y", t, 0); key("#fiche", "y", t + 100, dy, E.out); key("#fiche", "y", t + 420, 0, E.out);
+      key("#fiche", "s", t, 1); key("#fiche", "s", t + 100, ds, E.out); key("#fiche", "s", t + 420, 1, E.out);
+    }
+
+    // 5. Prévenir (16 – 20,6 s)
+    enter("#s5l", 16150, { y: 20 }); enter("#s5a", 16250, { y: 40 }); enter("#s5b", 16370, { y: 40 }); enter("#s5c", 16750, { y: 24 });
+    ["#s5l", "#s5a", "#s5b", "#s5c"].forEach((s, i) => exit(s, 20150 + i * 40));
+    key("#ficheWrap", "y", 16000, 0); key("#ficheWrap", "y", 16700, -115, E.out);
+    key("#fChip", "s", 16900, 1); key("#fChip", "s", 16960, .82, E.out); key("#fChip", "s", 17300, 1, E.spring);
+    key("#mail", "o", 17000, 0); key("#mail", "o", 17250, 1); key("#mail", "x", 17000, 140); key("#mail", "x", 17750, 0, E.spring);
+    key("#relance", "o", 18100, 0); key("#relance", "o", 18350, 1); key("#relance", "x", 18100, 140); key("#relance", "x", 18850, 0, E.spring);
+    exit("#mail", 20150, { y: 0, x: 90 }); exit("#relance", 20230, { y: 0, x: 90 });
+
+    // 6. Récupérer (20,7 – 24 s)
+    enter("#s6l", 20800, { y: 20 }); enter("#s6a", 20900, { y: 40 }); enter("#s6b", 21020, { y: 40 }); enter("#s6c", 21450, { y: 24 });
+    ["#s6l", "#s6a", "#s6b", "#s6c"].forEach((s, i) => exit(s, 23550 + i * 40));
+    key("#ficheWrap", "y", 20700, -115); key("#ficheWrap", "y", 21300, 0, E.out);
+    key("#stamp", "r", 0, -8);
+    key("#stamp", "o", 21600, 0); key("#stamp", "o", 21680, 1, E.lin);
+    key("#stamp", "s", 21600, 2.3); key("#stamp", "s", 21910, .9, E.stamp); key("#stamp", "s", 22030, 1.05, E.out); key("#stamp", "s", 22160, 1, E.out);
+    key("#fChip", "s", 21750, 1); key("#fChip", "s", 21810, .82, E.out); key("#fChip", "s", 22150, 1, E.spring);
+    states("#fChip", [[0, "due", "J-14"], [16960, "due soon", "Demain"], [21810, "due done", "Rendu avec un jour d'avance"]]);
+    key("#ficheWrap", "y", 23600, 0); key("#ficheWrap", "y", 24100, -70, E.in);
+    key("#ficheWrap", "o", 23600, 1); key("#ficheWrap", "o", 24050, 0, E.in);
+
+    // 7. Bilan (24,1 – 27,6 s)
+    enter("#s7a", 24200, { y: 40 }); enter("#s7b", 24320, { y: 40 });
+    exit("#s7a", 27250); exit("#s7b", 27290);
+    const eur = (v) => `${Math.round(v)} €`;
+    [["#st1", "#v1", 120, eur], ["#st2", "#v2", 3, (v) => `${Math.round(v)}`], ["#st3", "#v3", 92, (v) => `${Math.round(v)} %`]].forEach(([st, v, to, fmt], i) => {
+      enter(st, 24600 + i * 120, { y: 50, d: 800, ease: E.spring });
+      counter(v, to, 24700 + i * 120, 1300, fmt);
+      exit(st, 27250 + i * 40);
+    });
+
+    // 8. Accroche finale (27,5 – 31,5 s)
+    enter("#cta1", 28150, { y: 30 }); enter("#cta2", 28350, { y: 24 }); enter("#ctaBtn", 28600, { y: 20, s: .85, ease: E.spring });
+
+    for (const [el, tr] of tracks) {
+      for (const [prop, keys] of Object.entries(tr)) {
+        if (keys.some(([t, v]) => !Number.isFinite(t) || !Number.isFinite(v))) throw new Error(`Clé invalide sur #${el.id || el.className} (${prop})`);
+        keys.sort((a, b) => a[0] - b[0]);
+      }
+    }
+  }
+
+  // Aperçu en boucle, ou rendu image par image piloté par render.mjs
+  const params = new URLSearchParams(location.search);
+  const RENDER = params.has("render");
+  if (RENDER) document.body.classList.add("render");
+  window.__duration = DURATION;
+  window.__seek = (t) => render(t);
+
+  (async () => {
+    await document.fonts.load('700 100px "Schibsted Grotesk"');
+    await document.fonts.load('500 40px "Schibsted Grotesk"');
+    await document.fonts.ready;
+    build();
+    render(0);
+    if (RENDER) { window.__ready = true; return; }
+
+    const stage = $("#stage"), hud = $("#hud");
+    const fit = () => { stage.style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; };
+    fit(); addEventListener("resize", fit);
+    let t = params.has("t") ? Number(params.get("t")) * 1000 : 0, playing = !params.has("t"), last = performance.now();
+    addEventListener("keydown", (e) => {
+      if (e.code === "Space") playing = !playing;
+      if (e.code === "ArrowRight") t = Math.min(DURATION, t + 1000);
+      if (e.code === "ArrowLeft") t = Math.max(0, t - 1000);
+      if (e.code === "Home") t = 0;
+    });
+    const loop = (now) => {
+      if (playing) t = (t + now - last) % DURATION;
+      last = now;
+      render(t);
+      hud.textContent = `${(t / 1000).toFixed(2)} s / ${DURATION / 1000} s — Espace : pause · ←/→ : ±1 s`;
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  })();
+</script>
+</body>
+</html>

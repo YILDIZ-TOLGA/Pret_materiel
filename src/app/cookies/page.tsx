@@ -17,7 +17,7 @@ export default function Page() {
         <tr><td><code>token</code></td><td>Stockage local</td><td>Même rôle, pour l&apos;application installée sur mobile. Indispensable.</td><td>Jusqu&apos;à la déconnexion</td></tr>
         <tr><td><code>vid</code></td><td>Stockage local</td><td>Identifiant aléatoire de mesure d&apos;audience, pour compter les visiteurs uniques.</td><td>{RETENTION.visitorIdMonths} mois</td></tr>
         <tr><td><code>no-track</code></td><td>Stockage local</td><td>Mémoriser votre opposition à la mesure d&apos;audience.</td><td>Jusqu&apos;à ce que vous la retiriez</td></tr>
-        <tr><td><code>theme</code></td><td>Stockage local</td><td>Mémoriser le thème d&apos;affichage (clair ou sombre) que vous avez choisi sur cet appareil. Créé seulement si vous changez le thème.</td><td>Jusqu&apos;à ce que vous reveniez au thème du système</td></tr>
+        <tr><td><code>theme</code></td><td>Stockage local</td><td>Mémoriser le mode d&apos;affichage (jour ou nuit) que vous avez choisi sur cet appareil. Créé seulement si vous changez le thème.</td><td>Jusqu&apos;à ce que vous reveniez au thème du système</td></tr>
       </tbody></table></div>
       <p>Le paiement se fait sur la page de Stripe, qui dépose ses propres cookies, nécessaires à la sécurité du paiement et à la lutte contre la fraude. Ils sont décrits dans la <a href="https://stripe.com/fr/legal/cookies-policy" rel="noopener noreferrer" target="_blank">politique cookies de Stripe</a>.</p>
 

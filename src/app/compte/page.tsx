@@ -77,7 +77,7 @@ export default function AccountPage() {
         </section>
 
         <section className="set-row">
-          <div className="set-label"><h2>Apparence</h2><p>Thème de l&apos;interface sur cet appareil.</p></div>
+          <div className="set-label"><h2>Mode jour / nuit</h2><p>Sur cet appareil. « Système » suit le réglage de ton téléphone ou de ton ordinateur.</p></div>
           <div className="card" style={{ maxWidth: 360 }}><ThemeSwitch /></div>
         </section>
 

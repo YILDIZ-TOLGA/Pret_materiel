@@ -1,0 +1,15 @@
+{
+  "name": "pret-materiel-video",
+  "private": true,
+  "type": "module",
+  "description": "Vidéo de présentation de Prêt Matériel (motion design en HTML, rendu MP4 par Chrome)",
+  "scripts": {
+    "preview": "node serve.mjs",
+    "render": "node render.mjs",
+    "stills": "node render.mjs --stills"
+  },
+  "dependencies": {
+    "mp4-muxer": "^5.2.2",
+    "puppeteer-core": "^25.12.0"
+  }
+}
