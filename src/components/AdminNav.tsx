@@ -1,15 +1,17 @@
 "use client";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { PageHeader, Segmented } from "./ui";
 
-export function AdminNav() {
+export function AdminNav({ actions }: { actions?: React.ReactNode }) {
   const path = usePathname();
+  const router = useRouter();
   return (
-    <div className="row" style={{ marginBottom: 4 }}>
-      <h1 style={{ margin: 0 }}>Admin</h1>
-      <span className="spacer" />
-      <Link href="/admin" className={`btn small ${path === "/admin" ? "primary" : ""}`}>Tableau de bord</Link>
-      <Link href="/admin/utilisateurs" className={`btn small ${path === "/admin/utilisateurs" ? "primary" : ""}`}>Utilisateurs</Link>
-    </div>
+    <PageHeader title="Administration" sub="Revenus, trafic et comptes utilisateurs." actions={
+      <>
+        {actions}
+        <Segmented value={path === "/admin/utilisateurs" ? "users" : "dash"} onChange={(v) => router.push(v === "users" ? "/admin/utilisateurs" : "/admin")} label="Sections"
+          options={[{ value: "dash", label: "Tableau de bord" }, { value: "users", label: "Utilisateurs" }]} />
+      </>
+    } />
   );
 }

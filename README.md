@@ -63,6 +63,8 @@ Sans SMTP, les e-mails sont affichés dans la console.
 
 ## Mise en production
 
+> ⚖️ **Avant d'ouvrir au public** : remplis `src/lib/legal.ts` (identité, hébergeur, médiateur…) et suis la checklist de [docs/CONFORMITE.md](docs/CONFORMITE.md) (RGPD, mentions légales, CGV).
+
 1. **Base** : n'importe quel PostgreSQL (Neon, Supabase, Scaleway, OVH, Railway…). Mets l'URL dans `DATABASE_URL`.
 2. **Hébergement** : sur un VPS, la même commande `docker compose up -d --build` (avec un `.env` rempli, `APP_URL` en `https://…` et un reverse proxy HTTPS comme Caddy), ou Vercel / Railway / Render (build : `npm run build`, puis `npx prisma migrate deploy`).
 3. **E-mails** : un fournisseur SMTP (Brevo, Resend, Mailgun…) → variables `SMTP_*` et `MAIL_FROM`.

@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+/**
+ * Mot de passe conforme à la recommandation CNIL (délibération 2022-100) avec limitation des essais :
+ * 8 caractères minimum et au moins 3 types parmi minuscules, majuscules, chiffres, caractères spéciaux.
+ */
+export const passwordSchema = z
+  .string()
+  .min(8, "Mot de passe : 8 caractères minimum")
+  .max(200)
+  .refine(
+    (pw) => [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter((r) => r.test(pw)).length >= 3,
+    "Mot de passe : utilise au moins 3 types de caractères parmi minuscules, majuscules, chiffres et caractères spéciaux",
+  );
+
 export const loanSchema = z.object({
   kind: z.enum(["OBJECT", "MONEY"]).optional(),
   // objet prêté, ou motif pour un prêt d'argent

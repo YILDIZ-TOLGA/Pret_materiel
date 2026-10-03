@@ -43,6 +43,7 @@ export async function onLoanCreated(loan: Loan, lender: User) {
       "Vous recevrez un rappel si la date est dépassée.",
     ],
     cta: { label: "Voir mes emprunts", url: `${appUrl()}/emprunts` },
+    thirdParty: { lenderName: lender.name },
   });
   if (loan.borrowerId) {
     await notify(loan.borrowerId, "Nouvel emprunt", `${lender.name} vous a prêté ${what(loan)} — à rendre le ${fmtDate(loan.dueAt)}.`, "/emprunts");
@@ -77,6 +78,7 @@ export async function sendOverdueReminder(loan: Loan & { lender: User }) {
       `Pensez à ${isMoney(loan) ? "rembourser" : "le rendre"} dès que possible. Vous pouvez contacter ${loan.lender.name} à ${loan.lender.email}.`,
     ],
     cta: { label: "Voir mes emprunts", url: `${appUrl()}/emprunts` },
+    thirdParty: { lenderName: loan.lender.name },
   });
   if (loan.borrowerId) {
     await notify(loan.borrowerId, "Emprunt en retard", `${toGiveBack(loan)} : à rendre à ${loan.lender.name} depuis le ${fmtDate(loan.dueAt)}.`, "/emprunts");
@@ -107,6 +109,7 @@ export async function runReminders() {
       title: `Bonjour ${loan.borrowerName},`,
       paragraphs: [`${toGiveBack(loan)}, prêté par ${loan.lender.name}, est à rendre le ${fmtDate(loan.dueAt)}.`],
       cta: { label: "Voir mes emprunts", url: `${appUrl()}/emprunts` },
+      thirdParty: { lenderName: loan.lender.name },
     });
     if (loan.borrowerId) await notify(loan.borrowerId, "Échéance demain", `${toGiveBack(loan)} : à rendre à ${loan.lender.name} demain.`, "/emprunts");
     await prisma.loan.update({ where: { id: loan.id }, data: { reminderCount: { increment: 1 }, lastReminderAt: now } });

@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
 
 function parseUA(ua: string) {
   const device = /ipad|tablet/i.test(ua) ? "Tablette" : /mobi|android|iphone/i.test(ua) ? "Mobile" : "Ordinateur";
@@ -9,7 +8,7 @@ function parseUA(ua: string) {
 
 const BOT = /bot|crawl|spider|slurp|preview|headless|lighthouse/i;
 
-/** Analytics maison, sans cookie tiers : une ligne par page vue. */
+/** Analytics maison, sans cookie tiers ni lien avec le compte (exemption CNIL) : une ligne par page vue. */
 export async function POST(req: Request) {
   const ua = req.headers.get("user-agent") || "";
   if (BOT.test(ua)) return new Response(null, { status: 204 });
@@ -22,10 +21,9 @@ export async function POST(req: Request) {
     if (host && host !== new URL(req.url).hostname) referrer = host.replace(/^www\./, "");
   } catch {}
 
-  const user = await getCurrentUser();
   const country = req.headers.get("cf-ipcountry") || req.headers.get("x-vercel-ip-country") || req.headers.get("x-country") || null;
   await prisma.pageView.create({
-    data: { path: String(body.path).slice(0, 200), referrer, visitorId: String(body.visitorId).slice(0, 64), userId: user?.id, country, ...parseUA(ua) },
+    data: { path: String(body.path).slice(0, 200), referrer, visitorId: String(body.visitorId).slice(0, 64), country, ...parseUA(ua) },
   });
   return new Response(null, { status: 204 });
 }

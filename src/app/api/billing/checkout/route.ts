@@ -3,14 +3,20 @@ import { prisma } from "@/lib/db";
 import { stripe, demoBilling } from "@/lib/stripe";
 import { error, json, withUser, zodError } from "@/lib/api";
 import { PAID_PLANS, PLANS, stripePriceId } from "@/lib/plans";
+import { TERMS_VERSION } from "@/lib/legal";
 
-const schema = z.object({ plan: z.enum(PAID_PLANS) });
+const schema = z.object({
+  plan: z.enum(PAID_PLANS),
+  // CGV acceptées et demande expresse d'exécution immédiate (art. L221-25 du Code de la consommation)
+  acceptSalesTerms: z.literal(true, { message: "Tu dois accepter les conditions générales de vente" }),
+});
 
 export const POST = withUser(async (user, req) => {
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return zodError(parsed.error);
   const plan = parsed.data.plan;
   const appUrl = process.env.APP_URL || new URL(req.url).origin;
+  await prisma.user.update({ where: { id: user.id }, data: { salesTermsAcceptedAt: new Date() } });
 
   if (demoBilling) {
     const info = PLANS[plan];
@@ -18,7 +24,7 @@ export const POST = withUser(async (user, req) => {
     if (info.interval === "month") expires.setMonth(expires.getMonth() + 1);
     else expires.setFullYear(expires.getFullYear() + 1);
     await prisma.$transaction([
-      prisma.user.update({ where: { id: user.id }, data: { plan, planExpiresAt: expires } }),
+      prisma.user.update({ where: { id: user.id }, data: { plan, planExpiresAt: expires, cancelAtPeriodEnd: false } }),
       prisma.payment.create({ data: { userId: user.id, plan, amountCents: info.priceCents, provider: "demo", providerRef: `demo_${Date.now()}_${user.id}` } }),
     ]);
     return json({ url: `${appUrl}/abonnement?success=1` });
@@ -47,7 +53,7 @@ export const POST = withUser(async (user, req) => {
     customer: customerId,
     client_reference_id: user.id,
     line_items: [{ price, quantity: 1 }],
-    subscription_data: { metadata: { userId: user.id, plan } },
+    subscription_data: { metadata: { userId: user.id, plan, salesTermsVersion: TERMS_VERSION, immediateStartRequested: "true" } },
     allow_promotion_codes: true,
     success_url: `${appUrl}/abonnement?success=1`,
     cancel_url: `${appUrl}/abonnement?canceled=1`,

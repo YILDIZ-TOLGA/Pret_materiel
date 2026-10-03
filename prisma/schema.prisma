@@ -40,8 +40,18 @@ model User {
   planExpiresAt        DateTime?
   stripeCustomerId     String?   @unique
   stripeSubscriptionId String?   @unique
+  // abonnement résilié : reste actif jusqu'à planExpiresAt puis n'est pas renouvelé
+  cancelAtPeriodEnd    Boolean   @default(false)
   createdAt            DateTime  @default(now())
+  // dernière activité (connexion ou ouverture de l'appli) : sert à la purge des comptes inactifs
   lastLoginAt          DateTime?
+  // RGPD / consommation : preuve d'acceptation des CGU et des CGV
+  termsAcceptedAt      DateTime?
+  termsVersion         String?
+  salesTermsAcceptedAt DateTime?
+  // préavis envoyés (reconduction d'un abonnement annuel, suppression pour inactivité)
+  renewalNoticeAt      DateTime?
+  inactivityNoticeAt   DateTime?
 
   loansGiven    Loan[]         @relation("lender")
   loansReceived Loan[]         @relation("borrower")
@@ -132,7 +142,6 @@ model PageView {
   path      String
   referrer  String?
   visitorId String
-  userId    String?
   device    String?
   browser   String?
   country   String?
@@ -152,4 +161,10 @@ model EmailLog {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+/** Adresses qui ne veulent plus recevoir d'e-mails de rappel (droit d'opposition, art. 21 RGPD). */
+model EmailOptOut {
+  email     String   @id
+  createdAt DateTime @default(now())
 }

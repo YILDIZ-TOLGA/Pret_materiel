@@ -1,11 +1,11 @@
 {
   "name": "Prêt Matériel",
   "short_name": "Prêts",
-  "description": "Prête tes affaires, on s'occupe des rappels.",
+  "description": "Suis tes prêts d'objets et d'argent. Les relances partent automatiquement.",
   "start_url": "/prets",
   "display": "standalone",
-  "background_color": "#f4f4f2",
-  "theme_color": "#2a78d6",
+  "background_color": "#f2f0ea",
+  "theme_color": "#1e5b47",
   "lang": "fr",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
