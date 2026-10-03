@@ -15,10 +15,10 @@ async function syncSubscription(sub: Stripe.Subscription) {
   if (alive && plan) {
     await prisma.user.update({
       where: { id: user.id },
-      data: { plan, stripeSubscriptionId: sub.id, planExpiresAt: new Date(item.current_period_end * 1000) },
+      data: { plan, stripeSubscriptionId: sub.id, planExpiresAt: new Date(item.current_period_end * 1000), cancelAtPeriodEnd: sub.cancel_at_period_end || !!sub.cancel_at },
     });
   } else if (user.stripeSubscriptionId === sub.id) {
-    await prisma.user.update({ where: { id: user.id }, data: { plan: "FREE", planExpiresAt: null, stripeSubscriptionId: null } });
+    await prisma.user.update({ where: { id: user.id }, data: { plan: "FREE", planExpiresAt: null, stripeSubscriptionId: null, cancelAtPeriodEnd: false } });
     await notify(user.id, "Abonnement terminé", "Ton abonnement est terminé : tu repasses à l'offre gratuite.", "/abonnement");
   }
 }

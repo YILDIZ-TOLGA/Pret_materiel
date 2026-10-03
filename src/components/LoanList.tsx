@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { dateFr, dueLabel, euros, isMoney, loanEmoji, loanTitle, remainingCents } from "@/lib/client";
+import { dueInfo, euros, isMoney, loanTitle, remainingCents } from "@/lib/client";
+import { Icon } from "./Icon";
 
 export type RepaymentDTO = { id: string; amountCents: number; note: string | null; createdAt: string };
 
@@ -11,20 +12,32 @@ export type LoanDTO = {
   lender?: { name: string; email: string };
 };
 
-export function LoanRow({ loan, href, who }: { loan: LoanDTO; href?: string; who: string }) {
-  const due = dueLabel(loan.dueAt, loan.status, loan.kind);
-  const content = (
-    <div className={`loan ${due.tone === "bad" ? "overdue" : ""}`}>
-      <div className="loan-ico">{loanEmoji(loan)}</div>
-      <div className="loan-main">
-        <div className="loan-title">{loanTitle(loan)}</div>
-        <div className="muted small">
-          {who} · {loan.status === "RETURNED" && loan.returnedAt ? `${isMoney(loan) ? "remboursé" : "rendu"} le ${dateFr(loan.returnedAt)}` : `retour le ${dateFr(loan.dueAt)}`}
-          {isMoney(loan) && loan.status === "ACTIVE" && loan.repaidCents > 0 && ` · reste ${euros(remainingCents(loan))}`}
-        </div>
+export function LoanIcon({ loan, size = 18 }: { loan: Pick<LoanDTO, "kind" | "amountCents" | "item">; size?: number }) {
+  return <Icon name={isMoney(loan) ? "banknote" : "box"} size={size} />;
+}
+
+/**
+ * Ligne de prêt. Toute la ligne est cliquable (lien étiré) ; les actions rapides apparaissent
+ * au survol à la place de l'échéance, sans imbriquer de boutons dans un lien.
+ */
+export function LoanRow({ loan, href, who, actions, index = 0, leaving }: {
+  loan: LoanDTO; href?: string; who: React.ReactNode; actions?: React.ReactNode; index?: number; leaving?: boolean;
+}) {
+  const d = dueInfo(loan);
+  const money = isMoney(loan);
+  const cls = ["lrow", d.tone === "late" && "late", loan.status === "RETURNED" && "done", actions && "has-actions", leaving && "out"].filter(Boolean).join(" ");
+  return (
+    <div className={cls} style={{ "--i": Math.min(index, 12) } as React.CSSProperties}>
+      <div className="lrow-glyph"><LoanIcon loan={loan} /></div>
+      <div className="lrow-main">
+        {href ? <Link href={href} className="lrow-title stretched">{loanTitle(loan)}</Link> : <span className="lrow-title">{loanTitle(loan)}</span>}
+        <div className="lrow-meta">{who}</div>
       </div>
-      <span className={`badge ${due.tone}`}>{due.tone === "bad" ? "⚠ " : due.tone === "good" ? "✓ " : ""}{due.text}</span>
+      <div className="lrow-side">
+        {money && loan.status === "ACTIVE" && loan.repaidCents > 0 && <span className="lrow-amt">reste {euros(remainingCents(loan))}</span>}
+        <span className={`due ${d.tone}`} title={d.long}>{d.short}</span>
+      </div>
+      {actions && <div className="lrow-actions">{actions}</div>}
     </div>
   );
-  return href ? <Link href={href}>{content}</Link> : <div>{content}</div>;
 }

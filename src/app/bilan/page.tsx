@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { AppShell } from "@/components/AppShell";
 import { Kpi, TimeChart } from "@/components/Charts";
+import { Icon } from "@/components/Icon";
 import { LoanRow, type LoanDTO } from "@/components/LoanList";
-import { api, dateFr, euros } from "@/lib/client";
+import { Avatar, CountUp, EmptyState, PageHeader, SkeletonRows } from "@/components/ui";
+import { api, dateFr, dateShort, euros, isMoney, norm } from "@/lib/client";
 
 type Person = {
   email: string; name: string; phone: string | null; hasAccount: boolean;
@@ -22,15 +23,15 @@ type Data = {
 };
 
 const pct = (v: number) => `${Math.round(v * 100)} %`;
-const monthLabel = (m: string) => new Date(m + "-01T00:00:00").toLocaleDateString("fr-FR", { month: "short" });
+const monthLabel = (m: string) => new Date(m + "-01T00:00:00").toLocaleDateString("fr-FR", { month: "short" }).replace(".", "");
+const eurosTo = (target: number) => (n: number) => euros(Math.abs(n - target) < 0.5 ? target : Math.round(n / 100) * 100);
+const plural = (n: number, w: string) => `${n} ${w}${n > 1 ? "s" : ""}`;
 
 function reliability(p: Person) {
-  if (p.overdue > 0) return { text: `${p.overdue} en retard`, tone: "bad" };
-  if (!p.returned) return { text: "Nouveau", tone: "" };
-  const r = p.returnedOnTime / p.returned;
-  if (r >= 0.8) return { text: `Fiable · ${pct(r)} à l'heure`, tone: "good" };
-  if (r >= 0.5) return { text: `${pct(r)} à l'heure`, tone: "warn" };
-  return { text: `Souvent en retard · ${pct(r)}`, tone: "bad" };
+  const ratio = p.returned ? p.returnedOnTime / p.returned : 0;
+  if (p.overdue > 0) return { text: `${p.overdue} en retard`, tone: "late", ratio };
+  if (!p.returned) return { text: "Pas d'historique", tone: "", ratio };
+  return { text: `${pct(ratio)} à l'heure`, tone: ratio >= 0.8 ? "" : ratio >= 0.5 ? "soon" : "late", ratio };
 }
 
 function exportCsv(loans: LoanDTO[]) {
@@ -48,105 +49,148 @@ function exportCsv(loans: LoanDTO[]) {
 }
 
 export default function DashboardPage() {
-  return <AppShell><Dashboard /></AppShell>;
-}
-
-function Dashboard() {
   const [d, setD] = useState<Data | null>(null);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
-  useEffect(() => { api<Data>("/api/dashboard").then(setD); }, []);
-
+  useEffect(() => { api<Data>("/api/dashboard").then(setD).catch(() => {}); }, []);
   const byId = useMemo(() => new Map((d?.loans ?? []).map((l) => [l.id, l])), [d]);
-  if (!d) return <div className="empty">Chargement…</div>;
+
+  if (!d) return <BilanSkeleton />;
   const t = d.totals;
 
   if (t.loans === 0) {
     return (
-      <div className="stack">
-        <h1 style={{ margin: 0 }}>Bilan</h1>
-        <div className="card empty">Tu n&apos;as encore rien prêté.<br /><Link href="/prets/nouveau">Enregistre ton premier prêt</Link></div>
-      </div>
+      <>
+        <PageHeader title="Bilan" sub="Ce qui est dehors, ce qu'on te doit, et qui rend à l'heure." />
+        <div className="card flush">
+          <EmptyState title="Pas encore de bilan" action={<Link href="/prets/nouveau" className="btn primary"><Icon name="plus" size={16} />Noter un prêt</Link>}>
+            Le bilan se remplit au fil de tes prêts : objets dehors, sommes dues, ponctualité de chacun.
+          </EmptyState>
+        </div>
+      </>
     );
   }
 
-  const people = d.people.filter((p) => !q || `${p.name} ${p.email}`.toLowerCase().includes(q.toLowerCase()));
+  const nq = norm(q.trim());
+  const people = d.people.filter((p) => !nq || norm(`${p.name} ${p.email}`).includes(nq));
   const hasMoney = t.moneyLentCents > 0;
 
   return (
-    <div className="stack">
-      <div className="row">
-        <h1 style={{ margin: 0 }}>Bilan</h1>
-        <span className="spacer" />
-        <button className="btn small" onClick={() => exportCsv(d.loans)}>⬇ Exporter (CSV)</button>
-      </div>
+    <>
+      <PageHeader title="Bilan" sub="Ce qui est dehors, ce qu'on te doit, et qui rend à l'heure."
+        actions={<button type="button" className="btn" onClick={() => exportCsv(d.loans)}><Icon name="download" size={15} />Exporter en CSV</button>} />
 
-      <div className="card">
-        <div className="grid grid-2" style={{ gap: 16 }}>
-          <div>
-            <div className="kpi-label">On te doit</div>
-            <div className="hero">{euros(t.owedCents)}</div>
-            <div className="small muted">{t.overdueOwedCents > 0 ? <span style={{ color: "var(--bad)" }}>dont {euros(t.overdueOwedCents)} en retard</span> : hasMoney ? "rien en retard 👌" : "aucun prêt d'argent"}</div>
-          </div>
-          <div>
-            <div className="kpi-label">Objets chez les autres</div>
-            <div className="hero">{t.objectsOut}</div>
-            <div className="small muted">{t.overdue > 0 ? <span style={{ color: "var(--bad)" }}>{t.overdue} prêt{t.overdue > 1 ? "s" : ""} en retard</span> : "aucun retard 👌"}</div>
-          </div>
+      <section className="stats rise" style={{ "--i": 0 } as React.CSSProperties} aria-label="Chiffres clés">
+        <div className="stat">
+          <div className="stat-label"><Icon name="banknote" size={15} />On te doit</div>
+          <div className="stat-value"><CountUp value={t.owedCents} format={eurosTo(t.owedCents)} /></div>
+          <div className="stat-sub">{t.overdueOwedCents > 0 ? <span className="late-text">dont {euros(t.overdueOwedCents)} en retard</span> : hasMoney ? "Rien en retard" : "Aucun prêt d'argent"}</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label"><Icon name="box" size={15} />Objets dehors</div>
+          <div className="stat-value"><CountUp value={t.objectsOut} /></div>
+          <div className="stat-sub">{t.overdue > 0 ? <span className="late-text">{plural(t.overdue, "prêt")} en retard</span> : "Aucun retard"}</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label"><Icon name="clock" size={15} />Rendus à l&apos;heure</div>
+          <div className="stat-value">{t.onTimeRate == null ? "—" : <CountUp value={Math.round(t.onTimeRate * 100)} format={(n) => `${Math.round(n)} %`} />}</div>
+          <div className="stat-sub">{t.returned ? `sur ${plural(t.returned, "prêt")} clôturé${t.returned > 1 ? "s" : ""}` : "Aucun prêt clôturé"}</div>
+        </div>
+      </section>
+
+      <section className="stats kpis rise" style={{ "--i": 1, marginTop: 14 } as React.CSSProperties}>
+        <Kpi label="Prêts au total" value={<CountUp value={t.loans} />} hint={`${t.active} en cours · ${t.returned} clôturé${t.returned > 1 ? "s" : ""}`} />
+        <Kpi label="Personnes" value={<CountUp value={t.people} />} hint="dans ton carnet" />
+        <Kpi label="Durée moyenne" value={t.avgDays == null ? "—" : `${Math.round(t.avgDays)} j`} hint="avant le retour" />
+        {hasMoney && <Kpi label="Argent prêté" value={euros(t.moneyLentCents)} hint={`${euros(t.moneyRepaidCents)} remboursés`} />}
+      </section>
+
+      <section className="card flush rise" style={{ "--i": 2, marginTop: 14 } as React.CSSProperties}>
+        <div className="card-head"><h2>Prêts par mois</h2><span className="tiny muted mono">12 derniers mois</span></div>
+        <div className="card-body">
+          <TimeChart data={d.months} x="month" xLabel={monthLabel} height={190}
+            series={hasMoney
+              ? [{ key: "objects", label: "Objets", color: "var(--series-1)" }, { key: "money", label: "Argent", color: "var(--series-2)" }]
+              : [{ key: "objects", label: "Objets", color: "var(--series-1)" }]} />
+        </div>
+      </section>
+
+      <div className="sec-head">
+        <h2>Par emprunteur</h2>
+        {d.people.length > 5 && (
+          <label className="search ph-search">
+            <span className="sr-only">Rechercher une personne</span>
+            <Icon name="search" size={15} />
+            <input data-page-search value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher une personne…" />
+            <kbd>/</kbd>
+          </label>
+        )}
+      </div>
+      <div className="people rise" style={{ "--i": 3 } as React.CSSProperties}>
+        {people.length === 0
+          ? <p className="muted small" style={{ padding: 20, margin: 0 }}>Personne ne correspond à « {q.trim()} ».</p>
+          : people.map((p) => (
+              <PersonRow key={p.email} p={p} open={open === p.email} onToggle={() => setOpen(open === p.email ? null : p.email)}
+                loans={p.loanIds.map((id) => byId.get(id)).filter((l): l is LoanDTO => !!l)} />
+            ))}
+      </div>
+    </>
+  );
+}
+
+function PersonRow({ p, open, onToggle, loans }: { p: Person; open: boolean; onToggle: () => void; loans: LoanDTO[] }) {
+  const [seen, setSeen] = useState(false);
+  useEffect(() => { if (open) setSeen(true); }, [open]);
+  const rel = reliability(p);
+  const meta = [plural(p.total, "prêt"), p.objectsOut > 0 && `${plural(p.objectsOut, "objet")} dehors`, p.owedCents > 0 && `doit ${euros(p.owedCents)}`].filter(Boolean).join(" · ");
+  return (
+    <div className={`person ${open ? "open" : ""}`}>
+      <button type="button" className="person-row" aria-expanded={open} onClick={onToggle}>
+        <Avatar name={p.name} />
+        <span style={{ minWidth: 0 }}>
+          <span className="person-name"><span className="truncate">{p.name}</span>{p.hasAccount && <span className="tag brand">Membre</span>}</span>
+          <span className="person-meta" style={{ display: "block" }}>{meta}</span>
+        </span>
+        <span className={`rel ${rel.tone}`}>
+          {p.returned > 0 && <span className="rel-bar"><i style={{ "--ratio": rel.ratio } as React.CSSProperties} /></span>}
+          {rel.text}
+        </span>
+        <Icon name="chevronDown" size={16} className="chev" />
+      </button>
+      <div className="person-more" inert={!open}>
+        <div>
+          {(open || seen) && (
+            <div className="person-more-in">
+              <div className="contact">
+                <a href={`mailto:${p.email}`}><Icon name="mail" size={14} />{p.email}</a>
+                {p.phone && <a href={`tel:${p.phone}`}><Icon name="phone" size={14} />{p.phone}</a>}
+              </div>
+              {p.lentCents > 0 && (
+                <div className="small muted">Argent : {euros(p.lentCents)} prêtés, {euros(p.repaidCents)} remboursés{p.owedCents > 0 && <> · <span className="late-text">reste {euros(p.owedCents)}</span></>}</div>
+              )}
+              <div className="lrows">
+                {loans.map((l, i) => (
+                  <LoanRow key={l.id} loan={l} index={i} href={`/prets/${l.id}`}
+                    who={l.status === "RETURNED" && l.returnedAt ? `prêté le ${dateShort(l.lentAt)} · ${isMoney(l) ? "soldé" : "rendu"} le ${dateShort(l.returnedAt)}` : `prêté le ${dateShort(l.lentAt)}`} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="grid grid-kpi">
-        <Kpi label="Prêts au total" value={String(t.loans)} hint={`${t.active} en cours · ${t.returned} rendus`} />
-        <Kpi label="Personnes" value={String(t.people)} />
-        <Kpi label="Rendus à l'heure" value={t.onTimeRate == null ? "—" : pct(t.onTimeRate)} />
-        <Kpi label="Durée moyenne" value={t.avgDays == null ? "—" : `${Math.round(t.avgDays)} j`} />
-        {hasMoney && <Kpi label="Argent prêté au total" value={euros(t.moneyLentCents)} hint={`${euros(t.moneyRepaidCents)} remboursés`} />}
+function BilanSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Chargement">
+      <div className="skel" style={{ width: 160, height: 38, marginBottom: 14 }} />
+      <div className="skel" style={{ width: 320, height: 12, marginBottom: 36, opacity: .7 }} />
+      <div className="stats" style={{ marginBottom: 14 }}>
+        {[0, 1, 2].map((i) => <div key={i} className="stat"><div className="skel" style={{ width: 90, height: 10 }} /><div className="skel" style={{ width: 120, height: 40, marginTop: 16 }} /></div>)}
       </div>
-
-      <div className="card">
-        <h2>Prêts par mois</h2>
-        <TimeChart data={d.months} x="month" xLabel={monthLabel} height={180}
-          series={hasMoney
-            ? [{ key: "objects", label: "Objets", color: "var(--series-1)" }, { key: "money", label: "Argent", color: "var(--series-2)" }]
-            : [{ key: "objects", label: "Objets", color: "var(--series-1)" }]} />
-      </div>
-
-      <h2 style={{ margin: "8px 0 0" }}>Par personne</h2>
-      {d.people.length > 5 && <input placeholder="Rechercher une personne…" value={q} onChange={(e) => setQ(e.target.value)} />}
-      <div className="list">
-        {people.map((p) => {
-          const rel = reliability(p);
-          const isOpen = open === p.email;
-          const loans = p.loanIds.map((id) => byId.get(id)!).filter(Boolean);
-          return (
-            <div key={p.email}>
-              <button className="person" onClick={() => setOpen(isOpen ? null : p.email)} aria-expanded={isOpen}>
-                <span className="avatar">{p.name.slice(0, 1).toUpperCase()}</span>
-                <span className="loan-main" style={{ textAlign: "left" }}>
-                  <span className="loan-title" style={{ display: "block" }}>{p.name} {p.hasAccount && <span className="badge accent">membre</span>}</span>
-                  <span className="muted small">
-                    {p.total} prêt{p.total > 1 ? "s" : ""}
-                    {p.objectsOut > 0 && ` · ${p.objectsOut} objet${p.objectsOut > 1 ? "s" : ""} chez lui/elle`}
-                    {p.owedCents > 0 && ` · doit ${euros(p.owedCents)}`}
-                  </span>
-                </span>
-                <span className={`badge ${rel.tone}`}>{rel.text}</span>
-              </button>
-              {isOpen && (
-                <div className="stack" style={{ marginTop: 12, gap: 8 }}>
-                  <div className="row small">
-                    <a href={`mailto:${p.email}`}>✉ {p.email}</a>
-                    {p.phone && <a href={`tel:${p.phone}`}>📞 {p.phone}</a>}
-                  </div>
-                  {p.lentCents > 0 && <div className="small muted">Argent : {euros(p.lentCents)} prêtés, {euros(p.repaidCents)} remboursés</div>}
-                  <div className="list">{loans.map((l) => <LoanRow key={l.id} loan={l} href={`/prets/${l.id}`} who={dateFr(l.lentAt)} />)}</div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <SkeletonRows n={3} />
     </div>
   );
 }
