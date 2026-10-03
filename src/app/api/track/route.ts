@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { rateLimited } from "@/lib/ratelimit";
 
 function parseUA(ua: string) {
   const device = /ipad|tablet/i.test(ua) ? "Tablette" : /mobi|android|iphone/i.test(ua) ? "Mobile" : "Ordinateur";
@@ -12,6 +13,8 @@ const BOT = /bot|crawl|spider|slurp|preview|headless|lighthouse/i;
 export async function POST(req: Request) {
   const ua = req.headers.get("user-agent") || "";
   if (BOT.test(ua)) return new Response(null, { status: 204 });
+  // Évite qu'un script gonfle les statistiques (l'adresse IP n'est gardée qu'en mémoire, quelques minutes)
+  if (await rateLimited("track", 120, 10 * 60 * 1000)) return new Response(null, { status: 204 });
   const body = await req.json().catch(() => null);
   if (!body?.path || !body?.visitorId) return new Response(null, { status: 204 });
 

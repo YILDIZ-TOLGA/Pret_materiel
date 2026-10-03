@@ -21,7 +21,8 @@ export default function Page() {
       <h2>2. Données traitées</h2>
       <h3>Utilisateurs inscrits</h3>
       <ul>
-        <li><strong>Compte</strong> : prénom, adresse e-mail, mot de passe (stocké uniquement sous forme chiffrée irréversible, bcrypt), date d&apos;inscription, date de dernière activité, date et version des conditions acceptées.</li>
+        <li><strong>Compte</strong> : prénom, adresse e-mail, mot de passe (stocké uniquement sous forme chiffrée irréversible, bcrypt), date d&apos;inscription, date de dernière activité, date et version des conditions acceptées, date de confirmation de l&apos;adresse e-mail et, le cas échéant, la nouvelle adresse en attente de confirmation.</li>
+        <li><strong>Sécurité du compte</strong> : sessions de connexion (date d&apos;ouverture et d&apos;expiration, sans information sur l&apos;appareil) et liens de confirmation ou de réinitialisation du mot de passe envoyés par e-mail (seule une empreinte du lien est conservée).</li>
         <li><strong>Prêts</strong> : objets ou montants prêtés, dates, remboursements, notes personnelles, options de rappel.</li>
         <li><strong>Abonnement</strong> : offre choisie, dates de renouvellement, historique des paiements (montant, date). Vos coordonnées bancaires sont saisies directement chez notre prestataire de paiement Stripe : nous n&apos;y avons jamais accès.</li>
         <li><strong>Notifications</strong> affichées dans l&apos;application.</li>
@@ -34,13 +35,14 @@ export default function Page() {
       <h3>Tous les visiteurs</h3>
       <ul>
         <li><strong>Mesure d&apos;audience</strong> : page consultée, site d&apos;origine, type d&apos;appareil, navigateur, pays, et un identifiant aléatoire stocké sur votre appareil. Aucun lien n&apos;est fait avec votre compte. Détails et opposition sur la page <Link href="/cookies">Cookies</Link>.</li>
-        <li><strong>Sécurité</strong> : l&apos;adresse IP est utilisée quelques minutes, en mémoire, pour bloquer les tentatives de connexion en série. Elle n&apos;est pas enregistrée en base.</li>
+        <li><strong>Sécurité</strong> : l&apos;adresse IP est utilisée quelques minutes, en mémoire, pour bloquer les tentatives en série (connexion, inscription, mot de passe oublié) et les envois abusifs. Elle n&apos;est pas enregistrée en base.</li>
         <li><strong>Journal des e-mails</strong> : destinataire, objet, type et résultat de chaque e-mail envoyé, pour vérifier la bonne délivrance et traiter les réclamations.</li>
       </ul>
 
       <h2>3. Finalités et bases légales</h2>
       <div className="scroll-x"><table className="tbl"><thead><tr><th>Finalité</th><th>Base légale (art. 6 RGPD)</th></tr></thead><tbody>
         <tr><td>Créer et gérer votre compte, enregistrer vos prêts, afficher votre bilan</td><td>Exécution du contrat (CGU)</td></tr>
+        <tr><td>Confirmer votre adresse e-mail, réinitialiser votre mot de passe, vous prévenir d&apos;un changement de mot de passe ou d&apos;adresse</td><td>Exécution du contrat (CGU) et sécurité du compte (art. 32 RGPD)</td></tr>
         <tr><td>Envoyer aux emprunteurs les e-mails liés à un prêt (confirmation, rappel la veille, relances)</td><td>Intérêt légitime de l&apos;utilisateur à récupérer son bien ou son argent ; l&apos;emprunteur peut s&apos;y opposer à tout moment en un clic</td></tr>
         <tr><td>Gérer les abonnements et les paiements</td><td>Exécution du contrat (CGV)</td></tr>
         <tr><td>Conserver les factures et justificatifs de paiement</td><td>Obligation légale (art. L123-22 du Code de commerce)</td></tr>
@@ -58,6 +60,8 @@ export default function Page() {
         <tr><td>Données d&apos;un emprunteur</td><td>Celle du prêt qui le concerne. Supprimées avec le compte du prêteur.</td></tr>
         <tr><td>Factures et paiements</td><td>10 ans (obligation comptable), même après la suppression du compte, sans lien avec le compte supprimé</td></tr>
         <tr><td>Liste des adresses désinscrites</td><td>Tant que nécessaire pour respecter la désinscription (seule l&apos;adresse e-mail est conservée)</td></tr>
+        <tr><td>Sessions de connexion</td><td>{RETENTION.sessionDays} jours au plus ; supprimées à la déconnexion, au changement de mot de passe ou avec le compte</td></tr>
+        <tr><td>Liens envoyés par e-mail</td><td>Confirmation d&apos;adresse : {RETENTION.verifyEmailLinkHours} heures ; réinitialisation du mot de passe : {RETENTION.resetPasswordLinkHours} heure. Supprimés dès leur utilisation.</td></tr>
         <tr><td>Notifications lues</td><td>{RETENTION.readNotificationMonths} mois</td></tr>
         <tr><td>Journal des e-mails envoyés</td><td>{RETENTION.emailLogMonths} mois</td></tr>
         <tr><td>Statistiques de fréquentation</td><td>{RETENTION.pageViewMonths} mois ; identifiant de mesure d&apos;audience renouvelé tous les {RETENTION.visitorIdMonths} mois</td></tr>
@@ -78,14 +82,14 @@ export default function Page() {
       <p>Les données sont hébergées dans l&apos;Union européenne lorsque c&apos;est possible. Si un prestataire transfère des données hors de l&apos;UE (par exemple Stripe vers les États-Unis), le transfert est encadré par une décision d&apos;adéquation (Data Privacy Framework) ou par les clauses contractuelles types de la Commission européenne.</p>
 
       <h2>7. Sécurité</h2>
-      <p>Connexion chiffrée (HTTPS), mots de passe chiffrés de manière irréversible, exigences de robustesse des mots de passe et limitation des tentatives de connexion conformes aux recommandations de la CNIL, cookie de session protégé (HttpOnly), accès à l&apos;administration réservé aux administrateurs. En cas de violation de données présentant un risque, la CNIL est notifiée sous 72 heures et les personnes concernées sont prévenues lorsque la loi l&apos;impose.</p>
+      <p>Connexion chiffrée (HTTPS), mots de passe chiffrés de manière irréversible, adresse e-mail confirmée avant tout rattachement d&apos;emprunts ou envoi d&apos;e-mail à un emprunteur, sessions révocables (déconnexion de tous les appareils depuis Mon compte), exigences de robustesse des mots de passe et limitation des tentatives de connexion conformes aux recommandations de la CNIL, cookie de session protégé (HttpOnly), accès à l&apos;administration réservé aux administrateurs. En cas de violation de données présentant un risque, la CNIL est notifiée sous 72 heures et les personnes concernées sont prévenues lorsque la loi l&apos;impose.</p>
 
       <h2>8. Vos droits</h2>
       <p>Vous disposez des droits d&apos;accès, de rectification, d&apos;effacement, de limitation, de portabilité et d&apos;opposition (articles 15 à 21 du RGPD), ainsi que du droit de définir des directives sur le sort de vos données après votre décès (art. 85 de la loi Informatique et Libertés).</p>
       <ul>
-        <li><strong>Depuis votre compte</strong>, page <Link href="/compte">Mon compte</Link> : modifier votre prénom, télécharger toutes vos données (format JSON, lisible par machine), supprimer définitivement votre compte.</li>
+        <li><strong>Depuis votre compte</strong>, page <Link href="/compte">Mon compte</Link> : modifier votre prénom, votre adresse e-mail et votre mot de passe, déconnecter vos autres appareils, télécharger toutes vos données (format JSON, lisible par machine), supprimer définitivement votre compte.</li>
         <li><strong>Emprunteur</strong> : lien « Ne plus recevoir ces e-mails » en bas de chaque e-mail.</li>
-        <li><strong>Pour tout le reste</strong> (changement d&apos;adresse e-mail, effacement de données d&apos;emprunteur, question) : écrivez à <strong>{editor.email}</strong>. Nous pourrons vous demander de justifier de votre identité en cas de doute raisonnable. Réponse sous un mois maximum.</li>
+        <li><strong>Pour tout le reste</strong> (effacement de données d&apos;emprunteur, question) : écrivez à <strong>{editor.email}</strong>. Nous pourrons vous demander de justifier de votre identité en cas de doute raisonnable. Réponse sous un mois maximum.</li>
       </ul>
       <p>Si vous estimez que vos droits ne sont pas respectés, vous pouvez introduire une réclamation auprès de la CNIL (3 place de Fontenoy, TSA 80715, 75334 Paris Cedex 07 — <a href="https://www.cnil.fr/fr/plaintes" rel="noopener noreferrer" target="_blank">cnil.fr/fr/plaintes</a>).</p>
 

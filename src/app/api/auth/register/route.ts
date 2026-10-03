@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { sendVerificationEmail } from "@/lib/account";
 import { createToken, hashPassword, publicUser, setSessionCookie } from "@/lib/auth";
 import { error, json, zodError } from "@/lib/api";
 import { TERMS_VERSION } from "@/lib/legal";
@@ -20,16 +21,13 @@ export async function POST(req: Request) {
   const { name, email, password } = parsed.data;
   if (await prisma.user.findUnique({ where: { email } })) return error("Un compte existe déjà avec cet e-mail", 409);
 
-  const isAdmin = !!process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL.toLowerCase();
   const now = new Date();
   const user = await prisma.user.create({
-    data: {
-      name, email, passwordHash: await hashPassword(password), role: isAdmin ? "ADMIN" : "USER", lastLoginAt: now,
-      termsAcceptedAt: now, termsVersion: TERMS_VERSION,
-    },
+    data: { name, email, passwordHash: await hashPassword(password), lastLoginAt: now, termsAcceptedAt: now, termsVersion: TERMS_VERSION },
   });
-  // Rattache les prêts déjà faits à cet e-mail : la personne voit ses emprunts dès l'inscription.
-  await prisma.loan.updateMany({ where: { borrowerEmail: email, borrowerId: null }, data: { borrowerId: user.id } });
+  // Les emprunts faits à cette adresse (et le rôle admin pour ADMIN_EMAIL) ne sont rattachés
+  // qu'une fois l'adresse confirmée par le lien : voir confirmEmail().
+  await sendVerificationEmail(user, email);
 
   const token = await createToken(user.id);
   await setSessionCookie(token);

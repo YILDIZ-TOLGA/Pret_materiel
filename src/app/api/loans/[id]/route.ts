@@ -76,7 +76,7 @@ export const PATCH = withUser<Ctx>(async (user, req, { params }) => {
   if (kind === "MONEY" && !parsed.data.item && parsed.data.item !== undefined) data.item = "Prêt d'argent";
   if (kind === "OBJECT") data.amountCents = null;
   if (parsed.data.borrowerEmail && parsed.data.borrowerEmail !== loan.borrowerEmail) {
-    const borrower = await prisma.user.findUnique({ where: { email: parsed.data.borrowerEmail }, select: { id: true } });
+    const borrower = await prisma.user.findFirst({ where: { email: parsed.data.borrowerEmail, emailVerifiedAt: { not: null } }, select: { id: true } });
     data.borrowerId = borrower?.id ?? null;
   }
   // Nouvelle échéance : on repart sur un cycle de rappels propre.

@@ -3,17 +3,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
+import { PasswordField } from "./AuthCard";
 import { Brand } from "./Brand";
 import { Icon } from "./Icon";
 import { useMe } from "./Providers";
 import { LegalLinks } from "./SiteFooter";
 import { DayNight, Spinner, Stamp } from "./ui";
-
-/** Règle CNIL appliquée côté serveur (src/lib/validation.ts) : 8 caractères et 3 types sur 4. */
-function pwChecks(pw: string) {
-  const types = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter((r) => r.test(pw)).length;
-  return { length: pw.length >= 8, types: types >= 3 };
-}
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
@@ -21,12 +16,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const { refresh } = useMe();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [accept, setAccept] = useState(false);
-  const [show, setShow] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
   const register = mode === "register";
-  const checks = pwChecks(form.password);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,22 +48,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             {err && <div className="banner late"><Icon name="alert" size={16} />{err}</div>}
             {register && <label className="field">Prénom<input value={form.name} onChange={set("name")} required autoComplete="given-name" autoFocus /></label>}
             <label className="field">Adresse e-mail<input type="email" value={form.email} onChange={set("email")} required autoComplete="email" autoFocus={!register} /></label>
-            <div className="field">
-              <label htmlFor="pw">Mot de passe</label>
-              <div className="pw">
-                <input id="pw" type={show ? "text" : "password"} value={form.password} onChange={set("password")} required minLength={register ? 8 : 1}
-                  autoComplete={register ? "new-password" : "current-password"} aria-describedby={register ? "pw-rules" : undefined} />
-                <button type="button" className="icon-btn" onClick={() => setShow(!show)} aria-label={show ? "Masquer le mot de passe" : "Afficher le mot de passe"} aria-pressed={show}>
-                  <Icon name={show ? "eyeOff" : "eye"} size={17} />
-                </button>
-              </div>
-              {register && (
-                <ul className="criteria" id="pw-rules">
-                  <li className={checks.length ? "ok" : ""}><span className="c"><Icon name="check" size={9} stroke={3.4} /></span>8 caractères minimum</li>
-                  <li className={checks.types ? "ok" : ""}><span className="c"><Icon name="check" size={9} stroke={3.4} /></span>3 types parmi : minuscules, majuscules, chiffres, caractères spéciaux</li>
-                </ul>
-              )}
-            </div>
+            <PasswordField id="pw" label="Mot de passe" value={form.password} onChange={(password) => setForm({ ...form, password })} isNew={register} />
+            {!register && <p className="hint" style={{ marginTop: -6 }}><Link href="/mot-de-passe-oublie">Mot de passe oublié ?</Link></p>}
             {register && (
               <label className="check">
                 <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} required />

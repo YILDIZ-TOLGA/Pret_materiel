@@ -52,11 +52,50 @@ model User {
   // préavis envoyés (reconduction d'un abonnement annuel, suppression pour inactivité)
   renewalNoticeAt      DateTime?
   inactivityNoticeAt   DateTime?
+  // adresse e-mail confirmée par un lien : sans ça, pas de rattachement des emprunts ni d'envoi aux emprunteurs
+  emailVerifiedAt      DateTime?
+  // nouvelle adresse demandée, en attente de confirmation par un lien envoyé à cette adresse
+  pendingEmail         String?
 
   loansGiven    Loan[]         @relation("lender")
   loansReceived Loan[]         @relation("borrower")
   notifications Notification[]
   payments      Payment[]
+  sessions      Session[]
+  authTokens    AuthToken[]
+}
+
+/** Session de connexion (une par appareil) : la supprimer déconnecte l'appareil, même avec un jeton encore valide. */
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+enum AuthTokenKind {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+/** Lien à usage unique envoyé par e-mail. Seule l'empreinte SHA-256 du jeton est stockée. */
+model AuthToken {
+  id        String        @id @default(cuid())
+  kind      AuthTokenKind
+  tokenHash String        @unique
+  // adresse à laquelle le lien a été envoyé (adresse actuelle ou nouvelle adresse à confirmer)
+  email     String
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime      @default(now())
+
+  @@index([userId, kind])
+  @@index([expiresAt])
 }
 
 model Loan {
