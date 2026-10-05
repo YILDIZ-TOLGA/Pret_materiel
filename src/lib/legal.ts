@@ -52,8 +52,8 @@ export const LEGAL = {
   minAge: 15,
 };
 
-export const TERMS_VERSION = "2026-10-03";
-export const LEGAL_UPDATED_AT = "3 octobre 2026";
+export const TERMS_VERSION = "2026-10-05";
+export const LEGAL_UPDATED_AT = "5 octobre 2026";
 
 /** Durées de conservation (appliquées par la purge automatique, voir src/lib/retention.ts). */
 export const RETENTION = {

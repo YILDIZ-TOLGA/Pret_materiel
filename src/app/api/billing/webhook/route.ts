@@ -28,7 +28,7 @@ async function recordPayment(invoice: Stripe.Invoice) {
   const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
   const user = customerId ? await prisma.user.findUnique({ where: { stripeCustomerId: customerId } }) : null;
   const priceId = invoice.lines.data[0]?.pricing?.price_details?.price;
-  const plan = (typeof priceId === "string" && planFromPriceId(priceId)) || user?.plan || "MONTHLY";
+  const plan = (typeof priceId === "string" && planFromPriceId(priceId)) || user?.plan || "PERSO_MONTHLY";
   await prisma.payment.upsert({
     where: { providerRef: invoice.id },
     update: {},

@@ -3,12 +3,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Brand } from "@/components/Brand";
 import { Icon, type IconName } from "@/components/Icon";
+import { IntervalToggle, PlanCard } from "@/components/PlanCards";
 import { useMe } from "@/components/Providers";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Avatar, CountUp, DayNight, Reveal, Stamp, useInView } from "@/components/ui";
 import { euros } from "@/lib/client";
 import { LEGAL } from "@/lib/legal";
-import { PLANS } from "@/lib/plans";
+import { FROM_MONTHLY_CENTS, PLANS, TIERS, yearlySaving, type Interval } from "@/lib/plans";
 
 /* Fiches d'exemple de la pile animée (données fictives, à visée d'illustration). */
 type DemoCard = {
@@ -223,6 +224,7 @@ function Faq() {
 export default function Home() {
   const { me } = useMe();
   const [scrolled, setScrolled] = useState(false);
+  const [period, setPeriod] = useState<Interval>("month");
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 8);
     on();
@@ -314,25 +316,21 @@ export default function Home() {
           <div className="wrap">
             <Reveal className="lp-sec-head">
               <div className="lp-kicker">Tarifs</div>
-              <h2 className="lp-h2" id="price-title">Gratuit pour commencer, <em>dès 1 € par mois</em> pour aller plus loin.</h2>
-              <p className="lp-sub">Prix TTC, sans engagement. Paiement sécurisé par Stripe.</p>
+              <h2 className="lp-h2" id="price-title">Gratuit pour commencer, <em>dès {euros(FROM_MONTHLY_CENTS)} par mois</em> pour aller plus loin.</h2>
+              <p className="lp-sub">Prix TTC, mensuel sans engagement, et des offres Pro pour les entreprises et les associations. Paiement sécurisé par Stripe.</p>
             </Reveal>
+            <div className="plans-bar"><IntervalToggle value={period} onChange={setPeriod} /></div>
             <div className="plans">
-              {Object.values(PLANS).map((p, i) => (
-                <Reveal key={p.id} delay={i * 80}>
-                  <div className={`plan ${p.id === "YEARLY_10" ? "featured" : ""}`}>
-                  <div className="plan-name">{p.name}{p.id === "YEARLY_10" && <span className="tag brand">−50 % vs mensuel</span>}</div>
-                  <div className="plan-price">{euros(p.priceCents)}{p.interval && <small>/ {p.interval === "month" ? "mois" : "an"}</small>}</div>
-                  <div className="plan-eq">{p.interval === "year" ? `soit ${euros(Math.round(p.priceCents / 12))} par mois` : p.interval === "month" ? "sans engagement" : "sans carte bancaire"}</div>
-                  <ul>
-                    <li><Icon name="check" size={14} />{p.maxLoans} prêt{p.maxLoans > 1 ? "s" : ""} en cours</li>
-                    <li><Icon name="check" size={14} />Rappels et relances automatiques</li>
-                    <li><Icon name="check" size={14} />Bilan et export CSV</li>
-                  </ul>
-                  <Link href={p.id === "FREE" ? start : me ? "/abonnement" : "/inscription"} className={`btn block ${p.id === "YEARLY_10" ? "primary" : ""}`}>
-                    {p.id === "FREE" ? "Commencer gratuitement" : "Choisir cette offre"}
-                  </Link>
-                  </div>
+              <Reveal>
+                <PlanCard plan="FREE" title={PLANS.FREE.name} audience="Pour essayer">
+                  <Link href={start} className="btn block">Commencer gratuitement</Link>
+                </PlanCard>
+              </Reveal>
+              {TIERS.map((t, i) => (
+                <Reveal key={t.id} delay={(i + 1) * 80}>
+                  <PlanCard plan={t[period]} title={t.name} audience={t.audience} pro={t.pro} tag={period === "year" ? yearlySaving(t) : null} featured={t.id === "PERSO"}>
+                    <Link href={me ? "/abonnement" : "/inscription"} className={`btn block ${t.id === "PERSO" ? "primary" : ""}`}>Choisir cette offre</Link>
+                  </PlanCard>
                 </Reveal>
               ))}
             </div>

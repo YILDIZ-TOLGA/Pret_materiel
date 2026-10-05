@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { error, json, withAdmin, zodError } from "@/lib/api";
+import { PAID_PLANS } from "@/lib/plans";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 const schema = z.object({
-  plan: z.enum(["FREE", "MONTHLY", "YEARLY_10", "YEARLY_20"]).optional(),
+  plan: z.enum(["FREE", ...PAID_PLANS]).optional(),
   planExpiresAt: z.coerce.date().nullable().optional(),
   role: z.enum(["USER", "ADMIN"]).optional(),
   disabled: z.boolean().optional(),

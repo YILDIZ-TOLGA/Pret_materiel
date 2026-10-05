@@ -14,6 +14,11 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 8. **Stripe** : renseigner l'URL des CGV et de la politique de confidentialité dans *Paramètres → Informations publiques*, et activer les e-mails de reçu. Mettre `DEMO_BILLING=false`.
 9. **Rappels / purge** : le service `cron` (ou l'appel horaire à `/api/cron/reminders`) doit tourner en production : c'est lui qui applique les durées de conservation et envoie les préavis obligatoires.
 10. **Tenir à jour le registre des traitements** ci-dessous (obligatoire, à garder en interne, à montrer à la CNIL en cas de contrôle).
+11. **Offres Pro (entreprises, associations)** :
+    - faire relire par un avocat l'article 16 (clients professionnels) et l'article 17 (accord de sous-traitance, art. 28 RGPD) des CGV ;
+    - tenir le **registre des activités de sous-traitance** (art. 30.2 RGPD, tableau plus bas) ;
+    - **facturation électronique** : depuis le 1er septembre 2026, toute entreprise, micro comprise, doit pouvoir recevoir des factures électroniques (choisir une plateforme agréée) ; à partir du 1er septembre 2027, les factures aux entreprises françaises devront être émises en format structuré via cette plateforme. La facture PDF de Stripe ne suffira plus pour les clients Pro ;
+    - dans Stripe, configurer le portail client pour permettre le changement entre les 6 offres.
 
 ## Ce qui est en place dans le code
 
@@ -28,7 +33,12 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 | Acceptation des CGV + demande d'exécution immédiate avant paiement (L221-25) | page Offre, `api/billing/checkout`, champ `salesTermsAcceptedAt` |
 | Mention TTC / TVA à côté des prix | page d'accueil, page Offre, CGV |
 | Résiliation en 3 clics + e-mail de confirmation (L215-1-1, décret 2023-417) | bouton « Résilier votre contrat » → « Confirmer la résiliation », `api/billing/cancel` |
-| Préavis de reconduction des abonnements annuels (loi Chatel, L215-1) | `src/lib/retention.ts`, e-mail 35 à 75 jours avant l'échéance |
+| Préavis de reconduction des abonnements annuels (loi Chatel, L215-1) | `src/lib/retention.ts`, e-mail 35 à 75 jours avant l'échéance, pour toutes les offres annuelles (Perso et Pro) |
+| Remise annuelle exacte (pas de prix de référence trompeur) | « 2 mois offerts » calculé à partir des prix (`yearlySaving` dans `src/lib/plans.ts`), jamais écrit à la main |
+| Offres Pro : clauses entre professionnels (pénalités de retard, indemnité de 40 €, prix HT) et accord de sous-traitance (art. 28 RGPD) | `/cgu`, articles 16 et 17 ; acceptés avec la case des CGV de la page Offre |
+| Offres Pro : facture au nom de la structure (nom, adresse, n° de TVA) | `api/billing/checkout` (collecte par Stripe Checkout) |
+| Un seul compte par personne, offre Perso réservée à l'usage personnel | `/cgu`, article 2 |
+| Sécurité (art. 32) : pas d'envoi massif à des tiers | nouveaux prêts plafonnés par 24 h selon l'offre (`maxNewLoansPerDay`, `api/loans`), plafond écrit dans les CGU |
 | Droit d'accès / portabilité (art. 15, 20) | Mon compte → « Télécharger mes données » (`api/account/export`) |
 | Droit de rectification (art. 16) | Mon compte → prénom, adresse e-mail (confirmée par lien), mot de passe |
 | Sécurité (art. 32) : adresse e-mail prouvée | lien de confirmation (`src/lib/account.ts`) ; sans confirmation, pas de rattachement des emprunts, pas d'emprunts visibles, pas de nouveau prêt (donc pas d'e-mail à un tiers) |
@@ -56,7 +66,15 @@ Responsable du traitement : *(identité de l'éditeur, voir `legal.ts`)*. Pas de
 | Abonnements et paiements | Facturer | Contrat / obligation légale | Clients | Offre, montants, identifiants Stripe | Éditeur, Stripe | 10 ans (comptabilité) | Oui (Stripe, DPF + CCT) |
 | Mesure d'audience | Statistiques de fréquentation | Intérêt légitime (exemption CNIL) | Visiteurs | Page, référent, appareil, navigateur, pays, identifiant aléatoire | Éditeur, hébergeur | 25 mois | Non |
 | Journal des e-mails | Preuve d'envoi, support | Intérêt légitime | Utilisateurs, emprunteurs | Destinataire, objet, résultat | Éditeur, hébergeur | 12 mois | Non |
-| Sécurité | Bloquer les attaques par force brute et les envois abusifs | Intérêt légitime | Visiteurs | Adresse IP, et adresse e-mail saisie sur « mot de passe oublié » (en mémoire uniquement) | — | Quelques minutes à 1 h | Non |
+| Sécurité | Bloquer les attaques par force brute et les envois abusifs | Intérêt légitime | Visiteurs, utilisateurs | Adresse IP, adresse e-mail saisie sur « mot de passe oublié », nombre de prêts créés par un compte (en mémoire uniquement) | — | Quelques minutes à 24 h | Non |
+
+### Registre des activités de sous-traitance (RGPD art. 30.2) : offres Pro
+
+Pour les clients Pro, l'éditeur est **sous-traitant** des données de leurs emprunteurs (voir l'article 17 des CGV).
+
+| Responsable de traitement | Catégories de traitements | Sous-traitants ultérieurs | Transfert hors UE | Sécurité |
+|---|---|---|---|---|
+| Chaque client Pro (structure) : nom et contact dans Stripe et dans le compte | Enregistrement des prêts, envoi des e-mails de confirmation, de rappel et de relance aux emprunteurs, bilan, export | Hébergeur, prestataire SMTP (voir `LEGAL.processors`) | Selon prestataire SMTP | Mêmes mesures que ci-dessous |
 
 Mesures de sécurité : HTTPS, mots de passe bcrypt, adresse e-mail confirmée, sessions révocables, cookie HttpOnly, limitation des tentatives, accès admin restreint, base non exposée sur Internet (Docker : port lié à 127.0.0.1).
 
