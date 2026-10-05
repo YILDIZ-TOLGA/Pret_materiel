@@ -983,6 +983,8 @@ a.notif:hover { background: var(--surface-2); text-decoration: none; }
 .plan:hover { transform: translateY(-3px); box-shadow: var(--shadow-2); }
 .plan.current, .plan.featured { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand), var(--shadow-2); }
 .plan-name { font: 600 11.5px/1 var(--f-mono); letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); display: flex; align-items: center; gap: 8px; min-height: 18px; }
+.plan-for { margin: -4px 0 0; font-size: 13px; color: var(--ink-2); }
+.plans-bar { display: flex; justify-content: center; margin-bottom: 18px; }
 .plan-price { font-family: var(--f-display); font-weight: 700; font-size: 42px; line-height: 1; letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
 .plan-price small { font-family: var(--f-sans); font-size: 14px; color: var(--ink-3); letter-spacing: 0; margin-left: 4px; }
 .plan-eq { font-size: 13px; color: var(--ink-3); margin-top: -4px; min-height: 20px; }

@@ -20,11 +20,12 @@ export default function Page() {
       <h2 id="utilisation">Partie 1 — Conditions générales d&apos;utilisation</h2>
 
       <h3>1. Objet</h3>
-      <p>{LEGAL.siteName} est un outil qui permet de garder une trace des objets et des sommes d&apos;argent que l&apos;on prête à des proches, et d&apos;envoyer automatiquement des rappels par e-mail aux emprunteurs. Les présentes conditions encadrent l&apos;utilisation du service. La création d&apos;un compte vaut acceptation des présentes conditions, dont la date et la version d&apos;acceptation sont enregistrées.</p>
+      <p>{LEGAL.siteName} est un outil qui permet de garder une trace des objets et des sommes d&apos;argent que l&apos;on prête à des proches ou, pour une entreprise, une association ou un autre organisme (ci-après « structure »), du matériel qu&apos;elle prête à ses salariés, membres, élèves ou clients, et d&apos;envoyer automatiquement des rappels par e-mail aux emprunteurs. Les présentes conditions encadrent l&apos;utilisation du service. La création d&apos;un compte vaut acceptation des présentes conditions, dont la date et la version d&apos;acceptation sont enregistrées.</p>
 
       <h3>2. Compte</h3>
       <ul>
-        <li>Le service est réservé aux personnes physiques âgées d&apos;au moins {LEGAL.minAge} ans, agissant à titre personnel.</li>
+        <li>Le service est ouvert aux personnes physiques âgées d&apos;au moins {LEGAL.minAge} ans et aux structures. L&apos;offre Perso est réservée à un usage personnel : au-delà de l&apos;offre Gratuit, une structure qui utilise le service pour son activité souscrit une offre Pro, à son nom, par l&apos;intermédiaire d&apos;une personne habilitée à l&apos;engager.</li>
+        <li>Chaque personne ne peut ouvrir qu&apos;un seul compte à titre personnel. Ouvrir ou utiliser plusieurs comptes pour contourner la limite de prêts d&apos;une offre est interdit et peut entraîner la suspension prévue à l&apos;article 7.</li>
         <li>Vous vous engagez à fournir une adresse e-mail exacte et à garder votre mot de passe confidentiel. Toute action réalisée depuis votre compte est réputée faite par vous.</li>
         <li>Vous pouvez supprimer votre compte à tout moment depuis la page <Link href="/compte">Mon compte</Link>. La suppression est définitive et entraîne celle de vos prêts. Un abonnement en cours est alors résilié sans remboursement de la période entamée, sauf exercice du droit de rétractation (article 13).</li>
       </ul>
@@ -38,6 +39,7 @@ export default function Page() {
         <li>ne jamais utiliser le service pour harceler, menacer, faire pression ou envoyer des messages à des inconnus, ni comme outil de recouvrement de créances professionnelles ;</li>
         <li>ne pas inscrire dans les champs libres (description, notes) d&apos;informations sensibles sur l&apos;emprunteur (santé, opinions, religion, situation financière, infractions…) ni de propos injurieux ou diffamatoires.</li>
       </ul>
+      <p>Pour éviter les envois abusifs, le nombre de nouveaux prêts qu&apos;un compte peut créer sur 24 heures est limité selon l&apos;offre (voir le tableau de l&apos;article 11).</p>
       <p>Vous êtes seul responsable des informations que vous saisissez sur les tiers et de l&apos;usage que vous faites du service. Tout emprunteur peut bloquer définitivement les e-mails de {LEGAL.siteName} : les relances vers son adresse sont alors désactivées.</p>
 
       <h3>4. Ce que le service n&apos;est pas</h3>
@@ -58,28 +60,29 @@ export default function Page() {
       <p>En cas de manquement aux présentes conditions (notamment à l&apos;article 3), de signalement d&apos;abus ou d&apos;usage frauduleux, l&apos;éditeur peut suspendre l&apos;envoi d&apos;e-mails ou le compte, après vous en avoir informé par e-mail sauf urgence. En cas de suspension définitive d&apos;un compte payant sans faute de votre part, la part non consommée de l&apos;abonnement est remboursée.</p>
 
       <h3>8. Propriété intellectuelle</h3>
-      <p>Le service, son code, sa marque et ses contenus appartiennent à l&apos;éditeur. Vous bénéficiez d&apos;un droit d&apos;utilisation personnel et non exclusif, pour la durée de votre compte. Vos données restent les vôtres : vous pouvez les exporter à tout moment.</p>
+      <p>Le service, son code, sa marque et ses contenus appartiennent à l&apos;éditeur. Vous bénéficiez d&apos;un droit d&apos;utilisation non exclusif, personnel ou, pour une offre Pro, limité aux besoins de la structure, pour la durée de votre compte. Vos données restent les vôtres : vous pouvez les exporter à tout moment.</p>
 
       <h3>9. Données personnelles</h3>
-      <p>Voir la <Link href="/confidentialite">politique de confidentialité</Link>.</p>
+      <p>Voir la <Link href="/confidentialite">politique de confidentialité</Link>. Pour les offres Pro, l&apos;accord de sous-traitance des données figure à l&apos;<a href="#sous-traitance">article 17</a>.</p>
 
       <h3>10. Modification des conditions</h3>
       <p>L&apos;éditeur peut faire évoluer les présentes conditions. Les utilisateurs sont informés de toute modification importante au moins 30 jours avant son entrée en vigueur. Si vous refusez les nouvelles conditions, vous pouvez supprimer votre compte et résilier votre abonnement sans frais avant cette date ; les modifications de prix ne s&apos;appliquent jamais à une période d&apos;abonnement déjà payée.</p>
 
       <h2 id="vente">Partie 2 — Conditions générales de vente</h2>
-      <p>Ces conditions s&apos;appliquent à la souscription d&apos;un abonnement payant par un consommateur.</p>
+      <p>Ces conditions s&apos;appliquent à la souscription d&apos;un abonnement payant par un consommateur ou, pour les offres Pro, par une structure. Les articles 16 et 17 ne concernent que les offres Pro. Les droits prévus aux articles 13 et 14 (rétractation avec remboursement intégral, résiliation en ligne, préavis avant la reconduction) sont accordés à tous les clients, y compris professionnels.</p>
 
       <h3>11. Offres et prix</h3>
-      <div className="scroll-x"><table className="tbl"><thead><tr><th>Offre</th><th>Prix</th><th>Durée</th><th>Prêts en cours</th></tr></thead><tbody>
+      <div className="scroll-x"><table className="tbl"><thead><tr><th>Offre</th><th>Prix</th><th>Durée</th><th>Prêts en cours</th><th>Nouveaux prêts par 24 h</th></tr></thead><tbody>
         {Object.values(PLANS).map((p) => (
-          <tr key={p.id}><td>{p.name}</td><td className="num">{p.priceLabel}</td><td>{p.interval === "month" ? "1 mois, renouvelé chaque mois, sans engagement" : p.interval === "year" ? "1 an, renouvelé chaque année" : "Illimitée"}</td><td className="num">{p.maxLoans}</td></tr>
+          <tr key={p.id}><td>{p.name}</td><td className="num nowrap">{p.priceLabel}</td><td>{p.interval === "month" ? "1 mois, renouvelé chaque mois, sans engagement" : p.interval === "year" ? "1 an, renouvelé chaque année" : "Illimitée"}</td><td className="num">{p.maxLoans}</td><td className="num">{p.maxNewLoansPerDay}</td></tr>
         ))}
       </tbody></table></div>
-      <p>Prix en euros, toutes taxes comprises. {LEGAL.vatMention}. Les prix applicables sont ceux affichés au moment de la commande.</p>
+      <p>Prix en euros, toutes taxes comprises (pour un client professionnel, voir l&apos;<a href="#pro">article 16</a>). {LEGAL.vatMention}. Les prix applicables sont ceux affichés au moment de la commande.</p>
 
       <h3>12. Commande et paiement</h3>
       <p>La commande se fait depuis la page Offre : choix de l&apos;offre, acceptation des présentes CGV, puis paiement sur la page sécurisée de notre prestataire Stripe (carte bancaire, PayPal, Apple Pay, Google Pay ou autre moyen proposé). Le contrat est conclu à la validation du paiement ; une confirmation et une facture sont envoyées par e-mail. Le paiement est ensuite prélevé automatiquement au début de chaque nouvelle période. En cas d&apos;échec de paiement, le compte repasse à l&apos;offre gratuite à la fin de la période payée ; aucune donnée n&apos;est supprimée.</p>
-      <p>Si le nombre de prêts en cours dépasse la limite de l&apos;offre gratuite, les prêts existants restent consultables et modifiables, seule la création de nouveaux prêts est bloquée.</p>
+      <p>Pour une offre Pro, le nom, l&apos;adresse et, le cas échéant, le numéro de TVA de la structure sont demandés lors du paiement et figurent sur la facture.</p>
+      <p>Si le nombre de prêts en cours dépasse la limite de l&apos;offre (passage à une offre inférieure ou retour à l&apos;offre gratuite), les prêts existants restent consultables et modifiables, seule la création de nouveaux prêts est bloquée.</p>
 
       <h3>13. Droit de rétractation</h3>
       <p>Vous disposez d&apos;un délai de <strong>14 jours</strong> à compter de la souscription pour vous rétracter, sans avoir à vous justifier (article L221-18 du Code de la consommation). En cochant la case prévue lors de la commande, vous demandez expressément que l&apos;abonnement commence immédiatement, avant la fin de ce délai (article L221-25). Si vous vous rétractez, <strong>nous vous remboursons malgré tout l&apos;intégralité du montant payé</strong>, au plus tard 14 jours après votre demande, avec le moyen de paiement utilisé.</p>
@@ -94,7 +97,7 @@ export default function Page() {
 
       <h3>14. Durée, renouvellement et résiliation</h3>
       <ul>
-        <li><strong>Offre mensuelle</strong> : sans engagement, renouvelée chaque mois. Résiliable à tout moment ; elle prend fin à l&apos;issue du mois en cours, sans nouveau prélèvement.</li>
+        <li><strong>Offres mensuelles</strong> : sans engagement, renouvelées chaque mois. Résiliables à tout moment ; elles prennent fin à l&apos;issue du mois en cours, sans nouveau prélèvement.</li>
         <li><strong>Offres annuelles</strong> : conclues pour un an et reconduites tacitement pour un an. Entre trois mois et un mois avant chaque échéance, nous vous envoyons un e-mail dédié vous rappelant la possibilité de ne pas reconduire votre abonnement et la date limite pour le faire. Vous pouvez résilier à tout moment avant l&apos;échéance ; l&apos;abonnement reste actif jusqu&apos;à celle-ci, sans nouveau prélèvement.</li>
         <li><strong>Comment résilier</strong> : page <Link href="/abonnement">Offre</Link>, bouton « Résilier votre contrat », puis « Confirmer la résiliation ». Un e-mail de confirmation précisant la date de fin de l&apos;abonnement vous est envoyé immédiatement. Vous pouvez aussi résilier par e-mail à {editor.email}.</li>
         <li>À la fin de l&apos;abonnement, le compte repasse à l&apos;offre gratuite. Rien n&apos;est supprimé.</li>
@@ -112,6 +115,38 @@ export default function Page() {
 
       <h3>15. Garantie légale de conformité</h3>
       <p>Le service est soumis à la garantie légale de conformité des contenus et services numériques (articles L224-25-12 à L224-25-26 du Code de la consommation). En cas de défaut de conformité, vous pouvez demander la mise en conformité du service, ou à défaut une réduction du prix ou la résolution du contrat, en écrivant à {editor.email}.</p>
+
+      <h3 id="pro">16. Clients professionnels (offres Pro)</h3>
+      <ul>
+        <li>La personne qui souscrit une offre Pro déclare être habilitée à engager la structure.</li>
+        <li>Pour un client professionnel, les prix s&apos;entendent hors taxes. {LEGAL.editor.vatNumber
+          ? "La TVA est facturée en sus, au taux en vigueur."
+          : "L'éditeur bénéficie aujourd'hui de la franchise en base de TVA : aucune TVA n'est facturée. Si elle devient applicable, elle s'ajoutera au prix au taux en vigueur, après information du client au moins 30 jours avant ; le client peut résilier sans frais avant cette date."}</li>
+        <li>Les abonnements sont payables d&apos;avance. Tout retard de paiement d&apos;un client professionnel entraîne de plein droit des pénalités de retard au taux appliqué par la Banque centrale européenne à son opération de refinancement la plus récente, majoré de 10 points, ainsi qu&apos;une indemnité forfaitaire pour frais de recouvrement de 40 € (articles L441-10 et D441-5 du Code de commerce).</li>
+        <li>Le droit de rétractation est réservé par la loi aux consommateurs ; l&apos;éditeur l&apos;accorde néanmoins à tous ses clients, dans les conditions de l&apos;article 13.</li>
+      </ul>
+
+      <h3 id="sous-traitance">17. Accord de sous-traitance des données (offres Pro)</h3>
+      <p>Lorsqu&apos;une structure utilise le service pour suivre ce qu&apos;elle prête, elle est responsable du traitement des données de ses emprunteurs et l&apos;éditeur agit comme son sous-traitant. Le présent article constitue le contrat prévu à l&apos;article 28 du RGPD ; il est accepté lors de la souscription d&apos;une offre Pro et s&apos;applique tant que la structure utilise son compte.</p>
+      <div className="scroll-x"><table className="tbl kv"><tbody>
+        <tr><td>Objet et finalité</td><td>Enregistrer les prêts de la structure, envoyer aux emprunteurs les e-mails de confirmation, de rappel et de relance, afficher le suivi et le bilan.</td></tr>
+        <tr><td>Opérations</td><td>Hébergement, enregistrement, consultation, modification, envoi d&apos;e-mails, export et suppression.</td></tr>
+        <tr><td>Données</td><td>Nom, adresse e-mail et, si la structure le renseigne, téléphone des emprunteurs ; objets ou sommes prêtés, dates, remboursements, notes.</td></tr>
+        <tr><td>Personnes concernées</td><td>Les emprunteurs enregistrés par la structure (salariés, membres, élèves, clients…).</td></tr>
+        <tr><td>Durée</td><td>Celle de l&apos;utilisation du compte, dans le respect des durées de conservation de la <Link href="/confidentialite">politique de confidentialité</Link>.</td></tr>
+      </tbody></table></div>
+      <p>L&apos;éditeur s&apos;engage à :</p>
+      <ul>
+        <li>ne traiter ces données que sur instruction documentée de la structure, constituée par l&apos;utilisation des fonctions du service et par les présentes conditions, et l&apos;informer si une instruction lui paraît contraire à la réglementation ;</li>
+        <li>veiller à ce que les personnes autorisées à traiter ces données soient tenues à la confidentialité ;</li>
+        <li>appliquer les mesures de sécurité décrites dans la politique de confidentialité (article 32 du RGPD) ;</li>
+        <li>ne faire appel qu&apos;aux sous-traitants ultérieurs listés dans la politique de confidentialité, en leur imposant les mêmes obligations, et prévenir la structure de tout ajout ou remplacement envisagé ; la structure peut s&apos;y opposer en résiliant son abonnement ;</li>
+        <li>aider la structure à répondre aux demandes des emprunteurs qui exercent leurs droits (les données se modifient, s&apos;exportent et se suppriment depuis le compte ; chaque emprunteur peut bloquer les e-mails en un clic) et à respecter ses obligations des articles 32 à 36 du RGPD ;</li>
+        <li>notifier à la structure toute violation de données la concernant, sans retard injustifié après en avoir pris connaissance, avec les informations utiles à sa propre notification ;</li>
+        <li>supprimer les données à la suppression du compte, après que la structure a pu les exporter, sauf obligation légale de conservation ;</li>
+        <li>mettre à la disposition de la structure les informations nécessaires pour démontrer le respect du présent article et permettre des audits, sur demande écrite raisonnable avec un préavis de 30 jours, les frais d&apos;audit restant à la charge de la structure.</li>
+      </ul>
+      <p>La structure s&apos;engage à disposer d&apos;une base légale pour ces traitements, à informer ses emprunteurs, et à ne saisir que les données nécessaires au suivi des prêts, sans aucune donnée sensible.</p>
 
       <h2 id="litiges">Partie 3 — Droit applicable et litiges</h2>
       <p>Les présentes conditions sont soumises au droit français. En cas de difficulté, contactez d&apos;abord le service client à {editor.email} : nous nous engageons à répondre sous 15 jours.</p>

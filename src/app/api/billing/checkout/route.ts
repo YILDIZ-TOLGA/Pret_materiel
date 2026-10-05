@@ -2,7 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { stripe, demoBilling } from "@/lib/stripe";
 import { error, json, withUser, zodError } from "@/lib/api";
-import { PAID_PLANS, PLANS, stripePriceId } from "@/lib/plans";
+import { PAID_PLANS, PLANS, isProPlan, stripePriceId } from "@/lib/plans";
 import { TERMS_VERSION } from "@/lib/legal";
 
 const schema = z.object({
@@ -55,6 +55,12 @@ export const POST = withUser(async (user, req) => {
     line_items: [{ price, quantity: 1 }],
     subscription_data: { metadata: { userId: user.id, plan, salesTermsVersion: TERMS_VERSION, immediateStartRequested: "true" } },
     allow_promotion_codes: true,
+    // Offres Pro : nom, adresse et n° de TVA de la structure, pour une facture à son nom
+    ...(isProPlan(plan) && {
+      billing_address_collection: "required" as const,
+      tax_id_collection: { enabled: true },
+      customer_update: { name: "auto" as const, address: "auto" as const },
+    }),
     success_url: `${appUrl}/abonnement?success=1`,
     cancel_url: `${appUrl}/abonnement?canceled=1`,
   });

@@ -17,14 +17,15 @@ export default function Page() {
       <h2>1. Responsable du traitement</h2>
       <p>{editor.name}, {editor.address}. Contact pour toute question ou demande relative à vos données : <strong>{editor.email}</strong>.</p>
       <p>Pour les informations que vous saisissez sur vos emprunteurs (nom, e-mail, téléphone, notes), vous en êtes vous-même responsable au sens où vous choisissez de les enregistrer ; {LEGAL.siteName} les traite pour vous fournir le service de rappel. Ces données ne doivent servir qu&apos;au suivi de vos prêts (voir les <Link href="/cgu">conditions générales</Link>).</p>
+      <p><strong>Offres Pro</strong> : lorsqu&apos;une entreprise, une association ou un autre organisme utilise {LEGAL.siteName} pour suivre ce qu&apos;il prête (à ses salariés, membres, élèves ou clients), c&apos;est cet organisme qui est responsable du traitement des données de ses emprunteurs. {LEGAL.siteName} agit alors comme sous-traitant, dans les conditions de l&apos;<Link href="/cgu#sous-traitance">accord de sous-traitance</Link> des CGV. Les emprunteurs concernés peuvent exercer leurs droits auprès de cet organisme, ou nous écrire : nous transmettrons.</p>
 
       <h2>2. Données traitées</h2>
       <h3>Utilisateurs inscrits</h3>
       <ul>
         <li><strong>Compte</strong> : prénom, adresse e-mail, mot de passe (stocké uniquement sous forme chiffrée irréversible, bcrypt), date d&apos;inscription, date de dernière activité, date et version des conditions acceptées, date de confirmation de l&apos;adresse e-mail et, le cas échéant, la nouvelle adresse en attente de confirmation.</li>
-        <li><strong>Sécurité du compte</strong> : sessions de connexion (date d&apos;ouverture et d&apos;expiration, sans information sur l&apos;appareil) et liens de confirmation ou de réinitialisation du mot de passe envoyés par e-mail (seule une empreinte du lien est conservée).</li>
+        <li><strong>Sécurité du compte</strong> : sessions de connexion (date d&apos;ouverture et d&apos;expiration, sans information sur l&apos;appareil) et liens de confirmation ou de réinitialisation du mot de passe envoyés par e-mail (seule une empreinte du lien est conservée). Le nombre de prêts créés par le compte sur les dernières 24 heures est compté en mémoire, sans être enregistré en base, pour limiter les envois abusifs.</li>
         <li><strong>Prêts</strong> : objets ou montants prêtés, dates, remboursements, notes personnelles, options de rappel.</li>
-        <li><strong>Abonnement</strong> : offre choisie, dates de renouvellement, historique des paiements (montant, date). Vos coordonnées bancaires sont saisies directement chez notre prestataire de paiement Stripe : nous n&apos;y avons jamais accès.</li>
+        <li><strong>Abonnement</strong> : offre choisie, dates de renouvellement, historique des paiements (montant, date). Vos coordonnées bancaires sont saisies directement chez notre prestataire de paiement Stripe : nous n&apos;y avons jamais accès. Pour une offre Pro, le nom, l&apos;adresse et, le cas échéant, le numéro de TVA de la structure sont saisis chez Stripe et repris sur les factures.</li>
         <li><strong>Notifications</strong> affichées dans l&apos;application.</li>
       </ul>
       <h3>Personnes enregistrées comme emprunteurs</h3>
@@ -44,7 +45,7 @@ export default function Page() {
         <tr><td>Créer et gérer votre compte, enregistrer vos prêts, afficher votre bilan</td><td>Exécution du contrat (CGU)</td></tr>
         <tr><td>Confirmer votre adresse e-mail, réinitialiser votre mot de passe, vous prévenir d&apos;un changement de mot de passe ou d&apos;adresse</td><td>Exécution du contrat (CGU) et sécurité du compte (art. 32 RGPD)</td></tr>
         <tr><td>Envoyer aux emprunteurs les e-mails liés à un prêt (confirmation, rappel la veille, relances)</td><td>Intérêt légitime de l&apos;utilisateur à récupérer son bien ou son argent ; l&apos;emprunteur peut s&apos;y opposer à tout moment en un clic</td></tr>
-        <tr><td>Gérer les abonnements et les paiements</td><td>Exécution du contrat (CGV)</td></tr>
+        <tr><td>Gérer les abonnements et les paiements, y compris la facture au nom de la structure pour les offres Pro</td><td>Exécution du contrat (CGV)</td></tr>
         <tr><td>Conserver les factures et justificatifs de paiement</td><td>Obligation légale (art. L123-22 du Code de commerce)</td></tr>
         <tr><td>Prévenir de la reconduction d&apos;un abonnement annuel, confirmer une résiliation</td><td>Obligation légale (art. L215-1 et L215-1-1 du Code de la consommation)</td></tr>
         <tr><td>Mesure d&apos;audience anonyme</td><td>Intérêt légitime à améliorer le site (traceur exempté de consentement, délibération CNIL 2020-091)</td></tr>

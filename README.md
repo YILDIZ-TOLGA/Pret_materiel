@@ -17,7 +17,7 @@ Appli de rappel de prêts d'objets **et d'argent** : tu notes à qui tu as prêt
 | E-mails | À la création du prêt, la veille, en cas de retard. Tous journalisés (visibles dans l'admin) |
 | Entre membres | Si l'e-mail de l'emprunteur a un compte : notifications dans l'appli + onglet « Emprunts ». Un compte créé plus tard récupère automatiquement ses emprunts |
 | Alertes | Bandeau « en retard » + notification au prêteur dès qu'une échéance est dépassée |
-| Limites | Gratuit : 1 prêt en cours · Mensuel 2 €/mois : 10 · Annuel 12 €/an : 10 · Annuel 24 €/an : 20 (tout se règle dans `src/lib/plans.ts`) |
+| Offres | Gratuit : 3 prêts en cours · Perso 3 €/mois ou 30 €/an : 10 · Pro 50 12 €/mois ou 120 €/an : 50 · Pro 200 24 €/mois ou 240 €/an : 200. L'annuel coûte 10 mois (2 mois offerts). Nouveaux prêts plafonnés par 24 h (30, 50 en Pro 50, 200 en Pro 200) contre les envois abusifs. Tout se règle dans `src/lib/plans.ts` |
 | Paiement | Stripe Checkout (carte, PayPal, Apple Pay, Google Pay, SEPA…) + portail client pour changer d'offre ou résilier |
 | Admin | Encaissé du mois / mois précédent / total, MRR, ARR, abonnés par offre, conversion, revenu moyen par utilisateur, revenus par mois et par jour, derniers paiements · visiteurs uniques, pages vues, pages/visiteur, taux visiteur→inscrit, top pages, sources, appareils, navigateurs, pays · prêts en cours/en retard/rendus, durée moyenne, taux de retour en retard, e-mails envoyés/échoués · gestion des utilisateurs (recherche, offrir un abonnement, désactiver, nommer admin, supprimer). Comparaison avec la période précédente, filtre 7 j / 30 j / 90 j / 12 mois |
 | Analytics | Maison, sans service tiers ni cookie publicitaire (table `PageView`) |
@@ -72,10 +72,14 @@ Sans SMTP, les e-mails sont affichés dans la console.
    `curl -H "Authorization: Bearer $CRON_SECRET" https://ton-site/api/cron/reminders`
    (cron du serveur, Vercel Cron, cron-job.org…) ou `npm run cron`.
 5. **Stripe** :
-   - crée 3 produits/prix récurrents : 2 €/mois, 12 €/an, 24 €/an → `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_YEARLY_10`, `STRIPE_PRICE_YEARLY_20` ;
+   - crée 3 produits (Perso, Pro 50, Pro 200), chacun avec un prix mensuel et un prix annuel :
+     3 €/mois et 30 €/an → `STRIPE_PRICE_PERSO_MONTHLY`, `STRIPE_PRICE_PERSO_YEARLY` ;
+     12 €/mois et 120 €/an → `STRIPE_PRICE_PRO50_MONTHLY`, `STRIPE_PRICE_PRO50_YEARLY` ;
+     24 €/mois et 240 €/an → `STRIPE_PRICE_PRO200_MONTHLY`, `STRIPE_PRICE_PRO200_YEARLY` ;
    - active les moyens de paiement voulus dans *Paramètres → Moyens de paiement* (PayPal, Apple Pay, Google Pay…) : ils apparaissent automatiquement, sans toucher au code ;
    - webhook vers `https://ton-site/api/billing/webhook` avec les événements `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid` → `STRIPE_WEBHOOK_SECRET` ;
-   - active le portail client (*Paramètres → Billing → Customer portal*).
+   - active le portail client (*Paramètres → Billing → Customer portal*) et autorise le changement entre les 6 prix ;
+   - pour les offres Pro, la page de paiement demande le nom, l'adresse et le n° de TVA de la structure (facture à son nom).
 
 ## iPhone / Android
 
