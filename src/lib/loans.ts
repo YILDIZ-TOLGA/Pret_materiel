@@ -1,7 +1,8 @@
 import type { Loan, User } from "@prisma/client";
 import { prisma } from "./db";
 import { MAIL_LIMITS } from "./limits";
-import { sendMail } from "./mail";
+import { sendMail, thirdPartyMailsToday } from "./mail";
+import { effectivePlan, isProPlan, maxNewLoansPerDay } from "./plans";
 
 const appUrl = () => process.env.APP_URL || "http://localhost:3000";
 export const fmtDate = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" });
@@ -36,7 +37,36 @@ export async function notify(userId: string, title: string, body: string, link?:
   await prisma.notification.create({ data: { userId, title, body, link } });
 }
 
-/** Nouveau prêt : e-mail à l'emprunteur + notification in-app s'il a un compte. */
+/**
+ * Anti-abus, avant d'écrire à un nouvel emprunteur (création d'un prêt ou changement d'adresse) :
+ * adresse du prêteur prouvée, plafond de nouveaux prêts sur 24 h selon l'offre (écrit dans les CGU),
+ * plafond d'e-mails reçus par le destinataire. Compté dans le journal EmailLog : supprimer et recréer
+ * un prêt, changer l'adresse d'un prêt existant ou redémarrer le serveur ne remet rien à zéro.
+ * Renvoie le refus à transmettre tel quel au client, ou null.
+ */
+export async function newBorrowerRefusal(user: User, borrowerEmail: string, borrowerName: string) {
+  if (!user.emailVerifiedAt) {
+    return { status: 403, error: "Confirme d'abord ton adresse e-mail avec le lien reçu à l'inscription.", code: "EMAIL_NOT_VERIFIED" };
+  }
+  if (borrowerEmail === user.email) return { status: 400, error: "Tu ne peux pas te prêter quelque chose à toi-même" };
+  // Offres Pro : la structure est responsable du traitement, les e-mails aux emprunteurs doivent la nommer (art. 14 RGPD)
+  if (isProPlan(effectivePlan(user)) && !user.organization) {
+    return { status: 403, error: "Indique d'abord le nom de ta structure dans Mon compte : il apparaît dans les e-mails envoyés à tes emprunteurs.", code: "ORGANIZATION_REQUIRED" };
+  }
+  const perDay = maxNewLoansPerDay(user);
+  const createdToday = await prisma.emailLog.count({
+    where: { senderId: user.id, kind: "loan_created", createdAt: { gt: new Date(Date.now() - 86400000) } },
+  });
+  if (createdToday >= perDay) {
+    return { status: 429, error: `Tu as déjà enregistré ${perDay} emprunteurs ces dernières 24 heures. Réessaie demain.`, code: "DAILY_LIMIT" };
+  }
+  if ((await thirdPartyMailsToday(borrowerEmail)) >= MAIL_LIMITS.perRecipientPerDay) {
+    return { status: 429, error: `${borrowerName} a déjà reçu plusieurs e-mails de Prêt Matériel aujourd'hui : réessaie demain.` };
+  }
+  return null;
+}
+
+/** Nouveau prêt (ou nouvel emprunteur sur un prêt) : e-mail à l'emprunteur + notification in-app s'il a un compte. */
 export async function onLoanCreated(loan: Loan, lender: User) {
   await sendMail({
     to: loan.borrowerEmail,
@@ -49,7 +79,7 @@ export async function onLoanCreated(loan: Loan, lender: User) {
       "Vous recevrez un rappel si la date est dépassée.",
     ],
     cta: { label: "Voir mes emprunts", url: `${appUrl()}/emprunts` },
-    thirdParty: { lenderName: lender.name, lenderId: lender.id },
+    thirdParty: { lenderName: lender.name, lenderId: lender.id, organization: lender.organization },
   });
   if (loan.borrowerId) {
     await notify(loan.borrowerId, "Nouvel emprunt", `${lender.name} vous a prêté ${what(loan)} — à rendre le ${fmtDate(loan.dueAt)}.`, "/emprunts");
@@ -84,7 +114,7 @@ export async function sendOverdueReminder(loan: Loan & { lender: User }) {
       `Pensez à ${isMoney(loan) ? "rembourser" : "le rendre"} dès que possible. Vous pouvez contacter ${loan.lender.name} à ${loan.lender.email}.`,
     ],
     cta: { label: "Voir mes emprunts", url: `${appUrl()}/emprunts` },
-    thirdParty: { lenderName: loan.lender.name, lenderId: loan.lenderId },
+    thirdParty: { lenderName: loan.lender.name, lenderId: loan.lenderId, organization: loan.lender.organization },
   });
   if (!sent) return false;
   if (loan.borrowerId) {
@@ -99,6 +129,8 @@ export async function sendOverdueReminder(loan: Loan & { lender: User }) {
  *  - veille de l'échéance : rappel à l'emprunteur
  *  - échéance dépassée : alerte au prêteur (une fois) + relance à l'emprunteur tous les 3 jours,
  *    jusqu'à MAIL_LIMITS.remindersPerLoan rappels ; le prêteur est alors prévenu que les relances s'arrêtent
+ * `reminderCount` compte tous les rappels de la vie du prêt : changer la date de retour ne le remet pas
+ * à zéro (sinon on pourrait relancer sans fin), seul un changement d'emprunteur le fait.
  */
 export async function runReminders(now = new Date()) {
   let soon = 0, overdue = 0;
@@ -109,9 +141,11 @@ export async function runReminders(now = new Date()) {
 
   // L'échéance est fixée à 23 h 59 le jour du retour : on prévient la veille (jour calendaire), pas « dans les 24 h ».
   const dueSoon = (await prisma.loan.findMany({
-    where: { status: "ACTIVE", remindBefore: true, dueAt: { gt: now, lte: in48h }, reminderCount: 0 },
+    where: { status: "ACTIVE", remindBefore: true, dueAt: { gt: now, lte: in48h }, reminderCount: { lt: MAIL_LIMITS.remindersPerLoan } },
     include: { lender: true },
-  })).filter((loan) => calendarDays(now, loan.dueAt) === 1);
+  })).filter((loan) => calendarDays(now, loan.dueAt) === 1
+    // pas déjà prévenu pour cette échéance (un report de la date remet lastReminderAt à null)
+    && (!loan.lastReminderAt || loan.lastReminderAt.getTime() < loan.dueAt.getTime() - 2 * 86400000));
   for (const loan of dueSoon) {
     await sendMail({
       to: loan.borrowerEmail,
@@ -120,7 +154,7 @@ export async function runReminders(now = new Date()) {
       title: `Bonjour ${loan.borrowerName},`,
       paragraphs: [`${toGiveBack(loan)}, prêté par ${loan.lender.name}, est à rendre le ${fmtDate(loan.dueAt)}.`],
       cta: { label: "Voir mes emprunts", url: `${appUrl()}/emprunts` },
-      thirdParty: { lenderName: loan.lender.name, lenderId: loan.lenderId },
+      thirdParty: { lenderName: loan.lender.name, lenderId: loan.lenderId, organization: loan.lender.organization },
     });
     if (loan.borrowerId) await notify(loan.borrowerId, "Échéance demain", `${toGiveBack(loan)} : à rendre à ${loan.lender.name} demain.`, "/emprunts");
     await prisma.loan.update({ where: { id: loan.id }, data: { reminderCount: { increment: 1 }, lastReminderAt: now } });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { error, json, withAdmin, zodError } from "@/lib/api";
+import { stripe } from "@/lib/stripe";
 import { PAID_PLANS } from "@/lib/plans";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -25,6 +26,16 @@ export const PATCH = withAdmin<Ctx>(async (admin, req, { params }) => {
 export const DELETE = withAdmin<Ctx>(async (admin, _req, { params }) => {
   const id = (await params).id;
   if (id === admin.id) return error("Tu ne peux pas supprimer ton propre compte ici");
+  const user = await prisma.user.findUnique({ where: { id }, select: { stripeCustomerId: true } });
+  if (!user) return error("Utilisateur introuvable", 404);
+  if (user.stripeCustomerId && stripe) {
+    // Supprimer le client Stripe annule immédiatement l'abonnement : plus aucun prélèvement.
+    try { await stripe.customers.del(user.stripeCustomerId); }
+    catch (e) {
+      console.error("Suppression client Stripe", e);
+      return error("Impossible d'annuler l'abonnement Stripe de ce compte pour le moment : rien n'a été supprimé.", 502);
+    }
+  }
   await prisma.user.delete({ where: { id } });
   return json({ ok: true });
 });

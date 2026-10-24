@@ -148,6 +148,7 @@ export default function Page() {
         <li>supprimer les données à la suppression du compte, après que la structure a pu les exporter, sauf obligation légale de conservation ;</li>
         <li>mettre à la disposition de la structure les informations nécessaires pour démontrer le respect du présent article et permettre des audits, sur demande écrite raisonnable avec un préavis de 30 jours, les frais d&apos;audit restant à la charge de la structure.</li>
       </ul>
+      <p>La structure indique son nom dans la page Mon compte avant d&apos;enregistrer un prêt : il figure dans chaque e-mail envoyé à ses emprunteurs, qui savent ainsi qui est responsable de leurs données. La liste des adresses désinscrites et le plafond d&apos;e-mails par destinataire sont communs à tous les utilisateurs du service : pour ces deux traitements, destinés à protéger les emprunteurs contre les envois abusifs, l&apos;éditeur agit comme responsable de traitement et non comme sous-traitant.</p>
       <p>La structure s&apos;engage à disposer d&apos;une base légale pour ces traitements, à informer ses emprunteurs, et à ne saisir que les données nécessaires au suivi des prêts, sans aucune donnée sensible.</p>
 
       <h2 id="litiges">Partie 3 — Droit applicable et litiges</h2>

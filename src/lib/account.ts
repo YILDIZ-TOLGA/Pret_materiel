@@ -27,7 +27,9 @@ async function newAuthToken(userId: string, kind: AuthTokenKind, email: string) 
 export async function consumeAuthToken(token: string, kind: AuthTokenKind) {
   const row = await prisma.authToken.findUnique({ where: { tokenHash: hash(token) }, include: { user: true } });
   if (!row || row.kind !== kind) return null;
-  await prisma.authToken.delete({ where: { id: row.id } });
+  // deleteMany : si deux requêtes arrivent en même temps, une seule « consomme » le lien
+  const { count } = await prisma.authToken.deleteMany({ where: { id: row.id } });
+  if (!count) return null;
   if (row.expiresAt < new Date() || row.user.disabled) return null;
   return row;
 }

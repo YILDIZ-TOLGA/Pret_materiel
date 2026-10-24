@@ -37,6 +37,8 @@ model User {
   id                   String    @id @default(cuid())
   email                String    @unique
   name                 String
+  // offres Pro : structure responsable du traitement des données de ses emprunteurs, nommée dans les e-mails
+  organization         String?
   passwordHash         String
   role                 Role      @default(USER)
   disabled             Boolean   @default(false)

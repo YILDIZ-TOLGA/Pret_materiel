@@ -42,6 +42,11 @@ export const repaySchema = z.object({
   note: z.string().trim().max(200).optional().nullable(),
 });
 
+/** La date de retour ne peut pas précéder la date du prêt ; renvoie un message d'erreur ou null. */
+export function checkDates(lentAt: Date, dueAt: Date) {
+  return dueAt.getTime() < lentAt.getTime() ? "La date de retour doit être après la date du prêt" : null;
+}
+
 /** Règles propres au type de prêt ; renvoie un message d'erreur ou null. */
 export function checkLoanKind(data: { kind?: "OBJECT" | "MONEY"; item?: string; amountCents?: number | null }) {
   if (data.kind === "MONEY") {

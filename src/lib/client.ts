@@ -6,8 +6,25 @@
  */
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "";
 
-function token() {
+/** Appli native (Capacitor) : pas de cookie partagé avec le site, la session passe par un jeton Bearer. */
+export function isNativeApp() {
+  return typeof window !== "undefined" && !!(window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
+}
+
+/**
+ * Jeton de session, seulement dans l'appli native. Sur le site, la session reste dans le cookie
+ * httpOnly, illisible par un script : un jeton en localStorage serait volable en cas de faille XSS.
+ */
+export function authToken() {
+  if (!isNativeApp()) return null;
   try { return localStorage.getItem("token"); } catch { return null; }
+}
+
+export function saveAuthToken(token: string | null) {
+  try {
+    if (token && isNativeApp()) localStorage.setItem("token", token);
+    else localStorage.removeItem("token");
+  } catch {}
 }
 
 export class ApiError extends Error {
@@ -19,7 +36,7 @@ let unloading = false;
 export function markUnloading() { unloading = true; }
 
 export async function api<T = any>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
-  const t = token();
+  const t = authToken();
   const res = await fetch(API_BASE + path, {
     method: opts.method || (opts.body ? "POST" : "GET"),
     headers: { ...(opts.body ? { "Content-Type": "application/json" } : {}), ...(t ? { Authorization: `Bearer ${t}` } : {}) },

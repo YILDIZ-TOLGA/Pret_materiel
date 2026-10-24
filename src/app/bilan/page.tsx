@@ -35,7 +35,8 @@ function reliability(p: Person) {
 }
 
 function exportCsv(loans: LoanDTO[]) {
-  const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  // « '= » : neutralise les formules (injection CSV) dans les textes saisis, comme le nom de l'emprunteur
+  const cell = (v: unknown) => `"${String(v ?? "").replace(/^([=+\-@\t\r])/, "'$1").replace(/"/g, '""')}"`;
   const head = ["Type", "Objet / motif", "Montant (€)", "Remboursé (€)", "Emprunteur", "E-mail", "Prêté le", "À rendre le", "Statut", "Rendu le"];
   const rows = loans.map((l) => [
     l.kind === "MONEY" ? "Argent" : "Objet", l.item, l.amountCents ? (l.amountCents / 100).toFixed(2) : "", l.kind === "MONEY" ? (l.repaidCents / 100).toFixed(2) : "",

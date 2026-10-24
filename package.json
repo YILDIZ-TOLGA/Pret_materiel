@@ -12,7 +12,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "cron": "tsx scripts/cron.ts",
     "test:securite": "tsx scripts/test-securite.ts",
-    "test:anti-abus": "tsx scripts/test-anti-abus.ts"
+    "test:anti-abus": "tsx scripts/test-anti-abus.ts",
+    "test:prets": "tsx scripts/test-prets.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

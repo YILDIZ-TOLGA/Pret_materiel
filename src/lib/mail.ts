@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { prisma } from "./db";
 import { MAIL_LIMITS } from "./limits";
-import { isOptedOut, optOutToken, optOutUrl } from "./optout";
+import { isOptedOut, optOutApiUrl, optOutUrl } from "./optout";
 
 const DAY = 86400000;
 
@@ -43,7 +43,7 @@ ${links ? `<p style="margin:0">${links}</p>` : ""}
  * désinscription et le plafond d'envois par jour, et on ajoute l'information RGPD (art. 14) + un lien
  * de désinscription en 1 clic.
  */
-export async function sendMail(opts: { to: string; subject: string; kind: string; title: string; paragraphs: string[]; cta?: { label: string; url: string }; thirdParty?: { lenderName: string; lenderId: string } }) {
+export async function sendMail(opts: { to: string; subject: string; kind: string; title: string; paragraphs: string[]; cta?: { label: string; url: string }; thirdParty?: { lenderName: string; lenderId: string; organization?: string | null } }) {
   const to = opts.to.toLowerCase();
   const log = (ok: boolean, error?: string) => prisma.emailLog.create({
     data: { to, subject: opts.subject, kind: opts.kind, ok, error, thirdParty: !!opts.thirdParty, senderId: opts.thirdParty?.lenderId },
@@ -59,7 +59,10 @@ export async function sendMail(opts: { to: string; subject: string; kind: string
 
   const footer: Footer | undefined = opts.thirdParty
     ? {
-        text: `Vous recevez cet e-mail car ${opts.thirdParty.lenderName} a enregistré sur Prêt Matériel un prêt à votre nom, avec votre nom et votre adresse e-mail. Ces données servent uniquement à vous envoyer les rappels liés à ce prêt.`,
+        // Information de l'emprunteur (art. 14 RGPD). Offre Pro : la structure est responsable du traitement.
+        text: opts.thirdParty.organization
+          ? `Vous recevez cet e-mail car ${opts.thirdParty.organization} (${opts.thirdParty.lenderName}) a enregistré sur Prêt Matériel un prêt à votre nom, avec votre nom et votre adresse e-mail. ${opts.thirdParty.organization} est responsable du traitement de ces données, que Prêt Matériel traite pour son compte uniquement pour vous envoyer les rappels liés à ce prêt. Pour exercer vos droits, adressez-vous à ${opts.thirdParty.organization} ou écrivez-nous.`
+          : `Vous recevez cet e-mail car ${opts.thirdParty.lenderName} a enregistré sur Prêt Matériel un prêt à votre nom, avec votre nom et votre adresse e-mail. Ces données servent uniquement à vous envoyer les rappels liés à ce prêt.`,
         links: [
           { label: "Ne plus recevoir ces e-mails", url: optOutUrl(to) },
           { label: "Politique de confidentialité", url: `${appUrl()}/confidentialite` },
@@ -74,7 +77,7 @@ export async function sendMail(opts: { to: string; subject: string; kind: string
   ].join("\n\n");
   // Désinscription en un clic depuis le client mail (RFC 8058, exigé par Gmail et Yahoo)
   const headers = opts.thirdParty
-    ? { "List-Unsubscribe": `<${appUrl()}/api/optout?e=${encodeURIComponent(to)}&t=${optOutToken(to)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
+    ? { "List-Unsubscribe": `<${optOutApiUrl(to)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
     : undefined;
 
   let ok = true;

@@ -85,7 +85,7 @@ Sans SMTP, les e-mails sont affichés dans la console.
      12 €/mois et 120 €/an → `STRIPE_PRICE_PRO50_MONTHLY`, `STRIPE_PRICE_PRO50_YEARLY` ;
      24 €/mois et 240 €/an → `STRIPE_PRICE_PRO200_MONTHLY`, `STRIPE_PRICE_PRO200_YEARLY` ;
    - active les moyens de paiement voulus dans *Paramètres → Moyens de paiement* (PayPal, Apple Pay, Google Pay…) : ils apparaissent automatiquement, sans toucher au code ;
-   - webhook vers `https://ton-site/api/billing/webhook` avec les événements `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid` → `STRIPE_WEBHOOK_SECRET` ;
+   - webhook vers `https://ton-site/api/billing/webhook` avec les événements `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed` → `STRIPE_WEBHOOK_SECRET` ;
    - active le portail client (*Paramètres → Billing → Customer portal*) et autorise le changement entre les 6 prix ;
    - pour les offres Pro, la page de paiement demande le nom, l'adresse et le n° de TVA de la structure (facture à son nom).
 
@@ -121,6 +121,7 @@ Contre un serveur de dev qui tourne (`npm run dev`), avec la même base :
 ```bash
 DATABASE_URL=… JWT_SECRET=… TEST_BASE_URL=http://localhost:3000 npm run test:securite
 DATABASE_URL=… TEST_BASE_URL=http://localhost:3000 npm run test:anti-abus
+DATABASE_URL=… JWT_SECRET=… TEST_BASE_URL=http://localhost:3000 npm run test:prets
 ```
 
 ## Structure

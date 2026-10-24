@@ -9,7 +9,11 @@ Application web (future app iOS/Android) pour suivre ce qu'on prête : **des obj
 
 - L'utilisateur crée un prêt : objet (ou montant + motif), emprunteur (nom, e-mail, tél.), date de prêt, date de retour, options de rappel.
 - L'emprunteur reçoit un **e-mail** à la création, la veille de l'échéance, puis des relances tous les 3 jours en cas de retard (8 rappels au maximum par prêt).
-- Garde-fous anti-abus (`src/lib/limits.ts`) : 5 e-mails max par jour vers une même adresse (tous prêteurs), nouveaux prêts par jour selon l'offre (`maxNewLoansPerDay`, compté dans `EmailLog`), pas d'adresse web dans les noms et objets. Le journal `EmailLog` porte `thirdParty` et `senderId` pour ces comptes.
+- Offres Pro : `User.organization` (nom de la structure, responsable du traitement) est obligatoire avant de créer un prêt (403 `ORGANIZATION_REQUIRED`) et figure dans le pied des e-mails aux emprunteurs.
+- `/api/borrowed` renvoie une liste blanche de champs : jamais les notes privées ni l'état des relances du prêteur.
+- Liens de désinscription : `?t=<adresse chiffrée AES-GCM>` (`src/lib/optout.ts`), plus d'adresse en clair dans l'URL ; l'ancien format `?e=…&t=…` reste accepté.
+- Le jeton de session n'est gardé dans `localStorage` que dans l'appli native (`isNativeApp()` dans `src/lib/client.ts`) ; sur le site, seul le cookie httpOnly sert.
+- Garde-fous anti-abus (`src/lib/limits.ts`) : 5 e-mails max par jour vers une même adresse (tous prêteurs), nouveaux prêts par jour selon l'offre (`maxNewLoansPerDay`, compté dans `EmailLog`), pas d'adresse web dans les noms et objets. Changer l'adresse de l'emprunteur d'un prêt en cours passe par les mêmes contrôles qu'une création (`newBorrowerRefusal` dans `src/lib/loans.ts`) et lui envoie l'e-mail de confirmation. `reminderCount` couvre toute la vie du prêt : changer la date ne le remet pas à zéro. Le journal `EmailLog` porte `thirdParty` et `senderId` pour ces comptes.
 - Si l'e-mail de l'emprunteur correspond à un compte, il reçoit aussi des **notifications dans l'appli** et voit le prêt dans « Emprunts ».
 - Le prêteur est alerté quand une échéance est dépassée. Il clôture le prêt quand l'objet revient.
 - Pour l'argent : remboursements partiels, reste dû, clôture automatique une fois soldé.
@@ -68,7 +72,7 @@ npm run db:seed -- --demo        # + fausses données pour voir le dashboard adm
 npm run dev
 ```
 - Vérifier : `npx tsc --noEmit` (script `npm run lint`) et `npm run build`.
-- Tests de bout en bout (serveur de dev lancé, même base) : `npm run test:securite` et `npm run test:anti-abus` (voir l'en-tête des scripts pour les variables).
+- Tests de bout en bout (serveur de dev lancé, même base) : `npm run test:securite`, `npm run test:anti-abus` et `npm run test:prets` (voir l'en-tête des scripts pour les variables).
 - Modifier la base : éditer `prisma/schema.prisma`, puis `npx prisma migrate dev --name <nom>`, puis committer la migration.
 
 ## Structure
@@ -146,12 +150,12 @@ Voir `.env.example`. Les principales :
    - Sessions en base : le JWT porte `sid`, la déconnexion supprime la session, « Déconnecter les autres appareils ».
    - Limitation de débit sur login, register, mot de passe oublié, renvoi de lien, relance et track. Elle reste en mémoire (remise à zéro au redémarrage, une seule instance) : passer à Redis si plusieurs instances.
    - `DEMO_BILLING` est ignoré dès que `APP_URL` est en `https://`.
-2. **Stripe réel** : créer les 6 prix (3 produits × mensuel/annuel) et le webhook (`customer.subscription.created/updated/deleted`, `invoice.paid`), puis tester le parcours complet en mode test.
+2. **Stripe réel** : créer les 6 prix (3 produits × mensuel/annuel) et le webhook (`customer.subscription.created/updated/deleted`, `invoice.paid`, `invoice.payment_failed`), puis tester le parcours complet en mode test.
    - Le code vise l'API Stripe 2025 « basil » : `current_period_end` est lu sur l'item d'abonnement, et le prix d'une facture sur `lines.data[0].pricing.price_details.price`.
    - Le propriétaire n'a pas encore d'entreprise. Il crée une micro-entreprise, en attendant bêta gratuite.
 3. **SMTP réel** (Brevo, Resend…) et domaine d'envoi (SPF/DKIM) pour ne pas finir en spam.
 4. **Déploiement** : VPS avec la même stack Docker + reverse proxy HTTPS (Caddy), `APP_URL` en https, `JWT_SECRET` fort, mot de passe admin changé.
-5. **Tests** : `scripts/test-securite.ts` et `scripts/test-anti-abus.ts` (de bout en bout, à lancer à la main). Manquent : webhook Stripe, CI GitHub.
+5. **Tests** : `scripts/test-securite.ts`, `scripts/test-anti-abus.ts` et `scripts/test-prets.ts` (de bout en bout, à lancer à la main). Manquent : webhook Stripe, CI GitHub.
    - Dépendances : `npm audit` ne signale plus que `deepmerge-ts`, dans l'outil en ligne de commande Prisma (corrigé seulement en Prisma 7, migration lourde). `zod` est en v4, avec les messages par défaut en français (`z.config` dans `src/lib/api.ts`).
 6. **Notifications push** : `public/sw.js` gère déjà `push`, mais il n'y a ni abonnement Web Push ni envoi côté serveur. Aujourd'hui les notifications sont seulement dans l'appli, rafraîchies toutes les 60 s.
 7. **Mobile** : Capacitor (`npx cap add ios/android`, remplacer `server.url` dans `capacitor.config.json`). Attention : Apple et Google imposent leur paiement intégré pour vendre un abonnement dans l'app. Plan prévu : l'abonnement se prend sur le site.

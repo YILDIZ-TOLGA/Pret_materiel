@@ -267,7 +267,7 @@ export default function Home() {
               <a href="#fonctionnement" className="btn ghost lg">Voir comment ça marche</a>
             </div>
             <ul className="lp-assure">
-              <li><Icon name="check" size={14} />Gratuit pour un prêt en cours</li>
+              <li><Icon name="check" size={14} />Gratuit jusqu&apos;à {PLANS.FREE.maxLoans} prêts en cours</li>
               <li><Icon name="check" size={14} />Sans carte bancaire</li>
               <li><Icon name="check" size={14} />Résiliable à tout moment</li>
             </ul>
