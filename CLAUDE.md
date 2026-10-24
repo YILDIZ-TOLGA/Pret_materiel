@@ -9,12 +9,15 @@ Application web (future app iOS/Android) pour suivre ce qu'on prête : **des obj
 
 - L'utilisateur crée un prêt : objet (ou montant + motif), emprunteur (nom, e-mail, tél.), date de prêt, date de retour, options de rappel.
 - L'emprunteur reçoit un **e-mail** à la création, la veille de l'échéance, puis des relances tous les 3 jours en cas de retard (8 rappels au maximum par prêt).
-- Garde-fous anti-abus (`src/lib/limits.ts`) : 5 e-mails max par jour vers une même adresse (tous prêteurs), nouveaux prêts par jour limités à max(5, limite de l'offre), pas d'adresse web dans les noms et objets. Le journal `EmailLog` porte `thirdParty` et `senderId` pour ces comptes.
+- Garde-fous anti-abus (`src/lib/limits.ts`) : 5 e-mails max par jour vers une même adresse (tous prêteurs), nouveaux prêts par jour selon l'offre (`maxNewLoansPerDay`, compté dans `EmailLog`), pas d'adresse web dans les noms et objets. Le journal `EmailLog` porte `thirdParty` et `senderId` pour ces comptes.
 - Si l'e-mail de l'emprunteur correspond à un compte, il reçoit aussi des **notifications dans l'appli** et voit le prêt dans « Emprunts ».
 - Le prêteur est alerté quand une échéance est dépassée. Il clôture le prêt quand l'objet revient.
 - Pour l'argent : remboursements partiels, reste dû, clôture automatique une fois soldé.
 - Page **Bilan** : ce qu'on lui doit, objets dehors, fiabilité par personne, prêts par mois, export CSV.
-- **Offres** (dans `src/lib/plans.ts`) : Gratuit = 1 prêt en cours · Mensuel 2 €/mois = 10 · Annuel 12 €/an = 10 · Annuel 24 €/an = 20.
+- **Offres** (dans `src/lib/plans.ts`) : Gratuit = 3 prêts en cours · Perso 3 €/mois ou 30 €/an = 10 · Pro 50 12 €/mois ou 120 €/an = 50 · Pro 200 24 €/mois ou 240 €/an = 200.
+  - Règles de la grille : le prix d'un prêt baisse quand on monte d'offre (pour que cumuler des petits comptes ne soit pas rentable), et l'annuel = 10 mois payés (« 2 mois offerts », calculé, jamais écrit à la main).
+  - Les offres Pro visent les entreprises et associations : CGV articles 16 (clients pros) et 17 (accord de sous-traitance RGPD). Perso est réservé à l'usage personnel, un seul compte par personne (CGU article 2).
+  - Nouveaux prêts plafonnés par 24 h (`maxNewLoansPerDay`) : 30, 50 en Pro 50, 200 en Pro 200.
 - **Admin** (`/admin`) :
   - revenus : mois, MRR, ARR, par offre ;
   - analytics maison : visiteurs, pages, sources, appareils, pays ;
@@ -118,7 +121,7 @@ Voir `.env.example`. Les principales :
 - `APP_URL` (s'il commence par `https://`, le cookie devient `secure`)
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` (compte créé par le seed ; un compte inscrit avec `ADMIN_EMAIL` devient aussi ADMIN)
 - `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `MAIL_FROM`
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_YEARLY_10`, `STRIPE_PRICE_YEARLY_20`
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, et un prix par offre : `STRIPE_PRICE_PERSO_MONTHLY`, `STRIPE_PRICE_PERSO_YEARLY`, `STRIPE_PRICE_PRO50_MONTHLY`, `STRIPE_PRICE_PRO50_YEARLY`, `STRIPE_PRICE_PRO200_MONTHLY`, `STRIPE_PRICE_PRO200_YEARLY`
 - `DEMO_BILLING` : sans Stripe, `true` active les offres sans payer. **Il vaut `true` par défaut dans docker-compose : à passer à `false` avant toute mise en ligne publique.**
 - `CRON_SECRET`
 
@@ -143,7 +146,7 @@ Voir `.env.example`. Les principales :
    - Sessions en base : le JWT porte `sid`, la déconnexion supprime la session, « Déconnecter les autres appareils ».
    - Limitation de débit sur login, register, mot de passe oublié, renvoi de lien, relance et track. Elle reste en mémoire (remise à zéro au redémarrage, une seule instance) : passer à Redis si plusieurs instances.
    - `DEMO_BILLING` est ignoré dès que `APP_URL` est en `https://`.
-2. **Stripe réel** : créer les 3 prix et le webhook (`customer.subscription.created/updated/deleted`, `invoice.paid`), puis tester le parcours complet en mode test.
+2. **Stripe réel** : créer les 6 prix (3 produits × mensuel/annuel) et le webhook (`customer.subscription.created/updated/deleted`, `invoice.paid`), puis tester le parcours complet en mode test.
    - Le code vise l'API Stripe 2025 « basil » : `current_period_end` est lu sur l'item d'abonnement, et le prix d'une facture sur `lines.data[0].pricing.price_details.price`.
    - Le propriétaire n'a pas encore d'entreprise. Il crée une micro-entreprise, en attendant bêta gratuite.
 3. **SMTP réel** (Brevo, Resend…) et domaine d'envoi (SPF/DKIM) pour ne pas finir en spam.

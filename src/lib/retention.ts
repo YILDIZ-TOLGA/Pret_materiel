@@ -2,7 +2,7 @@ import { prisma } from "./db";
 import { LEGAL, RETENTION } from "./legal";
 import { fmtDate } from "./loans";
 import { sendMail } from "./mail";
-import { PLANS } from "./plans";
+import { PAID_PLANS, PLANS } from "./plans";
 
 const DAY = 86400000;
 const appUrl = () => process.env.APP_URL || "http://localhost:3000";
@@ -17,7 +17,7 @@ async function sendRenewalNotices() {
   const now = Date.now();
   const users = await prisma.user.findMany({
     where: {
-      plan: { in: ["YEARLY_10", "YEARLY_20"] },
+      plan: { in: PAID_PLANS.filter((p) => PLANS[p].interval === "year") },
       stripeSubscriptionId: { not: null },
       cancelAtPeriodEnd: false,
       planExpiresAt: { gt: new Date(now + 35 * DAY), lte: new Date(now + 75 * DAY) },

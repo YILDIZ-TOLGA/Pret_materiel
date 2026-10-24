@@ -8,6 +8,7 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { MAIL_LIMITS } from "../src/lib/limits";
+import { PLANS } from "../src/lib/plans";
 
 const BASE = process.env.TEST_BASE_URL || "http://localhost:3001";
 const DOMAIN = "abus-test.local";
@@ -46,7 +47,7 @@ class Client {
 }
 
 const email = (name: string) => `${name}@${DOMAIN}`;
-async function register(name: string, plan?: "MONTHLY") {
+async function register(name: string, plan?: "PERSO_MONTHLY") {
   const c = new Client();
   const r = await c.post("/api/auth/register", { name, email: email(name), password: PW, acceptTerms: true });
   if (r.status !== 201) throw new Error(`Inscription ${name} impossible : ${JSON.stringify(r.data)}`);
@@ -69,13 +70,19 @@ async function main() {
 
   section("1. Limite de l'offre à la réouverture d'un prêt");
   const free = await register("gratuit");
-  let r = await loanTo(free, email("ami1"));
-  check("1er prêt (offre gratuite) → 201", r.status === 201, r.data);
-  const first = r.data.loan.id;
+  const max = PLANS.FREE.maxLoans;
+  const ids: string[] = [];
+  let r: Res = { status: 0, data: null, headers: new Headers() };
+  for (let i = 0; i < max; i++) {
+    r = await loanTo(free, email(`ami${i}`));
+    if (r.status === 201) ids.push(r.data.loan.id);
+  }
+  check(`${max} prêts en cours (limite de l'offre gratuite) → 201`, ids.length === max, r.data);
+  const first = ids[0];
   r = await free.patch(`/api/loans/${first}`, { action: "return" });
-  check("clôture → 200", r.status === 200);
-  r = await loanTo(free, email("ami2"));
-  check("2e prêt une fois le 1er clôturé → 201", r.status === 201, r.data);
+  check("clôture du 1er → 200", r.status === 200);
+  r = await loanTo(free, email("ami-bis"));
+  check("nouveau prêt une fois le 1er clôturé → 201", r.status === 201, r.data);
   const second = r.data.loan.id;
   r = await free.patch(`/api/loans/${first}`, { action: "reopen" });
   check("rouvrir le 1er alors que la limite est atteinte → 402 LIMIT_REACHED", r.status === 402 && r.data.code === "LIMIT_REACHED", r.data);
@@ -87,19 +94,20 @@ async function main() {
   section("2. Supprimer puis recréer un prêt ne permet pas d'envoyer des e-mails sans limite");
   const spammer = await register("boucle");
   let created = 0;
-  for (let i = 0; i < MAIL_LIMITS.minLoansPerDay + 3; i++) {
+  const perDay = PLANS.FREE.maxNewLoansPerDay;
+  for (let i = 0; i < perDay + 2; i++) {
     r = await loanTo(spammer, email(`cible${i}`));
     if (r.status !== 201) break;
     created++;
     await spammer.del(`/api/loans/${r.data.loan.id}`);
   }
-  check(`${MAIL_LIMITS.minLoansPerDay} créations sur 24 h, puis refus`, created === MAIL_LIMITS.minLoansPerDay, created);
-  check("le refus est un 429 avec un message clair", r.status === 429 && /demain/.test(r.data.error), r.data);
+  check(`${perDay} créations sur 24 h (offre gratuite), puis refus`, created === perDay, created);
+  check("le refus est un 429 DAILY_LIMIT avec un message clair", r.status === 429 && r.data.code === "DAILY_LIMIT" && /demain/i.test(r.data.error), r.data);
   const log = await prisma.emailLog.findFirst({ where: { to: email("cible0") } });
   check("l'e-mail au tiers est journalisé avec son expéditeur", log?.thirdParty === true && !!log.senderId, log);
 
   section("3. Plafond d'e-mails par destinataire, tous prêteurs confondus");
-  const pro = await register("abonne", "MONTHLY");
+  const pro = await register("abonne", "PERSO_MONTHLY");
   const victim = email("victime");
   let sent = 0;
   for (let i = 0; i < MAIL_LIMITS.perRecipientPerDay + 1; i++) {
@@ -145,7 +153,7 @@ async function main() {
   }
 
   section("5. Pas de lien internet dans les textes repris dans les e-mails");
-  const fresh = await register("liens", "MONTHLY");
+  const fresh = await register("liens", "PERSO_MONTHLY");
   r = await loanTo(fresh, email("ami3"), "Ta banque : www.faux-site.com");
   check("objet avec une adresse web → 400", r.status === 400 && /site internet/.test(r.data.error), r.data);
   r = await fresh.post("/api/loans", { item: "Livre", borrowerName: "http://piege.example", borrowerEmail: email("ami3"), dueAt: new Date(Date.now() + 7 * DAY).toISOString() });

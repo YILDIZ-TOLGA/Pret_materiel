@@ -5,7 +5,7 @@ import { HBars, Kpi, TimeChart } from "@/components/Charts";
 import { Icon } from "@/components/Icon";
 import { CountUp, Segmented, SkeletonRows } from "@/components/ui";
 import { api, dateFr, euros } from "@/lib/client";
-import { PLANS } from "@/lib/plans";
+import { PAID_PLANS, PLANS } from "@/lib/plans";
 
 const RANGES = [7, 30, 90, 365];
 const pct = (v: number) => `${(v * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`;
@@ -88,7 +88,7 @@ export default function AdminPage() {
             <ChartCard title="Revenus par jour" note={`${days} j`}><TimeChart data={s.daily} x="day" series={[{ key: "revenue", label: "Revenus", color: "var(--series-1)" }]} format={(v) => euros(v)} xLabel={dayLabel} /></ChartCard>
             <div className="grid grid-2">
               <ChartCard title="Abonnés actifs par offre">
-                <HBars rows={(["MONTHLY", "YEARLY_10", "YEARLY_20"] as const).map((p) => ({ label: `${PLANS[p].name} (${PLANS[p].priceLabel})`, n: k.subs[p] ?? 0 }))} />
+                <HBars rows={PAID_PLANS.map((p) => ({ label: `${PLANS[p].name} (${PLANS[p].priceLabel})`, n: k.subs[p] ?? 0 }))} />
               </ChartCard>
               <ChartCard title="Revenus par offre" note={`${days} j`}>
                 <HBars rows={s.revenueByPlan.map((r: any) => ({ label: PLANS[r.plan as keyof typeof PLANS].name, n: r.cents }))} format={(v) => euros(v)} />

@@ -69,7 +69,7 @@ async function register(name: string, verified = false) {
   if (verified) await prisma.user.update({ where: { email: email(name) }, data: { emailVerifiedAt: new Date() } });
   return c;
 }
-const paid = (e: string) => prisma.user.update({ where: { email: e }, data: { plan: "MONTHLY", planExpiresAt: new Date(Date.now() + 30 * 86400000) } });
+const paid = (e: string) => prisma.user.update({ where: { email: e }, data: { plan: "PERSO_MONTHLY", planExpiresAt: new Date(Date.now() + 30 * 86400000) } });
 const loanTo = (c: Client, to: string, item = "Perceuse") => c.post("/api/loans", { item, borrowerName: "Test", borrowerEmail: to, dueAt: new Date(Date.now() + 7 * 86400000).toISOString() });
 
 async function cleanup() {

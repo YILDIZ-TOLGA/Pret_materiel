@@ -5,7 +5,8 @@ import { Icon } from "@/components/Icon";
 import { LoanForm, toPayload } from "@/components/LoanForm";
 import { useMe } from "@/components/Providers";
 import { EmptyState, PageHeader } from "@/components/ui";
-import { api, ApiError } from "@/lib/client";
+import { api, ApiError, euros } from "@/lib/client";
+import { FROM_MONTHLY_CENTS } from "@/lib/plans";
 
 export default function NewLoanPage() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function NewLoanPage() {
         <div className="card flush">
           <EmptyState title={`Limite de ${me.plan.maxLoans} prêt${me.plan.maxLoans > 1 ? "s" : ""} atteinte`}
             action={<Link href="/abonnement" className="btn primary">Voir les offres<Icon name="arrowRight" size={15} /></Link>}>
-            Clôture un prêt rendu, ou passe à une offre supérieure à partir de 1 € par mois.
+            Clôture un prêt rendu, ou passe à une offre supérieure à partir de {euros(FROM_MONTHLY_CENTS)} par mois.
           </EmptyState>
         </div>
       </>

@@ -12,11 +12,15 @@ enum Role {
   ADMIN
 }
 
+// Prix et limites : voir src/lib/plans.ts
 enum Plan {
-  FREE
-  MONTHLY // 2 €/mois, sans engagement, 10 prêts
-  YEARLY_10 // 12 €/an, 10 prêts
-  YEARLY_20 // 24 €/an, 20 prêts
+  FREE // 3 prêts
+  PERSO_MONTHLY // 3 €/mois, sans engagement, 10 prêts
+  PERSO_YEARLY // 30 €/an, 10 prêts
+  PRO50_MONTHLY // 12 €/mois, sans engagement, 50 prêts
+  PRO50_YEARLY // 120 €/an, 50 prêts
+  PRO200_MONTHLY // 24 €/mois, sans engagement, 200 prêts
+  PRO200_YEARLY // 240 €/an, 200 prêts
 }
 
 enum LoanKind {

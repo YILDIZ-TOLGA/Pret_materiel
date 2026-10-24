@@ -3,11 +3,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { IntervalToggle, PlanCard } from "@/components/PlanCards";
 import { useMe } from "@/components/Providers";
 import { Meter, PageHeader, Spinner } from "@/components/ui";
-import { api, dateFr, euros } from "@/lib/client";
+import { api, dateFr } from "@/lib/client";
 import { LEGAL } from "@/lib/legal";
-import { PAID_PLANS, PLANS } from "@/lib/plans";
+import type { Plan } from "@prisma/client";
+import { PLANS, TIERS, yearlySaving, type Interval } from "@/lib/plans";
 
 export default function BillingPage() {
   return <Suspense><Billing /></Suspense>;
@@ -21,6 +23,7 @@ function Billing() {
   const [accept, setAccept] = useState(false);
   const [cancelStep, setCancelStep] = useState(false);
   const [canceled, setCanceled] = useState(false);
+  const [picked, setPeriod] = useState<Interval | null>(null);
   useEffect(() => { if (sp.get("success")) refresh(); }, [sp, refresh]);
   if (!me) return null;
 
@@ -42,7 +45,9 @@ function Billing() {
     go("/api/billing/checkout", { plan: id, acceptSalesTerms: true }, id);
   }
 
-  const current = me.plan.id;
+  const current = me.plan.id as Plan;
+  // la bascule s'ouvre sur la période de l'offre actuelle
+  const period = picked ?? (PLANS[current].interval === "year" ? "year" : "month");
   const renewal = me.user.planExpiresAt && current !== "FREE" ? dateFr(me.user.planExpiresAt) : null;
   const max = me.plan.maxLoans;
   return (
@@ -79,7 +84,7 @@ function Billing() {
               <tr><td>Titulaire</td><td>{me.user.name} ({me.user.email})</td></tr>
               <tr><td>Contrat</td><td>Abonnement {me.plan.name} — {me.plan.priceLabel}</td></tr>
               <tr><td>Fin de l&apos;abonnement</td><td>{renewal ? `le ${renewal}, à la fin de la période déjà payée` : "immédiate"}</td></tr>
-              <tr><td>Ensuite</td><td>Retour à l&apos;offre gratuite ({PLANS.FREE.maxLoans} prêt en cours). Aucun prélèvement supplémentaire. Tes prêts sont conservés.</td></tr>
+              <tr><td>Ensuite</td><td>Retour à l&apos;offre gratuite ({PLANS.FREE.maxLoans} prêt{PLANS.FREE.maxLoans > 1 ? "s" : ""} en cours). Aucun prélèvement supplémentaire. Tes prêts sont conservés.</td></tr>
             </tbody></table>
             <div className="row">
               <button type="button" className="btn danger solid" disabled={!!busy} onClick={cancel}>{busy === "cancel" ? <><Spinner />Un instant…</> : "Confirmer la résiliation"}</button>
@@ -93,27 +98,20 @@ function Billing() {
       <div className="consent">
         <label className="check">
           <input type="checkbox" checked={accept} onChange={(e) => { setAccept(e.target.checked); setErr(""); }} />
-          <span>J&apos;accepte les <Link href="/cgu#vente" target="_blank">conditions générales de vente</Link> et je demande que mon abonnement commence immédiatement. Je garde mon droit de rétractation de 14 jours, avec remboursement intégral.</span>
+          <span>J&apos;accepte les <Link href="/cgu#vente" target="_blank">conditions générales de vente</Link> (pour une offre Pro, avec l&apos;<Link href="/cgu#sous-traitance" target="_blank">accord de sous-traitance des données</Link>) et je demande que mon abonnement commence immédiatement. Je garde mon droit de rétractation de 14 jours, avec remboursement intégral.</span>
         </label>
       </div>
-      <div className="plans" style={{ marginTop: 14 }}>
-        {PAID_PLANS.map((id) => {
-          const p = PLANS[id];
+      <div className="plans-bar" style={{ marginTop: 14 }}><IntervalToggle value={period} onChange={setPeriod} /></div>
+      <div className="plans">
+        {TIERS.map((t) => {
+          const id = t[period];
           const isCurrent = current === id;
           return (
-            <div key={id} className={`plan ${isCurrent ? "current" : ""}`}>
-              <div className="plan-name">{p.name}{id === "YEARLY_10" && <span className="tag brand">−50 % vs mensuel</span>}{isCurrent && <span className="tag">Actuelle</span>}</div>
-              <div className="plan-price">{euros(p.priceCents)}<small>/ {p.interval === "month" ? "mois" : "an"}</small></div>
-              <div className="plan-eq">{p.interval === "year" ? `soit ${euros(Math.round(p.priceCents / 12))} par mois` : "sans engagement"}</div>
-              <ul>
-                <li><Icon name="check" size={14} />{p.maxLoans} prêts en cours</li>
-                <li><Icon name="check" size={14} />Rappels et relances automatiques</li>
-                <li><Icon name="check" size={14} />Bilan et export CSV</li>
-              </ul>
+            <PlanCard key={t.id} plan={id} title={t.name} audience={t.audience} pro={t.pro} tag={period === "year" ? yearlySaving(t) : null} current={isCurrent}>
               <button type="button" className={`btn ${isCurrent ? "" : "primary"} block`} disabled={isCurrent || !!busy} onClick={() => choose(id)}>
                 {busy === id ? <><Spinner />Redirection…</> : isCurrent ? "Offre actuelle" : "Continuer vers le paiement"}
               </button>
-            </div>
+            </PlanCard>
           );
         })}
       </div>

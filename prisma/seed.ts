@@ -5,6 +5,7 @@
 import { PrismaClient, type Plan } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { DEFAULT_ADMIN_PASSWORDS, isPublicSite } from "../src/lib/config-check";
+import { PLANS } from "../src/lib/plans";
 import { passwordSchema } from "../src/lib/validation";
 
 const prisma = new PrismaClient();
@@ -12,7 +13,6 @@ const usesDefaultPassword = async (hash: string) => {
   for (const pw of DEFAULT_ADMIN_PASSWORDS) if (await bcrypt.compare(pw, hash)) return true;
   return false;
 };
-const PRICES: Record<Plan, number> = { FREE: 0, MONTHLY: 200, YEARLY_10: 1200, YEARLY_20: 2400 };
 const rand = (n: number) => Math.floor(Math.random() * n);
 const pick = <T,>(a: T[]) => a[rand(a.length)];
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400000 - rand(86400000));
@@ -40,7 +40,7 @@ async function main() {
   const hash = await bcrypt.hash("demo1234", 10);
   const names = ["Léa", "Hugo", "Chloé", "Lucas", "Emma", "Nicolas", "Margaux", "Louis", "Claire", "Thomas", "Manon", "Julien", "Pauline", "Antoine", "Camille"];
   const items = ["Perceuse", "Dune tome 1", "Tente 4 places", "Manette PS5", "Appareil à raclette", "Échelle", "Vélo", "Enceinte JBL", "Objectif 50mm", "Scie sauteuse"];
-  const plans: Plan[] = ["FREE", "FREE", "FREE", "FREE", "MONTHLY", "YEARLY_10", "YEARLY_20"];
+  const plans: Plan[] = ["FREE", "FREE", "FREE", "FREE", "FREE", "PERSO_MONTHLY", "PERSO_YEARLY", "PERSO_YEARLY", "PRO50_MONTHLY", "PRO50_YEARLY", "PRO200_MONTHLY", "PRO200_YEARLY"];
 
   for (let i = 0; i < 60; i++) {
     const created = daysAgo(rand(360));
@@ -52,9 +52,9 @@ async function main() {
       },
     });
     if (plan !== "FREE") {
-      const monthsPaid = plan === "MONTHLY" ? 1 + rand(8) : 1;
+      const monthsPaid = PLANS[plan].interval === "month" ? 1 + rand(8) : 1;
       for (let m = 0; m < monthsPaid; m++) {
-        await prisma.payment.create({ data: { userId: u.id, plan, amountCents: PRICES[plan], provider: "demo", providerRef: `demo_${u.id}_${m}`, createdAt: daysAgo(m * 30 + rand(20)) } });
+        await prisma.payment.create({ data: { userId: u.id, plan, amountCents: PLANS[plan].priceCents, provider: "demo", providerRef: `demo_${u.id}_${m}`, createdAt: daysAgo(m * 30 + rand(20)) } });
       }
     }
     for (let j = 0; j < 1 + rand(4); j++) {

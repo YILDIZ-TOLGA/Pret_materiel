@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { error, json, withUser, zodError } from "@/lib/api";
-import { maxLoans } from "@/lib/plans";
+import { maxLoans, maxNewLoansPerDay } from "@/lib/plans";
 import { onLoanCreated } from "@/lib/loans";
 import { MAIL_LIMITS } from "@/lib/limits";
 import { thirdPartyMailsToday } from "@/lib/mail";
@@ -32,14 +32,15 @@ export const POST = withUser(async (user, req) => {
     return json({ error: `Limite atteinte : ${limit} prêt${limit > 1 ? "s" : ""} en cours avec ton offre.`, code: "LIMIT_REACHED" }, 402);
   }
   if (data.borrowerEmail === user.email) return error("Tu ne peux pas te prêter quelque chose à toi-même");
-
-  // Anti-abus : chaque nouveau prêt envoie un e-mail à un tiers. Supprimer puis recréer un prêt ne
-  // permet donc pas d'envoyer des e-mails sans limite (journal EmailLog, 24 h glissantes).
+  // Anti-abus : chaque prêt envoie un e-mail à un tiers, donc on plafonne les créations sur 24 h selon l'offre
+  // (écrit dans les CGU). Compté dans le journal EmailLog : supprimer puis recréer un prêt ne remet pas
+  // le compteur à zéro, et un redémarrage du serveur non plus.
+  const perDay = maxNewLoansPerDay(user);
   const createdToday = await prisma.emailLog.count({
     where: { senderId: user.id, kind: "loan_created", createdAt: { gt: new Date(Date.now() - 86400000) } },
   });
-  if (createdToday >= Math.max(MAIL_LIMITS.minLoansPerDay, limit)) {
-    return error("Tu as enregistré beaucoup de prêts aujourd'hui : réessaie demain.", 429);
+  if (createdToday >= perDay) {
+    return json({ error: `Tu as déjà créé ${perDay} prêts ces dernières 24 heures. Réessaie demain.`, code: "DAILY_LIMIT" }, 429);
   }
   if ((await thirdPartyMailsToday(data.borrowerEmail)) >= MAIL_LIMITS.perRecipientPerDay) {
     return error(`${data.borrowerName} a déjà reçu plusieurs e-mails de Prêt Matériel aujourd'hui : réessaie demain.`, 429);
