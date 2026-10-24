@@ -3,8 +3,9 @@ import { prisma } from "@/lib/db";
 import { clearSessionCookie, publicUser, verifyPassword } from "@/lib/auth";
 import { error, json, withUser, zodError } from "@/lib/api";
 import { stripe } from "@/lib/stripe";
+import { NO_LINK, noLink } from "@/lib/validation";
 
-const patchSchema = z.object({ name: z.string().trim().min(1, "Prénom requis").max(80) });
+const patchSchema = z.object({ name: z.string().trim().min(1, "Prénom requis").max(80).refine(noLink, NO_LINK) });
 
 /** Droit de rectification (art. 16 RGPD). */
 export const PATCH = withUser(async (user, req) => {

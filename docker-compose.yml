@@ -2,6 +2,7 @@
 #   Site             → http://localhost:3000
 #   Boîte mail test  → http://localhost:8025  (tous les e-mails envoyés par le site arrivent ici)
 # Les réglages se changent dans le fichier .env (facultatif, voir .env.example).
+# Mise en ligne sur un serveur : voir docker-compose.prod.yml (HTTPS avec Caddy, sans Mailpit).
 
 services:
   db:
@@ -46,8 +47,9 @@ services:
       MAIL_FROM: ${MAIL_FROM:-Prêt Matériel <no-reply@pret.local>}
       # Sans clés Stripe : true = les offres s'activent sans payer (pour tester)
       DEMO_BILLING: ${DEMO_BILLING:-true}
+    # accessible seulement depuis ta machine ; en ligne, c'est Caddy qui reçoit le trafic (docker-compose.prod.yml)
     ports:
-      - "${PORT:-3000}:3000"
+      - "127.0.0.1:${PORT:-3000}:3000"
 
   # Boîte mail de test : http://localhost:8025
   mailpit:
@@ -55,8 +57,9 @@ services:
     restart: unless-stopped
     environment:
       MP_SMTP_BIND_ADDR: 0.0.0.0:587
+    # jamais exposée sur Internet : elle contient tous les e-mails, liens de mot de passe compris
     ports:
-      - "8025:8025"
+      - "127.0.0.1:8025:8025"
 
   # Rappels automatiques : appelle /api/cron/reminders toutes les heures
   cron:

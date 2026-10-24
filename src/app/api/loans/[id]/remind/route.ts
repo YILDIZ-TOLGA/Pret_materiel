@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { error, json, withUser } from "@/lib/api";
 import { sendOverdueReminder } from "@/lib/loans";
+import { MAIL_LIMITS } from "@/lib/limits";
 import { isOptedOut } from "@/lib/optout";
 import { rateLimited } from "@/lib/ratelimit";
 
@@ -13,6 +14,9 @@ export const POST = withUser<Ctx>(async (user, _req, { params }) => {
   if (!loan || loan.lenderId !== user.id) return error("Prêt introuvable", 404);
   if (loan.status !== "ACTIVE") return error("Ce prêt est clôturé");
   if (loan.dueAt.getTime() > Date.now()) return error("La relance est possible après la date de retour");
+  if (loan.reminderCount >= MAIL_LIMITS.remindersPerLoan) {
+    return error(`${loan.borrowerName} a déjà reçu ${MAIL_LIMITS.remindersPerLoan} rappels pour ce prêt : contacte cette personne directement.`, 429);
+  }
   if (loan.lastReminderAt && Date.now() - loan.lastReminderAt.getTime() < 3600000) return error("Une relance a déjà été envoyée il y a moins d'une heure", 429);
   if (await isOptedOut(loan.borrowerEmail)) {
     return error(`${loan.borrowerName} ne reçoit plus les e-mails de Prêt Matériel : contacte cette personne directement.`, 409);

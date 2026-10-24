@@ -13,13 +13,21 @@ export const passwordSchema = z
     "Mot de passe : utilise au moins 3 types de caractères parmi minuscules, majuscules, chiffres et caractères spéciaux",
   );
 
+/**
+ * Anti-hameçonnage : le nom du prêteur, l'objet et le nom de l'emprunteur sont repris dans les e-mails
+ * envoyés à des tiers. On y refuse les adresses web (« www. », « http:// », « site.com »…).
+ */
+const LINK = /(https?:\/\/|www\.|[a-z0-9-]\.(com|fr|net|org|io|co|me|ly|xyz|info|biz|ru|app|link|site|online|shop|top|click)\b)/i;
+export const noLink = (s: string) => !LINK.test(s);
+export const NO_LINK = "Pas d'adresse de site internet dans ce champ";
+
 export const loanSchema = z.object({
   kind: z.enum(["OBJECT", "MONEY"]).optional(),
   // objet prêté, ou motif pour un prêt d'argent
-  item: z.string().trim().max(120).optional(),
+  item: z.string().trim().max(120).refine(noLink, NO_LINK).optional(),
   amountCents: z.number().int().positive("Montant invalide").max(100_000_000, "Montant trop élevé").optional().nullable(),
   description: z.string().trim().max(1000).optional().nullable(),
-  borrowerName: z.string().trim().min(1, "Nom de l'emprunteur requis").max(80),
+  borrowerName: z.string().trim().min(1, "Nom de l'emprunteur requis").max(80).refine(noLink, NO_LINK),
   borrowerEmail: z.string().trim().toLowerCase().email("E-mail de l'emprunteur invalide"),
   borrowerPhone: z.string().trim().max(30).optional().nullable(),
   lentAt: z.coerce.date().optional(),

@@ -41,6 +41,9 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 | Préférence de thème clair/sombre : traceur exempté (personnalisation de l'interface demandée par l'utilisateur) | clé `theme` en stockage local, créée seulement si l'utilisateur change le thème, déclarée sur `/cookies` |
 | Polices auto-hébergées : aucune requête vers Google Fonts au chargement des pages | `next/font` dans `src/app/layout.tsx` (fichiers téléchargés à la compilation) |
 | Sécurité (art. 32) : mots de passe | bcrypt + règle CNIL (8 caractères, 3 types sur 4) + limitation des tentatives (`src/lib/ratelimit.ts`) |
+| Sécurité (art. 32) : pas de secret ni de mot de passe d'exemple en production | `src/lib/config-check.ts` (démarrage refusé), `prisma/seed.ts` |
+| Sécurité (art. 32) : en-têtes HTTP (CSP, anti-iframe, nosniff, HSTS via Caddy) | `next.config.mjs`, `Caddyfile` |
+| Protection des emprunteurs contre les envois abusifs : 5 e-mails max par jour et par adresse, nombre de prêts créés par jour limité, 8 rappels max par prêt, pas de lien internet dans les noms et objets (anti-hameçonnage) | `src/lib/limits.ts`, `src/lib/mail.ts`, `src/lib/validation.ts` ; annoncé dans les CGU (art. 3) et la politique de confidentialité |
 
 ## Registre des traitements (RGPD art. 30)
 
@@ -55,7 +58,7 @@ Responsable du traitement : *(identité de l'éditeur, voir `legal.ts`)*. Pas de
 | Liste d'opposition | Respecter les désinscriptions | Obligation légale (art. 21) | Emprunteurs | E-mail | Éditeur, hébergeur | Tant que nécessaire | Non |
 | Abonnements et paiements | Facturer | Contrat / obligation légale | Clients | Offre, montants, identifiants Stripe | Éditeur, Stripe | 10 ans (comptabilité) | Oui (Stripe, DPF + CCT) |
 | Mesure d'audience | Statistiques de fréquentation | Intérêt légitime (exemption CNIL) | Visiteurs | Page, référent, appareil, navigateur, pays, identifiant aléatoire | Éditeur, hébergeur | 25 mois | Non |
-| Journal des e-mails | Preuve d'envoi, support | Intérêt légitime | Utilisateurs, emprunteurs | Destinataire, objet, résultat | Éditeur, hébergeur | 12 mois | Non |
+| Journal des e-mails | Preuve d'envoi, support, limitation des envois abusifs vers les emprunteurs | Intérêt légitime | Utilisateurs, emprunteurs | Destinataire, objet, résultat, compte du prêteur à l'origine de l'envoi (e-mails aux emprunteurs) | Éditeur, hébergeur | 12 mois (lien avec le compte supprimé avec celui-ci) | Non |
 | Sécurité | Bloquer les attaques par force brute et les envois abusifs | Intérêt légitime | Visiteurs | Adresse IP, et adresse e-mail saisie sur « mot de passe oublié » (en mémoire uniquement) | — | Quelques minutes à 1 h | Non |
 
 Mesures de sécurité : HTTPS, mots de passe bcrypt, adresse e-mail confirmée, sessions révocables, cookie HttpOnly, limitation des tentatives, accès admin restreint, base non exposée sur Internet (Docker : port lié à 127.0.0.1).

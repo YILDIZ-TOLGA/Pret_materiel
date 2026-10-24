@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/LegalPage";
 import { LEGAL, RETENTION } from "@/lib/legal";
+import { MAIL_LIMITS } from "@/lib/limits";
 
 export const metadata: Metadata = { title: "Politique de confidentialité · Prêt Matériel" };
 
@@ -36,7 +37,7 @@ export default function Page() {
       <ul>
         <li><strong>Mesure d&apos;audience</strong> : page consultée, site d&apos;origine, type d&apos;appareil, navigateur, pays, et un identifiant aléatoire stocké sur votre appareil. Aucun lien n&apos;est fait avec votre compte. Détails et opposition sur la page <Link href="/cookies">Cookies</Link>.</li>
         <li><strong>Sécurité</strong> : l&apos;adresse IP est utilisée quelques minutes, en mémoire, pour bloquer les tentatives en série (connexion, inscription, mot de passe oublié) et les envois abusifs. Elle n&apos;est pas enregistrée en base.</li>
-        <li><strong>Journal des e-mails</strong> : destinataire, objet, type et résultat de chaque e-mail envoyé, pour vérifier la bonne délivrance et traiter les réclamations.</li>
+        <li><strong>Journal des e-mails</strong> : destinataire, objet, type et résultat de chaque e-mail envoyé et, pour un e-mail adressé à un emprunteur, le compte du prêteur à l&apos;origine de l&apos;envoi. Il sert à vérifier la bonne délivrance, à traiter les réclamations et à limiter les envois abusifs (nombre d&apos;e-mails par jour vers une même adresse et par compte).</li>
       </ul>
 
       <h2>3. Finalités et bases légales</h2>
@@ -94,7 +95,7 @@ export default function Page() {
       <p>Si vous estimez que vos droits ne sont pas respectés, vous pouvez introduire une réclamation auprès de la CNIL (3 place de Fontenoy, TSA 80715, 75334 Paris Cedex 07 — <a href="https://www.cnil.fr/fr/plaintes" rel="noopener noreferrer" target="_blank">cnil.fr/fr/plaintes</a>).</p>
 
       <h2>9. Vous avez reçu un e-mail sans avoir de compte ?</h2>
-      <p>Un utilisateur de {LEGAL.siteName} a enregistré un prêt à votre nom (un objet ou une somme d&apos;argent qu&apos;il vous a prêté) et a indiqué votre nom et votre adresse e-mail. Ces données servent uniquement à vous envoyer la confirmation du prêt, un rappel la veille de la date prévue, puis, en cas de retard et si le prêteur l&apos;a choisi, une relance au plus tous les trois jours. Elles ne servent à rien d&apos;autre et ne sont jamais utilisées pour de la prospection.</p>
+      <p>Un utilisateur de {LEGAL.siteName} a enregistré un prêt à votre nom (un objet ou une somme d&apos;argent qu&apos;il vous a prêté) et a indiqué votre nom et votre adresse e-mail. Ces données servent uniquement à vous envoyer la confirmation du prêt, un rappel la veille de la date prévue, puis, en cas de retard et si le prêteur l&apos;a choisi, une relance au plus tous les trois jours ({MAIL_LIMITS.remindersPerLoan} rappels au maximum par prêt, et jamais plus de {MAIL_LIMITS.perRecipientPerDay} e-mails par jour). Elles ne servent à rien d&apos;autre et ne sont jamais utilisées pour de la prospection.</p>
       <p>Vous pouvez à tout moment : bloquer tous les e-mails en un clic avec le lien en bas de chaque e-mail ; demander la suppression de vos données à {editor.email} ; créer un compte pour voir vos emprunts. Si vous pensez qu&apos;on vous a enregistré à tort, signalez-le-nous à la même adresse.</p>
 
       <h2>10. Mineurs</h2>

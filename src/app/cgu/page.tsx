@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/LegalPage";
 import { LEGAL, TERMS_VERSION } from "@/lib/legal";
+import { MAIL_LIMITS } from "@/lib/limits";
 import { PLANS } from "@/lib/plans";
 
 export const metadata: Metadata = { title: "Conditions générales · Prêt Matériel" };
@@ -39,6 +40,7 @@ export default function Page() {
         <li>ne pas inscrire dans les champs libres (description, notes) d&apos;informations sensibles sur l&apos;emprunteur (santé, opinions, religion, situation financière, infractions…) ni de propos injurieux ou diffamatoires.</li>
       </ul>
       <p>Vous êtes seul responsable des informations que vous saisissez sur les tiers et de l&apos;usage que vous faites du service. Tout emprunteur peut bloquer définitivement les e-mails de {LEGAL.siteName} : les relances vers son adresse sont alors désactivées.</p>
+      <p>Pour protéger les emprunteurs, le service applique des limites : les noms et les objets ne peuvent pas contenir d&apos;adresse de site internet ; le nombre de nouveaux prêts par jour est limité ; une même adresse reçoit au plus {MAIL_LIMITS.perRecipientPerDay} e-mails de {LEGAL.siteName} par 24 heures, tous prêteurs confondus ; un prêt donne lieu à {MAIL_LIMITS.remindersPerLoan} rappels au maximum. Au-delà, contactez l&apos;emprunteur directement.</p>
 
       <h3>4. Ce que le service n&apos;est pas</h3>
       <ul>

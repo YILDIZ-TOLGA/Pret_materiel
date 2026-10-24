@@ -1,5 +1,6 @@
 import type { Loan, User } from "@prisma/client";
 import { prisma } from "./db";
+import { MAIL_LIMITS } from "./limits";
 import { sendMail } from "./mail";
 
 const appUrl = () => process.env.APP_URL || "http://localhost:3000";
@@ -48,7 +49,7 @@ export async function onLoanCreated(loan: Loan, lender: User) {
       "Vous recevrez un rappel si la date est dépassée.",
     ],
     cta: { label: "Voir mes emprunts", url: `${appUrl()}/emprunts` },
-    thirdParty: { lenderName: lender.name },
+    thirdParty: { lenderName: lender.name, lenderId: lender.id },
   });
   if (loan.borrowerId) {
     await notify(loan.borrowerId, "Nouvel emprunt", `${lender.name} vous a prêté ${what(loan)} — à rendre le ${fmtDate(loan.dueAt)}.`, "/emprunts");
@@ -83,7 +84,7 @@ export async function sendOverdueReminder(loan: Loan & { lender: User }) {
       `Pensez à ${isMoney(loan) ? "rembourser" : "le rendre"} dès que possible. Vous pouvez contacter ${loan.lender.name} à ${loan.lender.email}.`,
     ],
     cta: { label: "Voir mes emprunts", url: `${appUrl()}/emprunts` },
-    thirdParty: { lenderName: loan.lender.name },
+    thirdParty: { lenderName: loan.lender.name, lenderId: loan.lenderId },
   });
   if (!sent) return false;
   if (loan.borrowerId) {
@@ -96,10 +97,10 @@ export async function sendOverdueReminder(loan: Loan & { lender: User }) {
 /**
  * Tâche planifiée, à lancer toutes les heures. Les e-mails ne partent qu'entre 9 h et 21 h (heure de Paris) :
  *  - veille de l'échéance : rappel à l'emprunteur
- *  - échéance dépassée : alerte au prêteur (une fois) + relance à l'emprunteur tous les 3 jours
+ *  - échéance dépassée : alerte au prêteur (une fois) + relance à l'emprunteur tous les 3 jours,
+ *    jusqu'à MAIL_LIMITS.remindersPerLoan rappels ; le prêteur est alors prévenu que les relances s'arrêtent
  */
-export async function runReminders() {
-  const now = new Date();
+export async function runReminders(now = new Date()) {
   let soon = 0, overdue = 0;
   const hour = parisHour(now);
   if (hour < 9 || hour >= 21) return { soon, overdue };
@@ -119,7 +120,7 @@ export async function runReminders() {
       title: `Bonjour ${loan.borrowerName},`,
       paragraphs: [`${toGiveBack(loan)}, prêté par ${loan.lender.name}, est à rendre le ${fmtDate(loan.dueAt)}.`],
       cta: { label: "Voir mes emprunts", url: `${appUrl()}/emprunts` },
-      thirdParty: { lenderName: loan.lender.name },
+      thirdParty: { lenderName: loan.lender.name, lenderId: loan.lenderId },
     });
     if (loan.borrowerId) await notify(loan.borrowerId, "Échéance demain", `${toGiveBack(loan)} : à rendre à ${loan.lender.name} demain.`, "/emprunts");
     await prisma.loan.update({ where: { id: loan.id }, data: { reminderCount: { increment: 1 }, lastReminderAt: now } });
@@ -130,6 +131,7 @@ export async function runReminders() {
     where: {
       status: "ACTIVE",
       dueAt: { lt: now },
+      reminderCount: { lt: MAIL_LIMITS.remindersPerLoan },
       OR: [{ lastReminderAt: null }, { lastReminderAt: { lt: threeDaysAgo } }, { lastReminderAt: { lt: prisma.loan.fields.dueAt } }],
     },
     include: { lender: true },
@@ -146,6 +148,10 @@ export async function runReminders() {
     // pour ne pas réalerter le prêteur ni retenter à chaque heure.
     const sent = loan.autoReminder && (await sendOverdueReminder(loan));
     if (!sent) await prisma.loan.update({ where: { id: loan.id }, data: { lastReminderAt: now } });
+    else if (loan.reminderCount + 1 >= MAIL_LIMITS.remindersPerLoan) {
+      await notify(loan.lenderId, "Fin des relances automatiques",
+        `${loan.borrowerName} a reçu ${MAIL_LIMITS.remindersPerLoan} rappels pour ${toGiveBack(loan)}. Prêt Matériel n'en enverra plus : contacte cette personne directement.`, `/prets/${loan.id}`);
+    }
     overdue++;
   }
   return { soon, overdue };

@@ -1,0 +1,40 @@
+# Mise en ligne sur un serveur (VPS), à combiner avec docker-compose.yml :
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Avant le premier lancement, remplis .env (modèle : .env.example, partie « Production ») :
+# DOMAIN, APP_URL=https://<DOMAIN>, JWT_SECRET, CRON_SECRET, DB_PASSWORD, ADMIN_EMAIL, ADMIN_PASSWORD, SMTP_*.
+# Le site refuse de démarrer tant qu'un réglage d'exemple est en place (src/lib/config-check.ts).
+#
+# Le nom de domaine doit pointer vers l'adresse IP du serveur, et les ports 80 et 443 doivent être ouverts :
+# Caddy obtient et renouvelle tout seul le certificat HTTPS.
+
+services:
+  app:
+    # plus aucun port publié : seul Caddy joint le site, par le réseau interne de Docker.
+    # Indispensable : la limitation des tentatives lit l'adresse IP ajoutée par Caddy (X-Forwarded-For).
+    ports: !reset []
+    environment:
+      DEMO_BILLING: "false"
+
+  # boîte mail de test : désactivée en production
+  mailpit:
+    profiles: ["dev"]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    environment:
+      DOMAIN: ${DOMAIN:?Renseigne DOMAIN dans .env (ex. pret-materiel.fr)}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,6 +1,13 @@
 import nodemailer from "nodemailer";
 import { prisma } from "./db";
+import { MAIL_LIMITS } from "./limits";
 import { isOptedOut, optOutToken, optOutUrl } from "./optout";
+
+const DAY = 86400000;
+
+/** Nombre d'e-mails partis vers cette adresse (tiers) sur les dernières 24 h. */
+export const thirdPartyMailsToday = (to: string) =>
+  prisma.emailLog.count({ where: { to: to.toLowerCase(), thirdParty: true, ok: true, createdAt: { gt: new Date(Date.now() - DAY) } } });
 
 const transporter = process.env.SMTP_HOST
   ? nodemailer.createTransport({
@@ -33,13 +40,21 @@ ${links ? `<p style="margin:0">${links}</p>` : ""}
 /**
  * Envoie un e-mail et le journalise.
  * `thirdParty` : destinataire qui n'a pas forcément de compte (emprunteur). On respecte alors sa
- * désinscription, et on ajoute l'information RGPD (art. 14) + un lien de désinscription en 1 clic.
+ * désinscription et le plafond d'envois par jour, et on ajoute l'information RGPD (art. 14) + un lien
+ * de désinscription en 1 clic.
  */
-export async function sendMail(opts: { to: string; subject: string; kind: string; title: string; paragraphs: string[]; cta?: { label: string; url: string }; thirdParty?: { lenderName: string } }) {
+export async function sendMail(opts: { to: string; subject: string; kind: string; title: string; paragraphs: string[]; cta?: { label: string; url: string }; thirdParty?: { lenderName: string; lenderId: string } }) {
   const to = opts.to.toLowerCase();
-  if (opts.thirdParty && (await isOptedOut(to))) {
-    await prisma.emailLog.create({ data: { to, subject: opts.subject, kind: opts.kind, ok: false, error: "Destinataire désinscrit" } });
-    return false;
+  const log = (ok: boolean, error?: string) => prisma.emailLog.create({
+    data: { to, subject: opts.subject, kind: opts.kind, ok, error, thirdParty: !!opts.thirdParty, senderId: opts.thirdParty?.lenderId },
+  });
+  if (opts.thirdParty) {
+    const refused = (await isOptedOut(to)) ? "Destinataire désinscrit"
+      : (await thirdPartyMailsToday(to)) >= MAIL_LIMITS.perRecipientPerDay ? "Plafond d'envois du jour atteint pour ce destinataire" : null;
+    if (refused) {
+      await log(false, refused);
+      return false;
+    }
   }
 
   const footer: Footer | undefined = opts.thirdParty
@@ -75,6 +90,6 @@ export async function sendMail(opts: { to: string; subject: string; kind: string
     err = e instanceof Error ? e.message : String(e);
     console.error("Échec envoi mail", err);
   }
-  await prisma.emailLog.create({ data: { to, subject: opts.subject, kind: opts.kind, ok, error: err } });
+  await log(ok, err);
   return ok;
 }
