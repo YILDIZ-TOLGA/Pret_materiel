@@ -48,6 +48,8 @@ model User {
   stripeSubscriptionId String?   @unique
   // abonnement résilié : reste actif jusqu'à planExpiresAt puis n'est pas renouvelé
   cancelAtPeriodEnd    Boolean   @default(false)
+  // conclusion de l'abonnement en cours : point de départ du délai de rétractation de 14 jours
+  subscriptionStartedAt DateTime?
   createdAt            DateTime  @default(now())
   // dernière activité (connexion ou ouverture de l'appli) : sert à la purge des comptes inactifs
   lastLoginAt          DateTime?

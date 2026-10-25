@@ -26,7 +26,7 @@ export default function Page() {
         <li><strong>Compte</strong> : prénom, nom de la structure pour une offre Pro, adresse e-mail, mot de passe (stocké uniquement sous forme chiffrée irréversible, bcrypt), date d&apos;inscription, date de dernière activité, date et version des conditions acceptées, date de confirmation de l&apos;adresse e-mail et, le cas échéant, la nouvelle adresse en attente de confirmation.</li>
         <li><strong>Sécurité du compte</strong> : sessions de connexion (date d&apos;ouverture et d&apos;expiration, sans information sur l&apos;appareil) et liens de confirmation ou de réinitialisation du mot de passe envoyés par e-mail (seule une empreinte du lien est conservée).</li>
         <li><strong>Prêts</strong> : objets ou montants prêtés, dates, remboursements, notes personnelles, options de rappel.</li>
-        <li><strong>Abonnement</strong> : offre choisie, dates de renouvellement, historique des paiements (montant, date). Vos coordonnées bancaires sont saisies directement chez notre prestataire de paiement Stripe : nous n&apos;y avons jamais accès. Pour une offre Pro, le nom, l&apos;adresse et, le cas échéant, le numéro de TVA de la structure sont saisis chez Stripe et repris sur les factures.</li>
+        <li><strong>Abonnement</strong> : offre choisie, date de souscription (point de départ du délai de rétractation), dates de renouvellement, remboursements, historique des paiements (montant, date). Vos coordonnées bancaires sont saisies directement chez notre prestataire de paiement Stripe : nous n&apos;y avons jamais accès. Pour une offre Pro, le nom, l&apos;adresse et, le cas échéant, le numéro de TVA de la structure sont saisis chez Stripe et repris sur les factures.</li>
         <li><strong>Notifications</strong> affichées dans l&apos;application.</li>
       </ul>
       <h3>Personnes enregistrées comme emprunteurs</h3>
@@ -66,6 +66,7 @@ export default function Page() {
         <tr><td>Liens envoyés par e-mail</td><td>Confirmation d&apos;adresse : {RETENTION.verifyEmailLinkHours} heures ; réinitialisation du mot de passe : {RETENTION.resetPasswordLinkHours} heure. Supprimés dès leur utilisation.</td></tr>
         <tr><td>Notifications lues</td><td>{RETENTION.readNotificationMonths} mois</td></tr>
         <tr><td>Journal des e-mails envoyés</td><td>{RETENTION.emailLogMonths} mois</td></tr>
+        <tr><td>Sauvegardes de sécurité de la base</td><td>{RETENTION.backupDays} jours : une donnée supprimée disparaît aussi des sauvegardes au plus tard {RETENTION.backupDays} jours après. Elles ne servent qu&apos;à restaurer le service en cas d&apos;incident.</td></tr>
         <tr><td>Statistiques de fréquentation</td><td>{RETENTION.pageViewMonths} mois ; identifiant de mesure d&apos;audience renouvelé tous les {RETENTION.visitorIdMonths} mois</td></tr>
       </tbody></table></div>
 

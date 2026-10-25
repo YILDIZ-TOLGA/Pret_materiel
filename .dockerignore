@@ -5,3 +5,6 @@ node_modules
 *.zip
 *.bat
 video
+
+# Sauvegardes de la base (données personnelles : jamais dans Git ni dans l'image)
+sauvegardes

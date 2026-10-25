@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { prisma } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
+import { sendOrderConfirmation } from "@/lib/billing";
 import { LEGAL } from "@/lib/legal";
 import { notify } from "@/lib/loans";
 import { sendMail } from "@/lib/mail";
@@ -27,10 +28,14 @@ async function syncSubscription(sub: Stripe.Subscription) {
   } else if (alive && plan) {
     await prisma.user.update({
       where: { id: user.id },
-      data: { plan, stripeSubscriptionId: sub.id, planExpiresAt: new Date(item.current_period_end * 1000), cancelAtPeriodEnd: sub.cancel_at_period_end || !!sub.cancel_at },
+      data: {
+        plan, stripeSubscriptionId: sub.id, planExpiresAt: new Date(item.current_period_end * 1000), cancelAtPeriodEnd: sub.cancel_at_period_end || !!sub.cancel_at,
+        // un changement d'offre garde la date de départ de l'abonnement (start_date ne change pas)
+        subscriptionStartedAt: new Date(sub.start_date * 1000),
+      },
     });
   } else if (user.stripeSubscriptionId === sub.id) {
-    await prisma.user.update({ where: { id: user.id }, data: { plan: "FREE", planExpiresAt: null, stripeSubscriptionId: null, cancelAtPeriodEnd: false } });
+    await prisma.user.update({ where: { id: user.id }, data: { plan: "FREE", planExpiresAt: null, stripeSubscriptionId: null, cancelAtPeriodEnd: false, subscriptionStartedAt: null } });
     await notify(user.id, "Abonnement terminé", "Ton abonnement est terminé : tu repasses à l'offre gratuite.", "/abonnement");
   }
 }
@@ -41,11 +46,21 @@ async function recordPayment(invoice: Stripe.Invoice) {
   const user = customerId ? await prisma.user.findUnique({ where: { stripeCustomerId: customerId } }) : null;
   const priceId = invoice.lines.data[0]?.pricing?.price_details?.price;
   const plan = (typeof priceId === "string" && planFromPriceId(priceId)) || user?.plan || "PERSO_MONTHLY";
-  await prisma.payment.upsert({
-    where: { providerRef: invoice.id },
-    update: {},
-    create: { userId: user?.id, amountCents: invoice.amount_paid, currency: invoice.currency, plan, provider: "stripe", providerRef: invoice.id },
-  });
+  // Stripe peut rejouer un événement : on n'agit qu'à la première réception de cette facture
+  if (await prisma.payment.findUnique({ where: { providerRef: invoice.id }, select: { id: true } })) return;
+  try {
+    await prisma.payment.create({
+      data: { userId: user?.id, amountCents: invoice.amount_paid, currency: invoice.currency, plan, provider: "stripe", providerRef: invoice.id },
+    });
+  } catch (e) {
+    if ((e as { code?: string }).code === "P2002") return; // deux livraisons simultanées : une seule est traitée
+    throw e;
+  }
+  // Première facture d'un abonnement = conclusion du contrat : confirmation sur support durable (art. L221-13)
+  if (user && invoice.billing_reason === "subscription_create") {
+    const start = invoice.lines.data[0]?.period?.start ?? invoice.created;
+    await sendOrderConfirmation(user, plan, invoice.amount_paid, new Date(start * 1000));
+  }
 }
 
 /** Prélèvement refusé : Stripe retente plusieurs fois ; on prévient le client pour qu'il mette à jour sa carte. */

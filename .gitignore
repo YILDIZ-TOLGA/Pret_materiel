@@ -7,3 +7,6 @@ next-env.d.ts
 
 # Vidéo : fichiers générés
 video/out/
+
+# Sauvegardes de la base (données personnelles : jamais dans Git ni dans l'image)
+sauvegardes

@@ -11,6 +11,8 @@ export type Me = {
   /** Prêts en cours dont la date de retour est passée. */
   overdueLoans?: number;
   unread: number;
+  /** Date limite pour se rétracter de l'abonnement en cours, ou null si ce n'est plus possible. */
+  withdrawalUntil?: string | null;
 };
 
 type Ctx = { me: Me | null; loading: boolean; refresh: () => Promise<void>; logout: () => Promise<void> };

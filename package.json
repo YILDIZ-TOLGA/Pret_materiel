@@ -13,7 +13,8 @@
     "cron": "tsx scripts/cron.ts",
     "test:securite": "tsx scripts/test-securite.ts",
     "test:anti-abus": "tsx scripts/test-anti-abus.ts",
-    "test:prets": "tsx scripts/test-prets.ts"
+    "test:prets": "tsx scripts/test-prets.ts",
+    "test:vente": "tsx scripts/test-vente.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

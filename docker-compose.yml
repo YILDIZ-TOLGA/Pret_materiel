@@ -24,7 +24,10 @@ services:
       retries: 20
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        APP_URL: ${APP_URL:-http://localhost:3000}
     restart: unless-stopped
     depends_on:
       db:
@@ -60,6 +63,25 @@ services:
     # jamais exposée sur Internet : elle contient tous les e-mails, liens de mot de passe compris
     ports:
       - "127.0.0.1:8025:8025"
+
+  # Sauvegarde de la base chaque jour dans le dossier ./sauvegardes (une copie par jour, gardée BACKUP_DAYS jours).
+  # Restaurer : voir le README, partie « Sauvegardes ». Pense à copier ce dossier hors du serveur.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: pret
+      PGPASSWORD: ${DB_PASSWORD:-pret}
+      PGDATABASE: pret
+      # durée affichée dans la politique de confidentialité (RETENTION.backupDays, src/lib/legal.ts)
+      BACKUP_DAYS: ${BACKUP_DAYS:-14}
+    volumes:
+      - ./sauvegardes:/sauvegardes
+    entrypoint: ["sh", "-c", "while true; do f=/sauvegardes/pret-$$(date +%Y%m%d-%H%M).dump; if pg_dump -Fc -f $$f.tmp; then mv $$f.tmp $$f; echo \"Sauvegarde : $$f\"; else rm -f $$f.tmp; echo 'ÉCHEC de la sauvegarde'; fi; find /sauvegardes -name 'pret-*.dump' -mtime +$$BACKUP_DAYS -delete; sleep 86400; done"]
 
   # Rappels automatiques : appelle /api/cron/reminders toutes les heures
   cron:
