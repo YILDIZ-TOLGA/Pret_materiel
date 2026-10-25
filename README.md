@@ -41,6 +41,8 @@ Le premier lancement prend quelques minutes (téléchargement et construction), 
 | Boîte mail de test (tous les e-mails envoyés par le site) | http://localhost:8025 |
 | Compte admin | `admin@pret.local` / `admin1234` |
 
+Le site et Mailpit ne sont accessibles que depuis ta machine (127.0.0.1).
+
 - Arrêter : `arreter.bat` (ou `docker compose down`). Les données sont conservées.
 - Tout effacer, base comprise : `docker compose down -v`.
 - Changer les réglages (mot de passe admin, vrai SMTP, Stripe…) : copie `.env.example` en `.env`, modifie-le, relance `demarrer.bat`.
@@ -65,8 +67,14 @@ Sans SMTP, les e-mails sont affichés dans la console.
 
 > ⚖️ **Avant d'ouvrir au public** : remplis `src/lib/legal.ts` (identité, hébergeur, médiateur…) et suis la checklist de [docs/CONFORMITE.md](docs/CONFORMITE.md) (RGPD, mentions légales, CGV).
 
-1. **Base** : n'importe quel PostgreSQL (Neon, Supabase, Scaleway, OVH, Railway…). Mets l'URL dans `DATABASE_URL`.
-2. **Hébergement** : sur un VPS, la même commande `docker compose up -d --build` (avec un `.env` rempli, `APP_URL` en `https://…` et un reverse proxy HTTPS comme Caddy), ou Vercel / Railway / Render (build : `npm run build`, puis `npx prisma migrate deploy`).
+1. **Hébergement sur un VPS (recommandé)** : la même stack Docker, avec Caddy devant pour le HTTPS.
+   - Fais pointer ton nom de domaine vers l'IP du serveur, ouvre les ports 80 et 443.
+   - Copie `.env.example` en `.env` et remplis la partie « Production » : `DOMAIN`, `APP_URL=https://…`, `JWT_SECRET`, `CRON_SECRET`, `DB_PASSWORD` (avant le tout premier lancement), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SMTP_*`.
+   - Lance : `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+   - Le site n'est alors joignable que par Caddy (HTTPS + HSTS), Mailpit est désactivé et `DEMO_BILLING` forcé à `false`.
+   - **Le site refuse de démarrer** tant qu'un réglage d'exemple reste en place (secrets, mot de passe admin `admin1234`, base `pret`, Mailpit) : la liste s'affiche dans `docker compose logs app`.
+   - Autre hébergeur (Vercel, Railway, Render) : build `npm run build`, puis `npx prisma migrate deploy` ; mets le site derrière un proxy qui écrit l'IP du visiteur dans `X-Forwarded-For` (la limitation des tentatives en dépend).
+2. **Base** : celle du `docker-compose.yml`, ou n'importe quel PostgreSQL (Neon, Supabase, Scaleway, OVH…) via `DATABASE_URL`. Prévois des sauvegardes.
 3. **E-mails** : un fournisseur SMTP (Brevo, Resend, Mailgun…) → variables `SMTP_*` et `MAIL_FROM`.
 4. **Rappels automatiques** : déjà inclus avec Docker (service `cron`). Sinon, appeler toutes les heures
    `curl -H "Authorization: Bearer $CRON_SECRET" https://ton-site/api/cron/reminders`
@@ -77,7 +85,7 @@ Sans SMTP, les e-mails sont affichés dans la console.
      12 €/mois et 120 €/an → `STRIPE_PRICE_PRO50_MONTHLY`, `STRIPE_PRICE_PRO50_YEARLY` ;
      24 €/mois et 240 €/an → `STRIPE_PRICE_PRO200_MONTHLY`, `STRIPE_PRICE_PRO200_YEARLY` ;
    - active les moyens de paiement voulus dans *Paramètres → Moyens de paiement* (PayPal, Apple Pay, Google Pay…) : ils apparaissent automatiquement, sans toucher au code ;
-   - webhook vers `https://ton-site/api/billing/webhook` avec les événements `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid` → `STRIPE_WEBHOOK_SECRET` ;
+   - webhook vers `https://ton-site/api/billing/webhook` avec les événements `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed` → `STRIPE_WEBHOOK_SECRET` ;
    - active le portail client (*Paramètres → Billing → Customer portal*) et autorise le changement entre les 6 prix ;
    - pour les offres Pro, la page de paiement demande le nom, l'adresse et le n° de TVA de la structure (facture à son nom).
 
@@ -105,6 +113,16 @@ Oui c'est faisable, mais il ne faut pas coder soi-même un « wrapper » qui re�
 2. **Conversion automatique** : Stripe propose des versements en stablecoin (USDC) dans certains pays — vérifie si ton compte y a accès (*Paramètres → Versements*). Sinon : versement automatique Stripe vers un compte sur une plateforme agréée (Kraken, Bitstamp, Coinbase…) + achat récurrent automatique + retrait automatique vers ton wallet. Une fois configuré, c'est 100 % automatique.
 
 À savoir : les revenus restent imposables en euros (déclare-les, en micro-entreprise par exemple), et chaque conversion peut avoir des conséquences fiscales. Demande l'avis d'un comptable.
+
+## Tests
+
+Contre un serveur de dev qui tourne (`npm run dev`), avec la même base :
+
+```bash
+DATABASE_URL=… JWT_SECRET=… TEST_BASE_URL=http://localhost:3000 npm run test:securite
+DATABASE_URL=… TEST_BASE_URL=http://localhost:3000 npm run test:anti-abus
+DATABASE_URL=… JWT_SECRET=… TEST_BASE_URL=http://localhost:3000 npm run test:prets
+```
 
 ## Structure
 

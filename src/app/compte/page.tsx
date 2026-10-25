@@ -6,11 +6,14 @@ import { Icon } from "@/components/Icon";
 import { useMe } from "@/components/Providers";
 import { LegalLinks } from "@/components/SiteFooter";
 import { Avatar, PageHeader, Spinner, ThemeSwitch } from "@/components/ui";
-import { API_BASE, api, dateFr } from "@/lib/client";
+import { API_BASE, api, authToken, dateFr, saveAuthToken } from "@/lib/client";
+import { isProPlan } from "@/lib/plans";
+import type { Plan } from "@prisma/client";
 
 export default function AccountPage() {
   const { me, refresh } = useMe();
   const [name, setName] = useState(me?.user.name ?? "");
+  const [org, setOrg] = useState(me?.user.organization ?? "");
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState("");
@@ -21,7 +24,7 @@ export default function AccountPage() {
   async function saveName(e: React.FormEvent) {
     e.preventDefault();
     setBusy("name"); setErr(""); setSaved(false);
-    try { await api("/api/account", { method: "PATCH", body: { name } }); await refresh(); setSaved(true); }
+    try { await api("/api/account", { method: "PATCH", body: { name, ...(showOrg ? { organization: org.trim() || null } : {}) } }); await refresh(); setSaved(true); }
     catch (x) { setErr((x as Error).message); }
     setBusy(null);
   }
@@ -29,8 +32,7 @@ export default function AccountPage() {
   async function exportData() {
     setBusy("export"); setErr("");
     try {
-      let token: string | null = null;
-      try { token = localStorage.getItem("token"); } catch {}
+      const token = authToken();
       const res = await fetch(`${API_BASE}/api/account/export`, { credentials: "include", headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error("Export impossible, réessaie");
       const url = URL.createObjectURL(await res.blob());
@@ -46,12 +48,15 @@ export default function AccountPage() {
     setBusy("delete"); setErr("");
     try {
       await api("/api/account", { method: "DELETE", body: { password } });
-      try { localStorage.removeItem("token"); } catch {}
+      saveAuthToken(null);
       location.href = "/";
     } catch (x) { setErr((x as Error).message); setBusy(null); }
   }
 
   const paid = me.plan.id !== "FREE" && !me.user.cancelAtPeriodEnd;
+  // offres Pro : la structure est nommée dans les e-mails aux emprunteurs (elle est responsable de leurs données)
+  const showOrg = isProPlan(me.plan.id as Plan) || !!me.user.organization;
+  const unchanged = name.trim() === me.user.name && (!showOrg || org.trim() === (me.user.organization ?? ""));
   return (
     <>
       <PageHeader title="Mon compte" sub="Tes informations personnelles et tes données." />
@@ -59,15 +64,22 @@ export default function AccountPage() {
 
       <div className="settings">
         <section className="set-row">
-          <div className="set-label"><h2>Profil</h2><p>Ton prénom apparaît dans les e-mails envoyés à tes emprunteurs.</p></div>
+          <div className="set-label"><h2>Profil</h2><p>Ton prénom{showOrg ? " et ta structure apparaissent" : " apparaît"} dans les e-mails envoyés à tes emprunteurs.</p></div>
           <form className="card stack" onSubmit={saveName}>
             <div className="row" style={{ gap: 14 }}>
               <Avatar name={name || me.user.name} size="lg" />
               <div style={{ minWidth: 0 }}><b>{me.user.name}</b><div className="small muted truncate">{me.user.email}</div></div>
             </div>
             <label className="field">Prénom<input value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} required maxLength={80} autoComplete="given-name" /></label>
+            {showOrg && (
+              <label className="field">
+                <span>Nom de ta structure <span className="opt">— entreprise, association, école…</span></span>
+                <input value={org} onChange={(e) => { setOrg(e.target.value); setSaved(false); }} maxLength={120} autoComplete="organization" required={isProPlan(me.plan.id as Plan)} />
+                <span className="hint">Obligatoire avec une offre Pro : ta structure est responsable des données de tes emprunteurs, elle est donc nommée dans les e-mails qu&apos;ils reçoivent.</span>
+              </label>
+            )}
             <div className="row">
-              <button className="btn" disabled={busy === "name" || name.trim() === me.user.name}>{busy === "name" ? <><Spinner />Enregistrement…</> : "Enregistrer"}</button>
+              <button className="btn" disabled={busy === "name" || unchanged}>{busy === "name" ? <><Spinner />Enregistrement…</> : "Enregistrer"}</button>
               {saved && <span className="small ok-text row grow-in" style={{ gap: 6 }}><Icon name="check" size={14} />Enregistré</span>}
             </div>
             <p className="hint">Compte créé le {dateFr(me.user.createdAt)}{me.user.termsAcceptedAt && ` · conditions acceptées le ${dateFr(me.user.termsAcceptedAt)}`}.</p>

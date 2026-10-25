@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import type { ZodError } from "zod";
+import { z, type ZodError } from "zod";
 import type { User } from "@prisma/client";
 import { getCurrentUser } from "./auth";
+
+// Messages d'erreur de validation par défaut en français (toutes les routes passent par ce fichier)
+z.config(z.locales.fr());
 
 export const json = (data: unknown, status = 200) => NextResponse.json(data, { status });
 export const error = (message: string, status = 400) => NextResponse.json({ error: message }, { status });

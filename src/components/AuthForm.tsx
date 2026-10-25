@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { api } from "@/lib/client";
+import { api, saveAuthToken } from "@/lib/client";
+import { PLANS } from "@/lib/plans";
 import { PasswordField } from "./AuthCard";
 import { Brand } from "./Brand";
 import { Icon } from "./Icon";
@@ -10,9 +11,22 @@ import { useMe } from "./Providers";
 import { LegalLinks } from "./SiteFooter";
 import { DayNight, Spinner, Stamp } from "./ui";
 
+/**
+ * Page où revenir après la connexion : seulement un chemin de ce site. « //site.com » ou « /\site.com »
+ * commencent aussi par « / » mais mènent ailleurs (redirection ouverte, utile pour l'hameçonnage).
+ */
+function safeNext(next: string | null) {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return "/prets";
+  try {
+    return new URL(next, location.origin).origin === location.origin ? next : "/prets";
+  } catch {
+    return "/prets";
+  }
+}
+
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
-  const next = useSearchParams().get("next") || "/prets";
+  const next = useSearchParams().get("next");
   const { refresh } = useMe();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [accept, setAccept] = useState(false);
@@ -26,9 +40,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     setBusy(true); setErr("");
     try {
       const { token } = await api<{ token: string }>(`/api/auth/${mode}`, { body: register ? { ...form, acceptTerms: accept } : form });
-      try { localStorage.setItem("token", token); } catch {}
+      saveAuthToken(token);
       await refresh();
-      router.replace(next.startsWith("/") ? next : "/prets");
+      router.replace(safeNext(next));
     } catch (e) {
       setErr((e as Error).message);
       setBusy(false);
@@ -42,7 +56,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <div className="auth-card">
           <div>
             <h1 className="auth-title">{register ? "Ouvre ton carnet." : "Bon retour."}</h1>
-            <p className="auth-sub">{register ? "Gratuit pour un prêt en cours. Sans carte bancaire." : "Retrouve tes prêts, tes rappels et ton bilan."}</p>
+            <p className="auth-sub">{register ? `Gratuit jusqu'à ${PLANS.FREE.maxLoans} prêts en cours. Sans carte bancaire.` : "Retrouve tes prêts, tes rappels et ton bilan."}</p>
           </div>
           <form className="stack" onSubmit={submit}>
             {err && <div className="banner late"><Icon name="alert" size={16} />{err}</div>}

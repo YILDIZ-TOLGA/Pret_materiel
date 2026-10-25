@@ -37,6 +37,8 @@ model User {
   id                   String    @id @default(cuid())
   email                String    @unique
   name                 String
+  // offres Pro : structure responsable du traitement des données de ses emprunteurs, nommée dans les e-mails
+  organization         String?
   passwordHash         String
   role                 Role      @default(USER)
   disabled             Boolean   @default(false)
@@ -65,6 +67,7 @@ model User {
   loansReceived Loan[]         @relation("borrower")
   notifications Notification[]
   payments      Payment[]
+  emailsSent    EmailLog[]
   sessions      Session[]
   authTokens    AuthToken[]
 }
@@ -195,15 +198,21 @@ model PageView {
 }
 
 model EmailLog {
-  id        String   @id @default(cuid())
-  to        String
-  subject   String
-  kind      String
-  ok        Boolean
-  error     String?
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  to         String
+  subject    String
+  kind       String
+  ok         Boolean
+  error      String?
+  // e-mail envoyé à un tiers (emprunteur) au nom d'un prêteur : sert aux plafonds anti-abus
+  thirdParty Boolean  @default(false)
+  senderId   String?
+  sender     User?    @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
 
   @@index([createdAt])
+  @@index([senderId, kind, createdAt])
+  @@index([to, createdAt])
 }
 
 /** Adresses qui ne veulent plus recevoir d'e-mails de rappel (droit d'opposition, art. 21 RGPD). */

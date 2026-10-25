@@ -1,0 +1,9 @@
+# Reverse proxy HTTPS de production (utilisé par docker-compose.prod.yml).
+# Caddy remplace l'en-tête X-Forwarded-For envoyé par le visiteur par sa vraie adresse IP.
+{$DOMAIN} {
+	encode zstd gzip
+	# HTTPS obligatoire pendant un an (HSTS) : seulement ici, pour ne pas gêner http://localhost
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	reverse_proxy app:3000
+}
+

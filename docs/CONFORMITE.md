@@ -5,7 +5,7 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 ## ✅ À faire avant la mise en ligne
 
 1. **Remplir `src/lib/legal.ts`** : identité de l'éditeur (nom, forme juridique, adresse, SIRET, e-mail, téléphone), hébergeur, prestataire e-mail, médiateur. Tant que c'est vide, les pages affichent « [À COMPLÉTER] ».
-2. **Avoir un statut** : vendre des abonnements = activité professionnelle. Une micro-entreprise suffit (autoentrepreneur.urssaf.fr). Sans SIRET, tu ne peux pas vendre légalement.
+2. **Statut** : le site est édité par la SARL HERMES FINANCE SOURCING - H.F.S. (SIREN 492 768 742). Vérifier avec la gérante et le comptable : objet social compatible avec la vente d'abonnements en ligne (activité principale déclarée : 46.18Z, intermédiaires du commerce), régime de TVA, cession ou licence du code du site à la société, accord de la gérante comme directrice de la publication.
 3. **Adhérer à un médiateur de la consommation** (obligatoire pour vendre à des particuliers, ~50 à 150 €/an). Liste : https://www.economie.gouv.fr/mediation-conso — puis renseigner `mediator` dans `legal.ts`.
 4. **Vérifier la mention TVA** (`vatMention`) : « TVA non applicable, art. 293 B du CGI » en franchise de TVA ; sinon mettre ton n° de TVA.
 5. **Relire l'article L215-1 dans les CGV** (section 14 de `/cgu`) contre le texte officiel sur Légifrance : la loi impose qu'il soit reproduit **intégralement** (art. L215-4). Le texte a été repris de mémoire et peut avoir été modifié depuis.
@@ -51,6 +51,12 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 | Préférence de thème clair/sombre : traceur exempté (personnalisation de l'interface demandée par l'utilisateur) | clé `theme` en stockage local, créée seulement si l'utilisateur change le thème, déclarée sur `/cookies` |
 | Polices auto-hébergées : aucune requête vers Google Fonts au chargement des pages | `next/font` dans `src/app/layout.tsx` (fichiers téléchargés à la compilation) |
 | Sécurité (art. 32) : mots de passe | bcrypt + règle CNIL (8 caractères, 3 types sur 4) + limitation des tentatives (`src/lib/ratelimit.ts`) |
+| Sécurité (art. 32) : pas de secret ni de mot de passe d'exemple en production | `src/lib/config-check.ts` (démarrage refusé), `prisma/seed.ts` |
+| Sécurité (art. 32) : en-têtes HTTP (CSP, anti-iframe, nosniff, HSTS via Caddy) | `next.config.mjs`, `Caddyfile` |
+| Notes privées du prêteur jamais envoyées à l'emprunteur (liste blanche des champs) | `api/borrowed`, `api/account/export` |
+| Pas d'adresse e-mail en clair dans les liens de désinscription (jeton chiffré AES-GCM) | `src/lib/optout.ts` |
+| Offres Pro : la structure (responsable du traitement) est nommée dans les e-mails aux emprunteurs, obligatoire avant le premier prêt | `User.organization`, `src/lib/mail.ts`, `src/lib/loans.ts` ; CGV art. 17 |
+| Protection des emprunteurs contre les envois abusifs : 5 e-mails max par jour et par adresse, nombre de prêts créés par jour limité selon l'offre (compté dans le journal des e-mails), 8 rappels max par prêt, pas de lien internet dans les noms et objets (anti-hameçonnage) | `src/lib/limits.ts`, `src/lib/mail.ts`, `src/lib/validation.ts` ; annoncé dans les CGU (art. 3) et la politique de confidentialité |
 
 ## Registre des traitements (RGPD art. 30)
 
@@ -58,15 +64,15 @@ Responsable du traitement : *(identité de l'éditeur, voir `legal.ts`)*. Pas de
 
 | Traitement | Finalité | Base légale | Personnes | Données | Destinataires | Durée | Transfert hors UE |
 |---|---|---|---|---|---|---|---|
-| Gestion des comptes | Fournir le service | Contrat | Utilisateurs | Prénom, e-mail (et nouvelle adresse en attente), date de confirmation de l'e-mail, mot de passe chiffré, dates de connexion et d'acceptation des CGU | Éditeur, hébergeur | Jusqu'à suppression ; 3 ans d'inactivité | Non (si hébergeur UE) |
+| Gestion des comptes | Fournir le service | Contrat | Utilisateurs | Prénom, nom de la structure (offres Pro), e-mail (et nouvelle adresse en attente), date de confirmation de l'e-mail, mot de passe chiffré, dates de connexion et d'acceptation des CGU | Éditeur, hébergeur | Jusqu'à suppression ; 3 ans d'inactivité | Non (si hébergeur UE) |
 | Sécurité des comptes | Sessions, confirmation d'adresse, réinitialisation du mot de passe | Contrat / intérêt légitime (art. 32) | Utilisateurs | Sessions (dates), empreinte des liens envoyés, adresse de destination du lien | Éditeur, hébergeur, prestataire SMTP | Sessions 30 jours ; liens 48 h (confirmation) / 1 h (mot de passe) | Selon prestataire SMTP |
 | Suivi des prêts | Fournir le service | Contrat | Utilisateurs | Prêts, montants, dates, notes | Éditeur, hébergeur ; emprunteur (partiel) | Prêt clôturé : 5 ans | Non |
 | Rappels aux emprunteurs | Relancer pour la restitution | Intérêt légitime | Emprunteurs (tiers) | Nom, e-mail, téléphone, objet/montant, dates | Éditeur, hébergeur, prestataire SMTP | Durée du prêt (+5 ans après clôture) | Selon prestataire SMTP |
 | Liste d'opposition | Respecter les désinscriptions | Obligation légale (art. 21) | Emprunteurs | E-mail | Éditeur, hébergeur | Tant que nécessaire | Non |
 | Abonnements et paiements | Facturer | Contrat / obligation légale | Clients | Offre, montants, identifiants Stripe | Éditeur, Stripe | 10 ans (comptabilité) | Oui (Stripe, DPF + CCT) |
 | Mesure d'audience | Statistiques de fréquentation | Intérêt légitime (exemption CNIL) | Visiteurs | Page, référent, appareil, navigateur, pays, identifiant aléatoire | Éditeur, hébergeur | 25 mois | Non |
-| Journal des e-mails | Preuve d'envoi, support | Intérêt légitime | Utilisateurs, emprunteurs | Destinataire, objet, résultat | Éditeur, hébergeur | 12 mois | Non |
-| Sécurité | Bloquer les attaques par force brute et les envois abusifs | Intérêt légitime | Visiteurs, utilisateurs | Adresse IP, adresse e-mail saisie sur « mot de passe oublié », nombre de prêts créés par un compte (en mémoire uniquement) | — | Quelques minutes à 24 h | Non |
+| Journal des e-mails | Preuve d'envoi, support, limitation des envois abusifs vers les emprunteurs (nombre de prêts créés par compte et d'e-mails par destinataire sur 24 h) | Intérêt légitime | Utilisateurs, emprunteurs | Destinataire, objet, résultat, compte du prêteur à l'origine de l'envoi (e-mails aux emprunteurs) | Éditeur, hébergeur | 12 mois (lien avec le compte supprimé avec celui-ci) | Non |
+| Sécurité | Bloquer les attaques par force brute et les envois abusifs | Intérêt légitime | Visiteurs | Adresse IP, et adresse e-mail saisie sur « mot de passe oublié » (en mémoire uniquement) | — | Quelques minutes à 1 h | Non |
 
 ### Registre des activités de sous-traitance (RGPD art. 30.2) : offres Pro
 
@@ -80,5 +86,5 @@ Mesures de sécurité : HTTPS, mots de passe bcrypt, adresse e-mail confirmée, 
 
 ## En cas de demande ou d'incident
 
-- **Demande RGPD par e-mail** : répondre sous **1 mois**. Suppression des données d'un emprunteur : supprimer les prêts le concernant et ajouter son e-mail à la table `EmailOptOut`.
+- **Demande RGPD par e-mail** : répondre sous **1 mois**. Suppression des données d'un emprunteur : supprimer les prêts le concernant, supprimer ses lignes du journal (`DELETE FROM "EmailLog" WHERE "to" = '<adresse>'`) et ajouter son e-mail à la table `EmailOptOut` (seule trace conservée, pour ne plus jamais lui écrire). Pour un client Pro, prévenir la structure (responsable du traitement).
 - **Fuite de données** : notifier la CNIL sous **72 h** (https://notifications.cnil.fr) et documenter l'incident, même s'il n'est pas notifié.

@@ -4,9 +4,15 @@
  */
 import { PrismaClient, type Plan } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { DEFAULT_ADMIN_PASSWORDS, isPublicSite } from "../src/lib/config-check";
 import { PLANS } from "../src/lib/plans";
+import { passwordSchema } from "../src/lib/validation";
 
 const prisma = new PrismaClient();
+const usesDefaultPassword = async (hash: string) => {
+  for (const pw of DEFAULT_ADMIN_PASSWORDS) if (await bcrypt.compare(pw, hash)) return true;
+  return false;
+};
 const rand = (n: number) => Math.floor(Math.random() * n);
 const pick = <T,>(a: T[]) => a[rand(a.length)];
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400000 - rand(86400000));
@@ -14,12 +20,21 @@ const daysAgo = (d: number) => new Date(Date.now() - d * 86400000 - rand(8640000
 async function main() {
   const email = (process.env.ADMIN_EMAIL || "admin@exemple.com").toLowerCase();
   const password = process.env.ADMIN_PASSWORD || "admin1234";
+  const strong = !DEFAULT_ADMIN_PASSWORDS.includes(password) && passwordSchema.safeParse(password).success;
+  const existing = await prisma.user.findUnique({ where: { email } });
+
+  if (isPublicSite() && !strong && (!existing || (await usesDefaultPassword(existing.passwordHash)))) {
+    console.error("✗ Site public : définis un ADMIN_PASSWORD fort dans .env (8 caractères minimum, 3 types parmi minuscules, majuscules, chiffres, caractères spéciaux).");
+    process.exit(1);
+  }
+  // Le mot de passe d'un admin existant n'est jamais écrasé, sauf s'il s'agit encore du mot de passe d'exemple
+  const replaceDefault = !!existing && strong && (await usesDefaultPassword(existing.passwordHash));
   const admin = await prisma.user.upsert({
     where: { email },
-    update: { role: "ADMIN", emailVerifiedAt: new Date() },
+    update: { role: "ADMIN", emailVerifiedAt: new Date(), ...(replaceDefault ? { passwordHash: await bcrypt.hash(password, 10) } : {}) },
     create: { email, name: "Admin", role: "ADMIN", passwordHash: await bcrypt.hash(password, 10), emailVerifiedAt: new Date() },
   });
-  console.log(`Admin : ${admin.email}`);
+  console.log(`Admin : ${admin.email}${replaceDefault ? " (mot de passe d'exemple remplacé par ADMIN_PASSWORD)" : ""}`);
 
   if (!process.argv.includes("--demo")) return;
   const hash = await bcrypt.hash("demo1234", 10);

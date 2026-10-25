@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/LegalPage";
 import { LEGAL, RETENTION } from "@/lib/legal";
+import { MAIL_LIMITS } from "@/lib/limits";
 
 export const metadata: Metadata = { title: "Politique de confidentialité · Prêt Matériel" };
 
@@ -17,13 +18,13 @@ export default function Page() {
       <h2>1. Responsable du traitement</h2>
       <p>{editor.name}, {editor.address}. Contact pour toute question ou demande relative à vos données : <strong>{editor.email}</strong>.</p>
       <p>Pour les informations que vous saisissez sur vos emprunteurs (nom, e-mail, téléphone, notes), vous en êtes vous-même responsable au sens où vous choisissez de les enregistrer ; {LEGAL.siteName} les traite pour vous fournir le service de rappel. Ces données ne doivent servir qu&apos;au suivi de vos prêts (voir les <Link href="/cgu">conditions générales</Link>).</p>
-      <p><strong>Offres Pro</strong> : lorsqu&apos;une entreprise, une association ou un autre organisme utilise {LEGAL.siteName} pour suivre ce qu&apos;il prête (à ses salariés, membres, élèves ou clients), c&apos;est cet organisme qui est responsable du traitement des données de ses emprunteurs. {LEGAL.siteName} agit alors comme sous-traitant, dans les conditions de l&apos;<Link href="/cgu#sous-traitance">accord de sous-traitance</Link> des CGV. Les emprunteurs concernés peuvent exercer leurs droits auprès de cet organisme, ou nous écrire : nous transmettrons.</p>
+      <p><strong>Offres Pro</strong> : lorsqu&apos;une entreprise, une association ou un autre organisme utilise {LEGAL.siteName} pour suivre ce qu&apos;il prête (à ses salariés, membres, élèves ou clients), c&apos;est cet organisme qui est responsable du traitement des données de ses emprunteurs. {LEGAL.siteName} agit alors comme sous-traitant, dans les conditions de l&apos;<Link href="/cgu#sous-traitance">accord de sous-traitance</Link> des CGV. Les emprunteurs concernés peuvent exercer leurs droits auprès de cet organisme, ou nous écrire : nous transmettrons. Les e-mails qu&apos;ils reçoivent nomment cet organisme. Seules exceptions, dont {LEGAL.siteName} reste responsable pour protéger les emprunteurs (intérêt légitime) : la liste des adresses désinscrites et le plafond d&apos;e-mails par destinataire, communs à tous les utilisateurs du service.</p>
 
       <h2>2. Données traitées</h2>
       <h3>Utilisateurs inscrits</h3>
       <ul>
-        <li><strong>Compte</strong> : prénom, adresse e-mail, mot de passe (stocké uniquement sous forme chiffrée irréversible, bcrypt), date d&apos;inscription, date de dernière activité, date et version des conditions acceptées, date de confirmation de l&apos;adresse e-mail et, le cas échéant, la nouvelle adresse en attente de confirmation.</li>
-        <li><strong>Sécurité du compte</strong> : sessions de connexion (date d&apos;ouverture et d&apos;expiration, sans information sur l&apos;appareil) et liens de confirmation ou de réinitialisation du mot de passe envoyés par e-mail (seule une empreinte du lien est conservée). Le nombre de prêts créés par le compte sur les dernières 24 heures est compté en mémoire, sans être enregistré en base, pour limiter les envois abusifs.</li>
+        <li><strong>Compte</strong> : prénom, nom de la structure pour une offre Pro, adresse e-mail, mot de passe (stocké uniquement sous forme chiffrée irréversible, bcrypt), date d&apos;inscription, date de dernière activité, date et version des conditions acceptées, date de confirmation de l&apos;adresse e-mail et, le cas échéant, la nouvelle adresse en attente de confirmation.</li>
+        <li><strong>Sécurité du compte</strong> : sessions de connexion (date d&apos;ouverture et d&apos;expiration, sans information sur l&apos;appareil) et liens de confirmation ou de réinitialisation du mot de passe envoyés par e-mail (seule une empreinte du lien est conservée).</li>
         <li><strong>Prêts</strong> : objets ou montants prêtés, dates, remboursements, notes personnelles, options de rappel.</li>
         <li><strong>Abonnement</strong> : offre choisie, dates de renouvellement, historique des paiements (montant, date). Vos coordonnées bancaires sont saisies directement chez notre prestataire de paiement Stripe : nous n&apos;y avons jamais accès. Pour une offre Pro, le nom, l&apos;adresse et, le cas échéant, le numéro de TVA de la structure sont saisis chez Stripe et repris sur les factures.</li>
         <li><strong>Notifications</strong> affichées dans l&apos;application.</li>
@@ -37,7 +38,7 @@ export default function Page() {
       <ul>
         <li><strong>Mesure d&apos;audience</strong> : page consultée, site d&apos;origine, type d&apos;appareil, navigateur, pays, et un identifiant aléatoire stocké sur votre appareil. Aucun lien n&apos;est fait avec votre compte. Détails et opposition sur la page <Link href="/cookies">Cookies</Link>.</li>
         <li><strong>Sécurité</strong> : l&apos;adresse IP est utilisée quelques minutes, en mémoire, pour bloquer les tentatives en série (connexion, inscription, mot de passe oublié) et les envois abusifs. Elle n&apos;est pas enregistrée en base.</li>
-        <li><strong>Journal des e-mails</strong> : destinataire, objet, type et résultat de chaque e-mail envoyé, pour vérifier la bonne délivrance et traiter les réclamations.</li>
+        <li><strong>Journal des e-mails</strong> : destinataire, objet, type et résultat de chaque e-mail envoyé et, pour un e-mail adressé à un emprunteur, le compte du prêteur à l&apos;origine de l&apos;envoi. Il sert à vérifier la bonne délivrance, à traiter les réclamations et à limiter les envois abusifs (nombre d&apos;e-mails par jour vers une même adresse et par compte).</li>
       </ul>
 
       <h2>3. Finalités et bases légales</h2>
@@ -95,7 +96,7 @@ export default function Page() {
       <p>Si vous estimez que vos droits ne sont pas respectés, vous pouvez introduire une réclamation auprès de la CNIL (3 place de Fontenoy, TSA 80715, 75334 Paris Cedex 07 — <a href="https://www.cnil.fr/fr/plaintes" rel="noopener noreferrer" target="_blank">cnil.fr/fr/plaintes</a>).</p>
 
       <h2>9. Vous avez reçu un e-mail sans avoir de compte ?</h2>
-      <p>Un utilisateur de {LEGAL.siteName} a enregistré un prêt à votre nom (un objet ou une somme d&apos;argent qu&apos;il vous a prêté) et a indiqué votre nom et votre adresse e-mail. Ces données servent uniquement à vous envoyer la confirmation du prêt, un rappel la veille de la date prévue, puis, en cas de retard et si le prêteur l&apos;a choisi, une relance au plus tous les trois jours. Elles ne servent à rien d&apos;autre et ne sont jamais utilisées pour de la prospection.</p>
+      <p>Un utilisateur de {LEGAL.siteName} a enregistré un prêt à votre nom (un objet ou une somme d&apos;argent qu&apos;il vous a prêté) et a indiqué votre nom et votre adresse e-mail. Ces données servent uniquement à vous envoyer la confirmation du prêt, un rappel la veille de la date prévue, puis, en cas de retard et si le prêteur l&apos;a choisi, une relance au plus tous les trois jours ({MAIL_LIMITS.remindersPerLoan} rappels au maximum par prêt, et jamais plus de {MAIL_LIMITS.perRecipientPerDay} e-mails par jour). Elles ne servent à rien d&apos;autre et ne sont jamais utilisées pour de la prospection.</p>
       <p>Vous pouvez à tout moment : bloquer tous les e-mails en un clic avec le lien en bas de chaque e-mail ; demander la suppression de vos données à {editor.email} ; créer un compte pour voir vos emprunts. Si vous pensez qu&apos;on vous a enregistré à tort, signalez-le-nous à la même adresse.</p>
 
       <h2>10. Mineurs</h2>

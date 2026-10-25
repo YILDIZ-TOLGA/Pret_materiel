@@ -5,7 +5,7 @@ import { Suspense, useState } from "react";
 import { AuthCard, PasswordField } from "@/components/AuthCard";
 import { Icon } from "@/components/Icon";
 import { Spinner } from "@/components/ui";
-import { api } from "@/lib/client";
+import { api, saveAuthToken } from "@/lib/client";
 
 export default function Page() {
   return <Suspense><Reset /></Suspense>;
@@ -23,7 +23,7 @@ function Reset() {
     try {
       await api("/api/auth/reset-password", { body: { t, password } });
       // L'ancienne session de cet appareil a été fermée côté serveur
-      try { localStorage.removeItem("token"); } catch {}
+      saveAuthToken(null);
       setState("done");
     } catch (x) { setErr((x as Error).message); setState("idle"); }
   }

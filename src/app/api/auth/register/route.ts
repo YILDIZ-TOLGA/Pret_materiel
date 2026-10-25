@@ -5,10 +5,10 @@ import { createToken, hashPassword, publicUser, setSessionCookie } from "@/lib/a
 import { error, json, zodError } from "@/lib/api";
 import { TERMS_VERSION } from "@/lib/legal";
 import { rateLimited } from "@/lib/ratelimit";
-import { passwordSchema } from "@/lib/validation";
+import { NO_LINK, noLink, passwordSchema } from "@/lib/validation";
 
 const schema = z.object({
-  name: z.string().trim().min(1, "Nom requis").max(80),
+  name: z.string().trim().min(1, "Nom requis").max(80).refine(noLink, NO_LINK),
   email: z.string().trim().toLowerCase().email("E-mail invalide"),
   password: passwordSchema,
   acceptTerms: z.literal(true, { message: "Tu dois accepter les conditions générales d'utilisation" }),

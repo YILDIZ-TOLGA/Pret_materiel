@@ -3,14 +3,23 @@ import { prisma } from "@/lib/db";
 import { clearSessionCookie, publicUser, verifyPassword } from "@/lib/auth";
 import { error, json, withUser, zodError } from "@/lib/api";
 import { stripe } from "@/lib/stripe";
+import { NO_LINK, noLink } from "@/lib/validation";
 
-const patchSchema = z.object({ name: z.string().trim().min(1, "Prénom requis").max(80) });
+const patchSchema = z.object({
+  name: z.string().trim().min(1, "Prénom requis").max(80).refine(noLink, NO_LINK).optional(),
+  // offres Pro : nom de la structure (vide = aucune)
+  organization: z.string().trim().max(120).refine(noLink, NO_LINK).nullable().optional(),
+});
 
 /** Droit de rectification (art. 16 RGPD). */
 export const PATCH = withUser(async (user, req) => {
   const parsed = patchSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return zodError(parsed.error);
-  const updated = await prisma.user.update({ where: { id: user.id }, data: parsed.data });
+  const { name, organization } = parsed.data;
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { ...(name !== undefined ? { name } : {}), ...(organization !== undefined ? { organization: organization || null } : {}) },
+  });
   return json({ user: publicUser(updated) });
 });
 

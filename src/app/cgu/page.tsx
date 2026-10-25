@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/LegalPage";
 import { LEGAL, TERMS_VERSION } from "@/lib/legal";
+import { MAIL_LIMITS } from "@/lib/limits";
 import { PLANS } from "@/lib/plans";
 
 export const metadata: Metadata = { title: "Conditions générales · Prêt Matériel" };
@@ -15,7 +16,7 @@ export default function Page() {
         <a href="#vente">Partie 2 — Conditions générales de vente (CGV)</a>
         <a href="#litiges">Partie 3 — Droit applicable et litiges</a>
       </nav>
-      <p className="hint">Version {TERMS_VERSION}. Éditeur : {editor.name}, {editor.address}, SIRET {editor.siret}, {editor.email}, {editor.phone}.</p>
+      <p className="hint">Version {TERMS_VERSION}. Éditeur : {editor.name}, {editor.address}, SIRET {editor.siret}, {editor.rcs}, {editor.email}, {editor.phone}.</p>
 
       <h2 id="utilisation">Partie 1 — Conditions générales d&apos;utilisation</h2>
 
@@ -41,6 +42,7 @@ export default function Page() {
       </ul>
       <p>Pour éviter les envois abusifs, le nombre de nouveaux prêts qu&apos;un compte peut créer sur 24 heures est limité selon l&apos;offre (voir le tableau de l&apos;article 11).</p>
       <p>Vous êtes seul responsable des informations que vous saisissez sur les tiers et de l&apos;usage que vous faites du service. Tout emprunteur peut bloquer définitivement les e-mails de {LEGAL.siteName} : les relances vers son adresse sont alors désactivées.</p>
+      <p>Pour protéger les emprunteurs, le service applique des limites : les noms et les objets ne peuvent pas contenir d&apos;adresse de site internet ; une même adresse reçoit au plus {MAIL_LIMITS.perRecipientPerDay} e-mails de {LEGAL.siteName} par 24 heures, tous prêteurs confondus ; un prêt donne lieu à {MAIL_LIMITS.remindersPerLoan} rappels au maximum. Au-delà, contactez l&apos;emprunteur directement.</p>
 
       <h3>4. Ce que le service n&apos;est pas</h3>
       <ul>
@@ -146,6 +148,7 @@ export default function Page() {
         <li>supprimer les données à la suppression du compte, après que la structure a pu les exporter, sauf obligation légale de conservation ;</li>
         <li>mettre à la disposition de la structure les informations nécessaires pour démontrer le respect du présent article et permettre des audits, sur demande écrite raisonnable avec un préavis de 30 jours, les frais d&apos;audit restant à la charge de la structure.</li>
       </ul>
+      <p>La structure indique son nom dans la page Mon compte avant d&apos;enregistrer un prêt : il figure dans chaque e-mail envoyé à ses emprunteurs, qui savent ainsi qui est responsable de leurs données. La liste des adresses désinscrites et le plafond d&apos;e-mails par destinataire sont communs à tous les utilisateurs du service : pour ces deux traitements, destinés à protéger les emprunteurs contre les envois abusifs, l&apos;éditeur agit comme responsable de traitement et non comme sous-traitant.</p>
       <p>La structure s&apos;engage à disposer d&apos;une base légale pour ces traitements, à informer ses emprunteurs, et à ne saisir que les données nécessaires au suivi des prêts, sans aucune donnée sensible.</p>
 
       <h2 id="litiges">Partie 3 — Droit applicable et litiges</h2>

@@ -8,7 +8,12 @@ Claude Code le lit automatiquement quand il est lancé à la racine du dépôt.
 Application web (future app iOS/Android) pour suivre ce qu'on prête : **des objets ou de l'argent**.
 
 - L'utilisateur crée un prêt : objet (ou montant + motif), emprunteur (nom, e-mail, tél.), date de prêt, date de retour, options de rappel.
-- L'emprunteur reçoit un **e-mail** à la création, la veille de l'échéance, puis des relances tous les 3 jours en cas de retard.
+- L'emprunteur reçoit un **e-mail** à la création, la veille de l'échéance, puis des relances tous les 3 jours en cas de retard (8 rappels au maximum par prêt).
+- Offres Pro : `User.organization` (nom de la structure, responsable du traitement) est obligatoire avant de créer un prêt (403 `ORGANIZATION_REQUIRED`) et figure dans le pied des e-mails aux emprunteurs.
+- `/api/borrowed` renvoie une liste blanche de champs : jamais les notes privées ni l'état des relances du prêteur.
+- Liens de désinscription : `?t=<adresse chiffrée AES-GCM>` (`src/lib/optout.ts`), plus d'adresse en clair dans l'URL ; l'ancien format `?e=…&t=…` reste accepté.
+- Le jeton de session n'est gardé dans `localStorage` que dans l'appli native (`isNativeApp()` dans `src/lib/client.ts`) ; sur le site, seul le cookie httpOnly sert.
+- Garde-fous anti-abus (`src/lib/limits.ts`) : 5 e-mails max par jour vers une même adresse (tous prêteurs), nouveaux prêts par jour selon l'offre (`maxNewLoansPerDay`, compté dans `EmailLog`), pas d'adresse web dans les noms et objets. Changer l'adresse de l'emprunteur d'un prêt en cours passe par les mêmes contrôles qu'une création (`newBorrowerRefusal` dans `src/lib/loans.ts`) et lui envoie l'e-mail de confirmation. `reminderCount` couvre toute la vie du prêt : changer la date ne le remet pas à zéro. Le journal `EmailLog` porte `thirdParty` et `senderId` pour ces comptes.
 - Si l'e-mail de l'emprunteur correspond à un compte, il reçoit aussi des **notifications dans l'appli** et voit le prêt dans « Emprunts ».
 - Le prêteur est alerté quand une échéance est dépassée. Il clôture le prêt quand l'objet revient.
 - Pour l'argent : remboursements partiels, reste dû, clôture automatique une fois soldé.
@@ -47,10 +52,14 @@ docker compose logs -f app   # logs du site
 ```
 - Site : http://localhost:3000 · Mailpit (boîte mail de test) : http://localhost:8025
 - Admin par défaut : `admin@pret.local` / `admin1234`
+- Le site (3000), Mailpit (8025) et PostgreSQL (5432) ne sont exposés que sur 127.0.0.1.
 - Services : `db` (postgres:16-alpine, exposé sur 127.0.0.1:5432), `app`, `mailpit` (SMTP sur 587), `cron` (appelle `/api/cron/reminders` toutes les heures).
 - Au démarrage, `app` exécute `prisma migrate deploy`, puis `tsx prisma/seed.ts` (crée ou met à jour l'admin, sans risque à relancer), puis `next start`.
 - Aucun `.env` n'est obligatoire. Les valeurs par défaut sont dans `docker-compose.yml` et se surchargent avec un `.env` (modèle : `.env.example`).
 - Après une modification du code : `docker compose up -d --build` pour reconstruire.
+- **Production** : `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build` (Caddy en HTTPS via `Caddyfile`, app sans port publié, Mailpit désactivé, `DEMO_BILLING=false`).
+- Avec `APP_URL` en `https://`, `src/instrumentation.ts` → `src/lib/config-check.ts` **refuse de démarrer** si un réglage d'exemple reste (JWT_SECRET, CRON_SECRET, mot de passe de base `pret`, SMTP Mailpit, admin avec `admin1234`). Le seed remplace le mot de passe d'exemple de l'admin si un `ADMIN_PASSWORD` fort est fourni.
+- Le conteneur `app` tourne sous l'utilisateur `node` (pas root).
 
 ### Sans Docker (développement)
 ```
@@ -63,6 +72,7 @@ npm run db:seed -- --demo        # + fausses données pour voir le dashboard adm
 npm run dev
 ```
 - Vérifier : `npx tsc --noEmit` (script `npm run lint`) et `npm run build`.
+- Tests de bout en bout (serveur de dev lancé, même base) : `npm run test:securite`, `npm run test:anti-abus` et `npm run test:prets` (voir l'en-tête des scripts pour les variables).
 - Modifier la base : éditer `prisma/schema.prisma`, puis `npx prisma migrate dev --name <nom>`, puis committer la migration.
 
 ## Structure
@@ -77,7 +87,9 @@ src/lib/
   auth.ts                   JWT, cookie, getCurrentUser() (cookie ou Bearer)
   api.ts                    json(), error(), withUser(), withAdmin()
   plans.ts                  grille tarifaire, limites, mapping des prix Stripe
-  validation.ts             schémas zod (loanSchema, repaySchema, checkLoanKind)
+  validation.ts             schémas zod (loanSchema, repaySchema, checkLoanKind, noLink)
+  limits.ts                 plafonds anti-abus (MAIL_LIMITS), affichés dans les CGU
+  config-check.ts           refus de démarrer en production avec des réglages d'exemple
   loans.ts                  e-mails et notifications de prêt, runReminders() (logique des rappels)
   mail.ts                   envoi SMTP + gabarit HTML
   stripe.ts                 client Stripe, demoBilling
@@ -138,12 +150,13 @@ Voir `.env.example`. Les principales :
    - Sessions en base : le JWT porte `sid`, la déconnexion supprime la session, « Déconnecter les autres appareils ».
    - Limitation de débit sur login, register, mot de passe oublié, renvoi de lien, relance et track. Elle reste en mémoire (remise à zéro au redémarrage, une seule instance) : passer à Redis si plusieurs instances.
    - `DEMO_BILLING` est ignoré dès que `APP_URL` est en `https://`.
-2. **Stripe réel** : créer les 6 prix (3 produits × mensuel/annuel) et le webhook (`customer.subscription.created/updated/deleted`, `invoice.paid`), puis tester le parcours complet en mode test.
+2. **Stripe réel** : créer les 6 prix (3 produits × mensuel/annuel) et le webhook (`customer.subscription.created/updated/deleted`, `invoice.paid`, `invoice.payment_failed`), puis tester le parcours complet en mode test.
    - Le code vise l'API Stripe 2025 « basil » : `current_period_end` est lu sur l'item d'abonnement, et le prix d'une facture sur `lines.data[0].pricing.price_details.price`.
-   - Le propriétaire n'a pas encore d'entreprise. Il crée une micro-entreprise, en attendant bêta gratuite.
+   - Éditeur du site : la SARL HERMES FINANCE SOURCING - H.F.S. (SIREN 492 768 742, Saint-Étienne, gérante Suzan Yildiz), renseignée dans `src/lib/legal.ts`. Restent à compléter : capital, e-mail, téléphone, régime de TVA, hébergeur, médiateur.
 3. **SMTP réel** (Brevo, Resend…) et domaine d'envoi (SPF/DKIM) pour ne pas finir en spam.
 4. **Déploiement** : VPS avec la même stack Docker + reverse proxy HTTPS (Caddy), `APP_URL` en https, `JWT_SECRET` fort, mot de passe admin changé.
-5. **Aucun test automatisé.** En ajouter sur `src/lib/loans.ts` (runReminders), les routes de prêts et les limites d'offre.
+5. **Tests** : `scripts/test-securite.ts`, `scripts/test-anti-abus.ts` et `scripts/test-prets.ts` (de bout en bout, à lancer à la main). Manquent : webhook Stripe, CI GitHub.
+   - Dépendances : `npm audit` ne signale plus que `deepmerge-ts`, dans l'outil en ligne de commande Prisma (corrigé seulement en Prisma 7, migration lourde). `zod` est en v4, avec les messages par défaut en français (`z.config` dans `src/lib/api.ts`).
 6. **Notifications push** : `public/sw.js` gère déjà `push`, mais il n'y a ni abonnement Web Push ni envoi côté serveur. Aujourd'hui les notifications sont seulement dans l'appli, rafraîchies toutes les 60 s.
 7. **Mobile** : Capacitor (`npx cap add ios/android`, remplacer `server.url` dans `capacitor.config.json`). Attention : Apple et Google imposent leur paiement intégré pour vendre un abonnement dans l'app. Plan prévu : l'abonnement se prend sur le site.
 8. Petites améliorations possibles :

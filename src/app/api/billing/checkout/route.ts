@@ -40,8 +40,12 @@ export const POST = withUser(async (user, req) => {
     await prisma.user.update({ where: { id: user.id }, data: { stripeCustomerId: customerId } });
   }
 
-  // Déjà abonné : on passe par le portail pour changer d'offre (prorata géré par Stripe).
-  if (user.stripeSubscriptionId) {
+  // Déjà abonné : on passe par le portail pour changer d'offre (prorata géré par Stripe). On interroge aussi
+  // Stripe, au cas où le webhook du premier paiement ne serait pas encore arrivé (double clic, retour arrière).
+  const existing = user.stripeSubscriptionId
+    || (await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 })).data
+      .find((s) => ["active", "trialing", "past_due", "incomplete"].includes(s.status))?.id;
+  if (existing) {
     const portal = await stripe.billingPortal.sessions.create({ customer: customerId, return_url: `${appUrl}/abonnement` });
     return json({ url: portal.url });
   }
