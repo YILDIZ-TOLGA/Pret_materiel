@@ -6,7 +6,7 @@ import { Icon } from "@/components/Icon";
 import { IntervalToggle, PlanCard } from "@/components/PlanCards";
 import { useMe } from "@/components/Providers";
 import { Meter, PageHeader, Spinner } from "@/components/ui";
-import { api, dateFr } from "@/lib/client";
+import { api, dateFr, euros } from "@/lib/client";
 import { LEGAL } from "@/lib/legal";
 import type { Plan } from "@prisma/client";
 import { PLANS, TIERS, yearlySaving, type Interval } from "@/lib/plans";
@@ -24,6 +24,8 @@ function Billing() {
   const [cancelStep, setCancelStep] = useState(false);
   const [canceled, setCanceled] = useState(false);
   const [picked, setPeriod] = useState<Interval | null>(null);
+  const [withdrawStep, setWithdrawStep] = useState(false);
+  const [withdrawn, setWithdrawn] = useState<{ refundedCents: number; refundOk: boolean } | null>(null);
   useEffect(() => { if (sp.get("success")) refresh(); }, [sp, refresh]);
   if (!me) return null;
 
@@ -37,6 +39,15 @@ function Billing() {
     setBusy("cancel"); setErr("");
     try { await api("/api/billing/cancel", { method: "POST" }); await refresh(); setCancelStep(false); setCanceled(true); }
     catch (e) { setErr((e as Error).message); }
+    setBusy(null);
+  }
+
+  async function withdraw() {
+    setBusy("withdraw"); setErr("");
+    try {
+      const r = await api<{ refundedCents: number; refundOk: boolean }>("/api/billing/withdraw", { method: "POST" });
+      await refresh(); setWithdrawStep(false); setWithdrawn(r);
+    } catch (e) { setErr((e as Error).message); }
     setBusy(null);
   }
 
@@ -75,6 +86,40 @@ function Billing() {
             <Meter value={me.activeLoans / Math.max(1, max)} tone={me.activeLoans >= max ? "full" : undefined} />
           </div>
         </section>
+
+        {withdrawn && (
+          <div className="banner ok" role="status"><Icon name="check" size={16} />
+            <span>Rétractation enregistrée : ton abonnement est arrêté.{" "}
+              {withdrawn.refundOk && withdrawn.refundedCents > 0 ? `${euros(withdrawn.refundedCents)} te seront remboursés sur ton moyen de paiement.` : "Ton remboursement sera fait sous 14 jours."}
+              {" "}Un accusé de réception t&apos;a été envoyé par e-mail.</span>
+          </div>
+        )}
+        {/* Fonction de rétractation (directive 2023/2673) : visible tant que le délai de 14 jours court */}
+        {me.withdrawalUntil && !withdrawn && (
+          <section className="card stack" aria-labelledby="withdraw-title">
+            <h2 id="withdraw-title">Droit de rétractation</h2>
+            <p className="small" style={{ margin: 0, color: "var(--ink-2)" }}>
+              Jusqu&apos;au {dateFr(me.withdrawalUntil)} inclus, tu peux te rétracter sans te justifier : l&apos;abonnement s&apos;arrête tout de suite et tu es remboursé intégralement.
+            </p>
+            {!withdrawStep ? (
+              <div><button type="button" className="btn" disabled={!!busy} onClick={() => setWithdrawStep(true)}>Se rétracter du contrat ici</button></div>
+            ) : (
+              <div className="stack grow-in">
+                <table className="tbl kv"><tbody>
+                  <tr><td>Titulaire</td><td>{me.user.name} ({me.user.email})</td></tr>
+                  <tr><td>Contrat</td><td>Abonnement {me.plan.name} — {me.plan.priceLabel}</td></tr>
+                  <tr><td>Effet</td><td>Arrêt immédiat, retour à l&apos;offre gratuite. Tes prêts sont conservés.</td></tr>
+                  <tr><td>Remboursement</td><td>Intégral, sur le moyen de paiement utilisé, sous 14 jours au plus</td></tr>
+                  <tr><td>Accusé de réception</td><td>Envoyé à {me.user.email}</td></tr>
+                </tbody></table>
+                <div className="row">
+                  <button type="button" className="btn danger solid" disabled={!!busy} onClick={withdraw}>{busy === "withdraw" ? <><Spinner />Un instant…</> : "Confirmer la rétractation"}</button>
+                  <button type="button" className="btn ghost" disabled={!!busy} onClick={() => setWithdrawStep(false)}>Annuler</button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {canceled && <div className="banner ok"><Icon name="check" size={16} />Résiliation enregistrée. Une confirmation t&apos;a été envoyée par e-mail.</div>}
         {cancelStep && (

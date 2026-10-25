@@ -1,6 +1,9 @@
 # Image Node complète (Debian) : contient déjà OpenSSL, nécessaire à Prisma
 FROM node:22-bookworm AS build
 WORKDIR /app
+# Adresse publique du site, figée au build dans les pages statiques (mentions légales, sitemap, aperçus de lien)
+ARG APP_URL=http://localhost:3000
+ENV APP_URL=$APP_URL
 COPY package*.json ./
 RUN npm ci
 COPY . .

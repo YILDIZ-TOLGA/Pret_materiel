@@ -32,6 +32,9 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 | Acceptation des CGU à l'inscription, avec date et version enregistrées | `api/auth/register`, champs `termsAcceptedAt` / `termsVersion` |
 | Acceptation des CGV + demande d'exécution immédiate avant paiement (L221-25) | page Offre, `api/billing/checkout`, champ `salesTermsAcceptedAt` |
 | Mention TTC / TVA à côté des prix | page d'accueil, page Offre, CGV |
+| Confirmation de commande sur support durable (L221-13) : informations précontractuelles, demande d'exécution immédiate, délai et formulaire de rétractation, CGU/CGV acceptées en pièce jointe | `src/lib/billing.ts` (`sendOrderConfirmation`), envoyée au premier paiement (webhook `invoice.paid`, `billing_reason = subscription_create`) |
+| Fonction de rétractation en ligne (directive 2023/2673, art. 11 bis de la directive 2011/83 ; transposition française à vérifier) : bouton « Se rétracter du contrat ici » pendant 14 jours, confirmation, arrêt immédiat, remboursement intégral automatique, accusé de réception daté | page Offre, `api/billing/withdraw`, `User.subscriptionStartedAt` |
+| Sécurité (art. 32) : sauvegardes quotidiennes de la base, gardées 14 jours | service `backup` de `docker-compose.yml`, dossier `sauvegardes/` (hors Git et hors image) |
 | Résiliation en 3 clics + e-mail de confirmation (L215-1-1, décret 2023-417) | bouton « Résilier votre contrat » → « Confirmer la résiliation », `api/billing/cancel` |
 | Préavis de reconduction des abonnements annuels (loi Chatel, L215-1) | `src/lib/retention.ts`, e-mail 35 à 75 jours avant l'échéance, pour toutes les offres annuelles (Perso et Pro) |
 | Remise annuelle exacte (pas de prix de référence trompeur) | « 2 mois offerts » calculé à partir des prix (`yearlySaving` dans `src/lib/plans.ts`), jamais écrit à la main |
@@ -71,6 +74,7 @@ Responsable du traitement : *(identité de l'éditeur, voir `legal.ts`)*. Pas de
 | Liste d'opposition | Respecter les désinscriptions | Obligation légale (art. 21) | Emprunteurs | E-mail | Éditeur, hébergeur | Tant que nécessaire | Non |
 | Abonnements et paiements | Facturer | Contrat / obligation légale | Clients | Offre, montants, identifiants Stripe | Éditeur, Stripe | 10 ans (comptabilité) | Oui (Stripe, DPF + CCT) |
 | Mesure d'audience | Statistiques de fréquentation | Intérêt légitime (exemption CNIL) | Visiteurs | Page, référent, appareil, navigateur, pays, identifiant aléatoire | Éditeur, hébergeur | 25 mois | Non |
+| Sauvegardes de la base | Restaurer le service après un incident | Intérêt légitime / sécurité (art. 32) | Toutes | Copie complète de la base | Éditeur, hébergeur | 14 jours (une donnée supprimée disparaît des sauvegardes au plus tard 14 jours après) | Non (si hébergeur UE) |
 | Journal des e-mails | Preuve d'envoi, support, limitation des envois abusifs vers les emprunteurs (nombre de prêts créés par compte et d'e-mails par destinataire sur 24 h) | Intérêt légitime | Utilisateurs, emprunteurs | Destinataire, objet, résultat, compte du prêteur à l'origine de l'envoi (e-mails aux emprunteurs) | Éditeur, hébergeur | 12 mois (lien avec le compte supprimé avec celui-ci) | Non |
 | Sécurité | Bloquer les attaques par force brute et les envois abusifs | Intérêt légitime | Visiteurs | Adresse IP, et adresse e-mail saisie sur « mot de passe oublié » (en mémoire uniquement) | — | Quelques minutes à 1 h | Non |
 

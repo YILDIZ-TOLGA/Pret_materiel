@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { publicUser } from "@/lib/auth";
 import { json, withUser } from "@/lib/api";
+import { openWithdrawal } from "@/lib/billing";
 import { PLANS, effectivePlan } from "@/lib/plans";
 
 export const GET = withUser(async (user) => {
@@ -14,5 +15,7 @@ export const GET = withUser(async (user) => {
     prisma.loan.count({ where: { lenderId: user.id, status: "ACTIVE", dueAt: { lt: new Date() } } }),
     prisma.notification.count({ where: { userId: user.id, read: false } }),
   ]);
-  return json({ user: publicUser(user), plan: PLANS[plan], activeLoans, overdueLoans, unread });
+  // date limite de rétractation, tant qu'elle est ouverte (bouton « Se rétracter du contrat ici » de la page Offre)
+  const withdrawalUntil = openWithdrawal(user)?.toISOString() ?? null;
+  return json({ user: publicUser(user), plan: PLANS[plan], activeLoans, overdueLoans, unread, withdrawalUntil });
 });

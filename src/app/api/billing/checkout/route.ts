@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { stripe, demoBilling } from "@/lib/stripe";
 import { error, json, withUser, zodError } from "@/lib/api";
 import { PAID_PLANS, PLANS, isProPlan, stripePriceId } from "@/lib/plans";
+import { sendOrderConfirmation } from "@/lib/billing";
 import { TERMS_VERSION } from "@/lib/legal";
 
 const schema = z.object({
@@ -23,10 +24,12 @@ export const POST = withUser(async (user, req) => {
     const expires = new Date();
     if (info.interval === "month") expires.setMonth(expires.getMonth() + 1);
     else expires.setFullYear(expires.getFullYear() + 1);
+    const now = new Date();
     await prisma.$transaction([
-      prisma.user.update({ where: { id: user.id }, data: { plan, planExpiresAt: expires, cancelAtPeriodEnd: false } }),
+      prisma.user.update({ where: { id: user.id }, data: { plan, planExpiresAt: expires, cancelAtPeriodEnd: false, subscriptionStartedAt: now } }),
       prisma.payment.create({ data: { userId: user.id, plan, amountCents: info.priceCents, provider: "demo", providerRef: `demo_${Date.now()}_${user.id}` } }),
     ]);
+    await sendOrderConfirmation(user, plan, info.priceCents, now);
     return json({ url: `${appUrl}/abonnement?success=1` });
   }
 

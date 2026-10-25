@@ -6,12 +6,20 @@ import { DialogProvider } from "@/components/Dialog";
 import { Providers } from "@/components/Providers";
 import { ToastProvider } from "@/components/Toast";
 import { Tracker } from "@/components/Tracker";
+import { LEGAL } from "@/lib/legal";
 
 const sans = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
+const description = "Suis tes prêts d'objets et d'argent. Les relances partent automatiquement.";
+
 export const metadata: Metadata = {
+  // adresse publique du site (APP_URL, fixée au build) : sert aux liens absolus des aperçus de partage
+  metadataBase: new URL(LEGAL.siteUrl),
   title: "Prêt Matériel",
-  description: "Suis tes prêts d'objets et d'argent. Les relances partent automatiquement.",
+  description,
+  // aperçu quand on partage un lien (image : src/app/opengraph-image.tsx)
+  openGraph: { type: "website", locale: "fr_FR", siteName: "Prêt Matériel", title: "Prêt Matériel", description, url: "/" },
+  twitter: { card: "summary_large_image", title: "Prêt Matériel", description },
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg", apple: "/icon.svg" },
   appleWebApp: { capable: true, title: "Prêt Matériel", statusBarStyle: "default" },

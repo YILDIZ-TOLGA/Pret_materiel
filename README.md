@@ -87,7 +87,10 @@ Sans SMTP, les e-mails sont affichés dans la console.
    - active les moyens de paiement voulus dans *Paramètres → Moyens de paiement* (PayPal, Apple Pay, Google Pay…) : ils apparaissent automatiquement, sans toucher au code ;
    - webhook vers `https://ton-site/api/billing/webhook` avec les événements `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed` → `STRIPE_WEBHOOK_SECRET` ;
    - active le portail client (*Paramètres → Billing → Customer portal*) et autorise le changement entre les 6 prix ;
-   - pour les offres Pro, la page de paiement demande le nom, l'adresse et le n° de TVA de la structure (facture à son nom).
+   - pour les offres Pro, la page de paiement demande le nom, l'adresse et le n° de TVA de la structure (facture à son nom) ;
+   - la clé API doit pouvoir lire les paiements (*charges*) et créer des remboursements (*refunds*) : la rétractation rembourse automatiquement ;
+   - limite chaque client à un seul abonnement (*Paramètres → Billing → Subscriptions*).
+6. **Référencement** : `robots.txt`, `sitemap.xml` et l'image d'aperçu des liens sont générés avec `APP_URL`, passé au build Docker : reconstruis l'image (`--build`) après avoir changé de domaine.
 
 ## iPhone / Android
 
@@ -114,6 +117,17 @@ Oui c'est faisable, mais il ne faut pas coder soi-même un « wrapper » qui re�
 
 À savoir : les revenus restent imposables en euros (déclare-les, en micro-entreprise par exemple), et chaque conversion peut avoir des conséquences fiscales. Demande l'avis d'un comptable.
 
+## Sauvegardes
+
+Le service `backup` de `docker-compose.yml` enregistre une copie complète de la base chaque jour dans le dossier `sauvegardes/` (nom `pret-AAAAMMJJ-HHMM.dump`, heure UTC) et supprime les copies de plus de 14 jours (`BACKUP_DAYS`). Ce dossier contient des données personnelles : il n'est ni dans Git ni dans l'image Docker.
+
+- Voir les sauvegardes : `docker compose logs backup`, ou le dossier `sauvegardes/`.
+- Restaurer une sauvegarde (remplace le contenu de la base) :
+  ```bash
+  docker compose exec -T db pg_restore --clean --if-exists --no-owner -U pret -d pret < sauvegardes/pret-AAAAMMJJ-HHMM.dump
+  ```
+- En production, copie aussi ce dossier **hors du serveur** (stockage objet chez un autre prestataire, ou ton ordinateur) : une sauvegarde sur la même machine ne protège pas d'une panne de disque.
+
 ## Tests
 
 Contre un serveur de dev qui tourne (`npm run dev`), avec la même base :
@@ -122,6 +136,7 @@ Contre un serveur de dev qui tourne (`npm run dev`), avec la même base :
 DATABASE_URL=… JWT_SECRET=… TEST_BASE_URL=http://localhost:3000 npm run test:securite
 DATABASE_URL=… TEST_BASE_URL=http://localhost:3000 npm run test:anti-abus
 DATABASE_URL=… JWT_SECRET=… TEST_BASE_URL=http://localhost:3000 npm run test:prets
+DATABASE_URL=… TEST_BASE_URL=http://localhost:3000 npm run test:vente
 ```
 
 ## Structure

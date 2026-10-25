@@ -43,7 +43,8 @@ ${links ? `<p style="margin:0">${links}</p>` : ""}
  * désinscription et le plafond d'envois par jour, et on ajoute l'information RGPD (art. 14) + un lien
  * de désinscription en 1 clic.
  */
-export async function sendMail(opts: { to: string; subject: string; kind: string; title: string; paragraphs: string[]; cta?: { label: string; url: string }; thirdParty?: { lenderName: string; lenderId: string; organization?: string | null } }) {
+export async function sendMail(opts: { to: string; subject: string; kind: string; title: string; paragraphs: string[]; cta?: { label: string; url: string }; thirdParty?: { lenderName: string; lenderId: string; organization?: string | null };
+  attachments?: { filename: string; content: string; contentType: string }[] }) {
   const to = opts.to.toLowerCase();
   const log = (ok: boolean, error?: string) => prisma.emailLog.create({
     data: { to, subject: opts.subject, kind: opts.kind, ok, error, thirdParty: !!opts.thirdParty, senderId: opts.thirdParty?.lenderId },
@@ -84,9 +85,10 @@ export async function sendMail(opts: { to: string; subject: string; kind: string
   let err: string | undefined;
   try {
     if (transporter) {
-      await transporter.sendMail({ from: process.env.MAIL_FROM, to, subject: opts.subject, html, text, headers });
+      await transporter.sendMail({ from: process.env.MAIL_FROM, to, subject: opts.subject, html, text, headers, attachments: opts.attachments });
     } else {
-      console.log(`\n[mail non configuré] À: ${to}\nSujet: ${opts.subject}\n${text}\n`);
+      const joined = opts.attachments?.length ? `\nPièces jointes : ${opts.attachments.map((a) => a.filename).join(", ")}` : "";
+      console.log(`\n[mail non configuré] À: ${to}\nSujet: ${opts.subject}\n${text}${joined}\n`);
     }
   } catch (e) {
     ok = false;
