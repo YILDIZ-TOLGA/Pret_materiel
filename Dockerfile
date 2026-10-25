@@ -16,5 +16,6 @@ ENV NODE_ENV=production
 COPY --from=build --chown=node:node /app ./
 USER node
 EXPOSE 3000
-# Au démarrage : crée/met à jour les tables, crée le compte admin, lance le site
-CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts && npx next start -p 3000"]
+# Au démarrage : crée/met à jour les tables, crée le compte admin, lance le site.
+# PORT : fourni par l'hébergeur (Railway, Render…), 3000 sinon (Docker Compose).
+CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts && npx next start -p ${PORT:-3000}"]

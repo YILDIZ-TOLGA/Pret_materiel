@@ -29,14 +29,14 @@ export const LEGAL = {
 
   // Hébergeur du site (LCEN, art. 6 III) : nom, adresse, téléphone.
   host: {
-    name: TODO, // ex. « OVH SAS », « Scaleway SAS », « Vercel Inc. »
-    address: TODO,
-    phone: TODO,
+    name: "Railway Corporation", // hébergement du site et de la base (région EU West, Pays-Bas)
+    address: TODO, // adresse postale : voir railway.com/legal/terms ou le DPA (railway.com/legal/dpa)
+    phone: TODO, // obligatoire (LCEN) : à demander à Railway si absent de ses documents
   },
 
   // Sous-traitants (RGPD, art. 28) : à ajuster selon les services réellement utilisés.
   processors: [
-    { name: "Hébergeur du site et de la base de données", role: "Hébergement", location: "Union européenne (à vérifier selon l'hébergeur choisi)" },
+    { name: "Railway Corporation (États-Unis)", role: "Hébergement du site et de la base de données", location: "Données hébergées dans l'Union européenne (région EU West, Pays-Bas) ; société américaine : transferts éventuels encadrés par l'accord de traitement des données (DPA) de Railway et les clauses contractuelles types de la Commission européenne" },
     { name: "Stripe Payments Europe Ltd.", role: "Paiement des abonnements", location: "Irlande ; transferts possibles vers les États-Unis encadrés par le Data Privacy Framework et des clauses contractuelles types" },
     { name: "Prestataire d'envoi d'e-mails (SMTP)", role: "Envoi des e-mails de rappel et de service", location: "À COMPLÉTER (ex. Brevo, France)" },
   ],
