@@ -5,7 +5,7 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 ## ✅ À faire avant la mise en ligne
 
 1. **Remplir `src/lib/legal.ts`** : identité de l'éditeur (nom, forme juridique, adresse, SIRET, e-mail, téléphone), hébergeur, prestataire e-mail, médiateur. Tant que c'est vide, les pages affichent « [À COMPLÉTER] ».
-2. **Avoir un statut** : vendre des abonnements = activité professionnelle. Une micro-entreprise suffit (autoentrepreneur.urssaf.fr). Sans SIRET, tu ne peux pas vendre légalement.
+2. **Statut** : le site est édité par la SARL HERMES FINANCE SOURCING - H.F.S. (SIREN 492 768 742). Vérifier avec la gérante et le comptable : objet social compatible avec la vente d'abonnements en ligne (activité principale déclarée : 46.18Z, intermédiaires du commerce), régime de TVA, cession ou licence du code du site à la société, accord de la gérante comme directrice de la publication.
 3. **Adhérer à un médiateur de la consommation** (obligatoire pour vendre à des particuliers, ~50 à 150 €/an). Liste : https://www.economie.gouv.fr/mediation-conso — puis renseigner `mediator` dans `legal.ts`.
 4. **Vérifier la mention TVA** (`vatMention`) : « TVA non applicable, art. 293 B du CGI » en franchise de TVA ; sinon mettre ton n° de TVA.
 5. **Relire l'article L215-1 dans les CGV** (section 14 de `/cgu`) contre le texte officiel sur Légifrance : la loi impose qu'il soit reproduit **intégralement** (art. L215-4). Le texte a été repris de mémoire et peut avoir été modifié depuis.

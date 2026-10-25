@@ -17,6 +17,7 @@ export default function Page() {
         <tr><td>Forme juridique</td><td>{editor.legalForm}</td></tr>
         <tr><td>Adresse</td><td>{editor.address}</td></tr>
         <tr><td>SIRET</td><td>{editor.siret}</td></tr>
+        <tr><td>Immatriculation</td><td>{editor.rcs}</td></tr>
         {editor.vatNumber && <tr><td>N° TVA intracommunautaire</td><td>{editor.vatNumber}</td></tr>}
         <tr><td>E-mail</td><td>{editor.email}</td></tr>
         <tr><td>Téléphone</td><td>{editor.phone}</td></tr>

@@ -12,16 +12,19 @@ export const LEGAL = {
   siteUrl: process.env.APP_URL || "https://pret-materiel.fr",
 
   // Éditeur du site (LCEN, art. 6 III). Vendre des abonnements = activité professionnelle :
-  // l'identité complète est obligatoire, même en micro-entreprise.
+  // l'identité complète est obligatoire. Source : annuaire-entreprises.data.gouv.fr (SIREN 492 768 742),
+  // relevé le 25 octobre 2026. À revérifier sur l'extrait Kbis (capital, RCS) avant la mise en ligne.
   editor: {
-    name: TODO, // ex. « Tolga Yildiz, entrepreneur individuel » ou « Prêt Matériel SAS »
-    legalForm: TODO, // ex. « Entrepreneur individuel (micro-entreprise) » ou « SAS au capital de 1 000 € »
-    address: TODO, // adresse postale complète (domiciliation possible)
-    siret: TODO, // SIRET (ou RCS + numéro pour une société)
-    vatNumber: "", // n° de TVA intracommunautaire, si assujetti
+    name: "HERMES FINANCE SOURCING - H.F.S.",
+    legalForm: `Société à responsabilité limitée (SARL) au capital de ${TODO} €`, // capital : voir le Kbis ou les statuts
+    address: "Immeuble Horizon, Esplanade de France, 3 rue Jacques Constant Milleret, 42000 Saint-Étienne",
+    siret: "492 768 742 00024",
+    rcs: "RCS Saint-Étienne 492 768 742", // greffe du siège, à confirmer sur le Kbis
+    // n° de TVA intracommunautaire : seulement si la société est assujettie à la TVA (calculé depuis le SIREN : FR48492768742)
+    vatNumber: "",
     email: TODO, // adresse de contact (support et demandes RGPD)
     phone: TODO, // obligatoire pour un professionnel qui vend en ligne
-    publicationDirector: TODO, // en général le représentant légal
+    publicationDirector: "Suzan Yildiz, gérante", // le représentant légal, sauf désignation d'une autre personne
   },
 
   // Hébergeur du site (LCEN, art. 6 III) : nom, adresse, téléphone.
@@ -45,8 +48,10 @@ export const LEGAL = {
     url: TODO,
   },
 
-  // Mention de TVA à côté des prix. Micro-entreprise en franchise : « TVA non applicable, art. 293 B du CGI ».
-  vatMention: "TVA non applicable, art. 293 B du CGI",
+  // Mention de TVA à côté des prix, selon le régime de la société (à demander à son comptable) :
+  //  - franchise en base de TVA : « TVA non applicable, art. 293 B du CGI » (et vatNumber vide) ;
+  //  - assujettie : « TVA 20 % incluse » (et vatNumber renseigné). Les prix de plans.ts sont des prix TTC.
+  vatMention: `${TODO} (régime de TVA)`,
 
   // Âge minimum pour créer un compte (consentement numérique en France : 15 ans).
   minAge: 15,

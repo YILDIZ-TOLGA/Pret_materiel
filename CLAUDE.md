@@ -152,7 +152,7 @@ Voir `.env.example`. Les principales :
    - `DEMO_BILLING` est ignoré dès que `APP_URL` est en `https://`.
 2. **Stripe réel** : créer les 6 prix (3 produits × mensuel/annuel) et le webhook (`customer.subscription.created/updated/deleted`, `invoice.paid`, `invoice.payment_failed`), puis tester le parcours complet en mode test.
    - Le code vise l'API Stripe 2025 « basil » : `current_period_end` est lu sur l'item d'abonnement, et le prix d'une facture sur `lines.data[0].pricing.price_details.price`.
-   - Le propriétaire n'a pas encore d'entreprise. Il crée une micro-entreprise, en attendant bêta gratuite.
+   - Éditeur du site : la SARL HERMES FINANCE SOURCING - H.F.S. (SIREN 492 768 742, Saint-Étienne, gérante Suzan Yildiz), renseignée dans `src/lib/legal.ts`. Restent à compléter : capital, e-mail, téléphone, régime de TVA, hébergeur, médiateur.
 3. **SMTP réel** (Brevo, Resend…) et domaine d'envoi (SPF/DKIM) pour ne pas finir en spam.
 4. **Déploiement** : VPS avec la même stack Docker + reverse proxy HTTPS (Caddy), `APP_URL` en https, `JWT_SECRET` fort, mot de passe admin changé.
 5. **Tests** : `scripts/test-securite.ts`, `scripts/test-anti-abus.ts` et `scripts/test-prets.ts` (de bout en bout, à lancer à la main). Manquent : webhook Stripe, CI GitHub.

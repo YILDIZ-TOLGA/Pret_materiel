@@ -16,7 +16,7 @@ export default function Page() {
         <a href="#vente">Partie 2 — Conditions générales de vente (CGV)</a>
         <a href="#litiges">Partie 3 — Droit applicable et litiges</a>
       </nav>
-      <p className="hint">Version {TERMS_VERSION}. Éditeur : {editor.name}, {editor.address}, SIRET {editor.siret}, {editor.email}, {editor.phone}.</p>
+      <p className="hint">Version {TERMS_VERSION}. Éditeur : {editor.name}, {editor.address}, SIRET {editor.siret}, {editor.rcs}, {editor.email}, {editor.phone}.</p>
 
       <h2 id="utilisation">Partie 1 — Conditions générales d&apos;utilisation</h2>
 
