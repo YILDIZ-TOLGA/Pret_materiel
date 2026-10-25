@@ -11,6 +11,8 @@ export type Me = {
   /** Prêts en cours dont la date de retour est passée. */
   overdueLoans?: number;
   unread: number;
+  /** Mode du site : phase de test (tout gratuit) ou payant, et passage au payant programmé. */
+  site?: { mode: "BETA" | "PAID"; paidFrom: string | null };
   /** Date limite pour se rétracter de l'abonnement en cours, ou null si ce n'est plus possible. */
   withdrawalUntil?: string | null;
 };

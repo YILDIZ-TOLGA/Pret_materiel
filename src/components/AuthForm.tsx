@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { api, saveAuthToken } from "@/lib/client";
 import { PLANS } from "@/lib/plans";
+import { useSite } from "./SiteMode";
 import { PasswordField } from "./AuthCard";
 import { Brand } from "./Brand";
 import { Icon } from "./Icon";
@@ -34,6 +35,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
   const register = mode === "register";
+  const site = useSite();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,7 +58,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <div className="auth-card">
           <div>
             <h1 className="auth-title">{register ? "Ouvre ton carnet." : "Bon retour."}</h1>
-            <p className="auth-sub">{register ? `Gratuit jusqu'à ${PLANS.FREE.maxLoans} prêts en cours. Sans carte bancaire.` : "Retrouve tes prêts, tes rappels et ton bilan."}</p>
+            <p className="auth-sub">{register ? (site?.mode === "BETA" ? "Gratuit pendant la phase de test. Sans carte bancaire." : `Gratuit jusqu'à ${PLANS.FREE.maxLoans} prêts en cours. Sans carte bancaire.`) : "Retrouve tes prêts, tes rappels et ton bilan."}</p>
           </div>
           <form className="stack" onSubmit={submit}>
             {err && <div className="banner late"><Icon name="alert" size={16} />{err}</div>}

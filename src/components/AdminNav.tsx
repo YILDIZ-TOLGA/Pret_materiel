@@ -9,8 +9,9 @@ export function AdminNav({ actions }: { actions?: React.ReactNode }) {
     <PageHeader title="Administration" sub="Revenus, trafic et comptes utilisateurs." actions={
       <>
         {actions}
-        <Segmented value={path === "/admin/utilisateurs" ? "users" : "dash"} onChange={(v) => router.push(v === "users" ? "/admin/utilisateurs" : "/admin")} label="Sections"
-          options={[{ value: "dash", label: "Tableau de bord" }, { value: "users", label: "Utilisateurs" }]} />
+        <Segmented value={path === "/admin/utilisateurs" ? "users" : path === "/admin/site" ? "site" : "dash"}
+          onChange={(v) => router.push(v === "users" ? "/admin/utilisateurs" : v === "site" ? "/admin/site" : "/admin")} label="Sections"
+          options={[{ value: "dash", label: "Tableau de bord" }, { value: "users", label: "Utilisateurs" }, { value: "site", label: "Mode du site" }]} />
       </>
     } />
   );

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/LegalPage";
 import { LEGAL, TERMS_VERSION } from "@/lib/legal";
-import { MAIL_LIMITS } from "@/lib/limits";
+import { BETA_LIMITS, MAIL_LIMITS, PAID_NOTICE_DAYS } from "@/lib/limits";
 import { PLANS } from "@/lib/plans";
 
 export const metadata: Metadata = { title: "Conditions générales · Prêt Matériel" };
@@ -22,6 +22,9 @@ export default function Page() {
 
       <h3>1. Objet</h3>
       <p>{LEGAL.siteName} est un outil qui permet de garder une trace des objets et des sommes d&apos;argent que l&apos;on prête à des proches ou, pour une entreprise, une association ou un autre organisme (ci-après « structure »), du matériel qu&apos;elle prête à ses salariés, membres, élèves ou clients, et d&apos;envoyer automatiquement des rappels par e-mail aux emprunteurs. Les présentes conditions encadrent l&apos;utilisation du service. La création d&apos;un compte vaut acceptation des présentes conditions, dont la date et la version d&apos;acceptation sont enregistrées.</p>
+
+      <h3 id="phase-de-test">1 bis. Phase de test</h3>
+      <p>Pendant la phase de test, signalée sur le site, le service est entièrement gratuit, dans la limite de {BETA_LIMITS.maxLoans} prêts en cours et de {BETA_LIMITS.maxNewLoansPerDay} nouveaux prêts par 24 heures ; aucune offre payante n&apos;est vendue. La fin de la phase de test et l&apos;ouverture des offres payantes sont annoncées par e-mail et sur le site au moins {PAID_NOTICE_DAYS} jours à l&apos;avance. À cette date, les conditions générales de vente (partie 2) s&apos;appliquent : l&apos;offre gratuite permet {PLANS.FREE.maxLoans} prêts en cours. <strong>Aucune donnée n&apos;est supprimée</strong> : les prêts existants restent consultables, modifiables et clôturables ; au-delà de la limite de l&apos;offre gratuite, seule la création ou la réouverture d&apos;un prêt demande de choisir une offre payante ou de clôturer des prêts.</p>
 
       <h3>2. Compte</h3>
       <ul>

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { error, json, withUser, zodError } from "@/lib/api";
 import { newBorrowerRefusal, onLoanCreated, onLoanRepaid, onLoanReturned } from "@/lib/loans";
-import { maxLoans } from "@/lib/plans";
+import { limitsFor } from "@/lib/sitemode";
 import { checkDates, checkLoanKind, loanSchema, repaySchema } from "@/lib/validation";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -71,7 +71,7 @@ export const PATCH = withUser<Ctx>(async (user, req, { params }) => {
     if (loan.status === "ACTIVE") return json({ loan });
     // Rouvrir compte comme un prêt en cours : même limite que la création
     const active = await prisma.loan.count({ where: { lenderId: user.id, status: "ACTIVE" } });
-    const limit = maxLoans(user);
+    const { maxLoans: limit } = await limitsFor(user);
     if (active >= limit) {
       return json({ error: `Limite atteinte : ${limit} prêt${limit > 1 ? "s" : ""} en cours avec ton offre. Clôture un prêt ou change d'offre pour rouvrir celui-ci.`, code: "LIMIT_REACHED" }, 402);
     }

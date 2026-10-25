@@ -16,6 +16,15 @@ const PW = "Motdepasse1";
 const DAY = 86400000;
 const prisma = new PrismaClient();
 
+// Ces tests portent sur les limites du mode payant : le site y passe le temps du test, puis revient à son mode
+let siteBefore: { mode: "BETA" | "PAID"; paidFrom: Date | null } | null = null;
+async function sitePaid() {
+  const s = await prisma.siteSetting.findUnique({ where: { id: 1 } });
+  siteBefore = s && { mode: s.mode, paidFrom: s.paidFrom };
+  await prisma.siteSetting.upsert({ where: { id: 1 }, update: { mode: "PAID", paidFrom: null }, create: { id: 1, mode: "PAID" } });
+}
+const siteRestore = async () => { if (siteBefore) await prisma.siteSetting.update({ where: { id: 1 }, data: siteBefore }); };
+
 let passed = 0;
 const failures: string[] = [];
 function check(name: string, ok: boolean, detail?: unknown) {
@@ -67,6 +76,7 @@ async function cleanup() {
 
 async function main() {
   await cleanup();
+  await sitePaid();
 
   section("1. Limite de l'offre à la réouverture d'un prêt");
   const free = await register("gratuit");
@@ -185,6 +195,7 @@ main()
   .catch((e) => { failures.push(`exception : ${e instanceof Error ? e.stack : e}`); console.error(e); })
   .finally(async () => {
     await cleanup();
+    await siteRestore();
     await prisma.$disconnect();
     console.log(`\n${passed} réussis, ${failures.length} échoués`);
     if (failures.length) { console.log(failures.map((f) => `  - ${f}`).join("\n")); process.exit(1); }

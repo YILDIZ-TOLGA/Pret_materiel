@@ -139,6 +139,18 @@ function Billing() {
         )}
       </div>
 
+      {me.site?.mode === "BETA" ? (
+        <section className="card stack" style={{ marginTop: 24 }} aria-labelledby="beta-title">
+          <h2 id="beta-title">Phase de test : tout est gratuit</h2>
+          <p className="small" style={{ margin: 0, color: "var(--ink-2)" }}>
+            Pendant la phase de test, {me.plan.maxLoans} prêts en cours sont possibles sans payer, et aucune offre n&apos;est en vente.
+            {me.site.paidFrom
+              ? <> Le site passe en mode payant le <strong>{dateFr(me.site.paidFrom)}</strong> : tu gardes tous tes prêts, tu peux toujours les consulter, les modifier et les clôturer. Au-delà de {PLANS.FREE.maxLoans} prêts en cours, il faudra une offre pour en créer de nouveaux.</>
+              : <> Si le site passe un jour en mode payant, tu seras prévenu par e-mail au moins 30 jours avant, et rien ne sera supprimé.</>}
+          </p>
+          <p className="hint">Les offres prévues : <Link href="/#tarifs">voir les tarifs</Link>.</p>
+        </section>
+      ) : <>
       <div className="sec-head"><h2>Changer d&apos;offre</h2></div>
       <div className="consent">
         <label className="check">
@@ -161,6 +173,7 @@ function Billing() {
         })}
       </div>
       <p className="hint" style={{ marginTop: 16 }}>Prix TTC. {LEGAL.vatMention}. Paiement sécurisé par Stripe : carte bancaire, PayPal, Apple Pay, Google Pay. Abonnement renouvelé automatiquement, résiliable à tout moment depuis cette page.</p>
+      </>}
     </>
   );
 }

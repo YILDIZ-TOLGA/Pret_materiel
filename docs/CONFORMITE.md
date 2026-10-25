@@ -32,6 +32,7 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 | Acceptation des CGU à l'inscription, avec date et version enregistrées | `api/auth/register`, champs `termsAcceptedAt` / `termsVersion` |
 | Acceptation des CGV + demande d'exécution immédiate avant paiement (L221-25) | page Offre, `api/billing/checkout`, champ `salesTermsAcceptedAt` |
 | Mention TTC / TVA à côté des prix | page d'accueil, page Offre, CGV |
+| Phase de test gratuite puis passage au payant annoncé au moins 30 jours avant, par e-mail et dans l'appli, sans suppression de données (CGU art. 1 bis et 10) | page admin « Mode du site », `src/lib/sitemode.ts` (`runSiteMode` dans la tâche horaire) |
 | Confirmation de commande sur support durable (L221-13) : informations précontractuelles, demande d'exécution immédiate, délai et formulaire de rétractation, CGU/CGV acceptées en pièce jointe | `src/lib/billing.ts` (`sendOrderConfirmation`), envoyée au premier paiement (webhook `invoice.paid`, `billing_reason = subscription_create`) |
 | Fonction de rétractation en ligne (directive 2023/2673, art. 11 bis de la directive 2011/83 ; transposition française à vérifier) : bouton « Se rétracter du contrat ici » pendant 14 jours, confirmation, arrêt immédiat, remboursement intégral automatique, accusé de réception daté | page Offre, `api/billing/withdraw`, `User.subscriptionStartedAt` |
 | Sécurité (art. 32) : sauvegardes quotidiennes de la base, gardées 14 jours | service `backup` de `docker-compose.yml`, dossier `sauvegardes/` (hors Git et hors image) |

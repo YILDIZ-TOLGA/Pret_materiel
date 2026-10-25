@@ -50,6 +50,8 @@ model User {
   cancelAtPeriodEnd    Boolean   @default(false)
   // conclusion de l'abonnement en cours : point de départ du délai de rétractation de 14 jours
   subscriptionStartedAt DateTime?
+  // passage du site au mode payant : date annoncée à cet utilisateur par e-mail (un seul e-mail par date)
+  paidModeNoticeFor    DateTime?
   createdAt            DateTime  @default(now())
   // dernière activité (connexion ou ouverture de l'appli) : sert à la purge des comptes inactifs
   lastLoginAt          DateTime?
@@ -215,6 +217,22 @@ model EmailLog {
   @@index([createdAt])
   @@index([senderId, kind, createdAt])
   @@index([to, createdAt])
+}
+
+enum SiteMode {
+  BETA // phase de test : tout est gratuit, aucune offre n'est vendue
+  PAID // offres payantes (src/lib/plans.ts)
+}
+
+/** Réglages du site, une seule ligne (id = 1), modifiés depuis l'admin. Voir src/lib/sitemode.ts. */
+model SiteSetting {
+  id          Int       @id @default(1)
+  mode        SiteMode  @default(BETA)
+  // passage au mode payant programmé (au moins 30 jours après l'annonce, CGU art. 10)
+  paidFrom    DateTime?
+  paidSince   DateTime?
+  updatedAt   DateTime  @updatedAt
+  updatedById String?
 }
 
 /** Adresses qui ne veulent plus recevoir d'e-mails de rappel (droit d'opposition, art. 21 RGPD). */

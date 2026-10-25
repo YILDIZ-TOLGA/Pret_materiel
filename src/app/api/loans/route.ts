@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { error, json, withUser, zodError } from "@/lib/api";
-import { maxLoans } from "@/lib/plans";
+import { limitsFor } from "@/lib/sitemode";
 import { newBorrowerRefusal, onLoanCreated } from "@/lib/loans";
 import { checkDates, checkLoanKind, loanSchema } from "@/lib/validation";
 
@@ -25,7 +25,7 @@ export const POST = withUser(async (user, req) => {
     return json({ error: "Confirme d'abord ton adresse e-mail avec le lien reçu à l'inscription.", code: "EMAIL_NOT_VERIFIED" }, 403);
   }
   const active = await prisma.loan.count({ where: { lenderId: user.id, status: "ACTIVE" } });
-  const limit = maxLoans(user);
+  const { maxLoans: limit } = await limitsFor(user);
   if (active >= limit) {
     return json({ error: `Limite atteinte : ${limit} prêt${limit > 1 ? "s" : ""} en cours avec ton offre.`, code: "LIMIT_REACHED" }, 402);
   }

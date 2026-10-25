@@ -5,6 +5,7 @@ import { error, json, withUser, zodError } from "@/lib/api";
 import { PAID_PLANS, PLANS, isProPlan, stripePriceId } from "@/lib/plans";
 import { sendOrderConfirmation } from "@/lib/billing";
 import { TERMS_VERSION } from "@/lib/legal";
+import { siteState } from "@/lib/sitemode";
 
 const schema = z.object({
   plan: z.enum(PAID_PLANS),
@@ -16,6 +17,10 @@ export const POST = withUser(async (user, req) => {
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return zodError(parsed.error);
   const plan = parsed.data.plan;
+  // Phase de test : rien n'est vendu
+  if ((await siteState()).mode === "BETA") {
+    return json({ error: "Le site est en phase de test : tout est gratuit pour le moment, aucune offre n'est en vente.", code: "SITE_IN_BETA" }, 403);
+  }
   const appUrl = process.env.APP_URL || new URL(req.url).origin;
   await prisma.user.update({ where: { id: user.id }, data: { salesTermsAcceptedAt: new Date() } });
 

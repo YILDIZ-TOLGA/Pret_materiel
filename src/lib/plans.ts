@@ -74,13 +74,7 @@ export function effectivePlan(user: { plan: Plan; planExpiresAt: Date | null }):
   return user.plan;
 }
 
-export function maxLoans(user: { plan: Plan; planExpiresAt: Date | null }) {
-  return PLANS[effectivePlan(user)].maxLoans;
-}
-
-export function maxNewLoansPerDay(user: { plan: Plan; planExpiresAt: Date | null }) {
-  return PLANS[effectivePlan(user)].maxNewLoansPerDay;
-}
+// Limites d'un utilisateur : toujours via limitsFor() (src/lib/sitemode.ts), qui tient compte du mode du site.
 
 export function stripePriceId(plan: Plan): string | undefined {
   return {
