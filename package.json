@@ -14,7 +14,8 @@
     "test:securite": "tsx scripts/test-securite.ts",
     "test:anti-abus": "tsx scripts/test-anti-abus.ts",
     "test:prets": "tsx scripts/test-prets.ts",
-    "test:vente": "tsx scripts/test-vente.ts"
+    "test:vente": "tsx scripts/test-vente.ts",
+    "test:mode-site": "tsx scripts/test-mode-site.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

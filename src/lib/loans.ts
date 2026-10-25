@@ -2,7 +2,8 @@ import type { Loan, User } from "@prisma/client";
 import { prisma } from "./db";
 import { MAIL_LIMITS } from "./limits";
 import { sendMail, thirdPartyMailsToday } from "./mail";
-import { effectivePlan, isProPlan, maxNewLoansPerDay } from "./plans";
+import { effectivePlan, isProPlan } from "./plans";
+import { limitsFor } from "./sitemode";
 
 const appUrl = () => process.env.APP_URL || "http://localhost:3000";
 export const fmtDate = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" });
@@ -53,7 +54,7 @@ export async function newBorrowerRefusal(user: User, borrowerEmail: string, borr
   if (isProPlan(effectivePlan(user)) && !user.organization) {
     return { status: 403, error: "Indique d'abord le nom de ta structure dans Mon compte : il apparaît dans les e-mails envoyés à tes emprunteurs.", code: "ORGANIZATION_REQUIRED" };
   }
-  const perDay = maxNewLoansPerDay(user);
+  const { maxNewLoansPerDay: perDay } = await limitsFor(user);
   const createdToday = await prisma.emailLog.count({
     where: { senderId: user.id, kind: "loan_created", createdAt: { gt: new Date(Date.now() - 86400000) } },
   });

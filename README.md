@@ -117,6 +117,14 @@ Oui c'est faisable, mais il ne faut pas coder soi-même un « wrapper » qui re�
 
 À savoir : les revenus restent imposables en euros (déclare-les, en micro-entreprise par exemple), et chaque conversion peut avoir des conséquences fiscales. Demande l'avis d'un comptable.
 
+## Mode du site : testeur ou payant
+
+Dans l'admin, page **Mode du site** :
+- **Site testeur** (au départ) : tout est gratuit, jusqu'à 200 prêts en cours par compte, aucune offre n'est vendue. Idéal pour fidéliser les premiers utilisateurs.
+- **Passer en site payant** : choisis une date au moins 30 jours plus tard. Tous les utilisateurs sont prévenus par e-mail et dans l'appli ; à la date, les offres s'ouvrent. Rien n'est supprimé : au-delà de l'offre gratuite, il faut une offre (ou clôturer des prêts) pour en créer de nouveaux.
+- **Repasser en site testeur** : immédiat. Les abonnements Stripe déjà en cours ne sont pas arrêtés automatiquement.
+- Le paiement (Stripe, ou le paiement de démo en local) doit être configuré pour programmer le passage au payant.
+
 ## Sauvegardes
 
 Le service `backup` de `docker-compose.yml` enregistre une copie complète de la base chaque jour dans le dossier `sauvegardes/` (nom `pret-AAAAMMJJ-HHMM.dump`, heure UTC) et supprime les copies de plus de 14 jours (`BACKUP_DAYS`). Ce dossier contient des données personnelles : il n'est ni dans Git ni dans l'image Docker.
@@ -137,6 +145,7 @@ DATABASE_URL=… JWT_SECRET=… TEST_BASE_URL=http://localhost:3000 npm run test
 DATABASE_URL=… TEST_BASE_URL=http://localhost:3000 npm run test:anti-abus
 DATABASE_URL=… JWT_SECRET=… TEST_BASE_URL=http://localhost:3000 npm run test:prets
 DATABASE_URL=… TEST_BASE_URL=http://localhost:3000 npm run test:vente
+DATABASE_URL=… TEST_BASE_URL=http://localhost:3000 npm run test:mode-site
 ```
 
 ## Structure

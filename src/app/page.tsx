@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Brand } from "@/components/Brand";
 import { Icon, type IconName } from "@/components/Icon";
+import { useSite } from "@/components/SiteMode";
 import { IntervalToggle, PlanCard } from "@/components/PlanCards";
 import { useMe } from "@/components/Providers";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -223,6 +224,7 @@ function Faq() {
 
 export default function Home() {
   const { me } = useMe();
+  const site = useSite();
   const [scrolled, setScrolled] = useState(false);
   const [period, setPeriod] = useState<Interval>("month");
   useEffect(() => {
@@ -267,7 +269,7 @@ export default function Home() {
               <a href="#fonctionnement" className="btn ghost lg">Voir comment ça marche</a>
             </div>
             <ul className="lp-assure">
-              <li><Icon name="check" size={14} />Gratuit jusqu&apos;à {PLANS.FREE.maxLoans} prêts en cours</li>
+              <li><Icon name="check" size={14} />{site?.mode === "BETA" ? "Gratuit pendant la phase de test" : <>Gratuit jusqu&apos;à {PLANS.FREE.maxLoans} prêts en cours</>}</li>
               <li><Icon name="check" size={14} />Sans carte bancaire</li>
               <li><Icon name="check" size={14} />Résiliable à tout moment</li>
             </ul>
@@ -319,6 +321,12 @@ export default function Home() {
               <h2 className="lp-h2" id="price-title">Gratuit pour commencer, <em>dès {euros(FROM_MONTHLY_CENTS)} par mois</em> pour aller plus loin.</h2>
               <p className="lp-sub">Prix TTC, mensuel sans engagement, et des offres Pro pour les entreprises et les associations. Paiement sécurisé par Stripe.</p>
             </Reveal>
+            {site?.mode === "BETA" && (
+              <div className="banner ok" role="status" style={{ marginBottom: 20 }}>
+                <Icon name="info" size={16} />
+                <span><strong>Phase de test : tout est gratuit en ce moment</strong>, jusqu&apos;à {site.betaLimits.maxLoans} prêts en cours. Les offres ci-dessous ne sont pas encore en vente ; leur arrivée sera annoncée au moins 30 jours avant, et rien ne sera supprimé.</span>
+              </div>
+            )}
             <div className="plans-bar"><IntervalToggle value={period} onChange={setPeriod} /></div>
             <div className="plans">
               <Reveal>
@@ -329,7 +337,9 @@ export default function Home() {
               {TIERS.map((t, i) => (
                 <Reveal key={t.id} delay={(i + 1) * 80}>
                   <PlanCard plan={t[period]} title={t.name} audience={t.audience} pro={t.pro} tag={period === "year" ? yearlySaving(t) : null} featured={t.id === "PERSO"}>
-                    <Link href={me ? "/abonnement" : "/inscription"} className={`btn block ${t.id === "PERSO" ? "primary" : ""}`}>Choisir cette offre</Link>
+                    {site?.mode === "BETA"
+                      ? <Link href={start} className="btn block">Gratuit pendant la phase de test</Link>
+                      : <Link href={me ? "/abonnement" : "/inscription"} className={`btn block ${t.id === "PERSO" ? "primary" : ""}`}>Choisir cette offre</Link>}
                   </PlanCard>
                 </Reveal>
               ))}

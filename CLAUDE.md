@@ -15,6 +15,7 @@ Application web (future app iOS/Android) pour suivre ce qu'on prête : **des obj
 - Le jeton de session n'est gardé dans `localStorage` que dans l'appli native (`isNativeApp()` dans `src/lib/client.ts`) ; sur le site, seul le cookie httpOnly sert.
 - Garde-fous anti-abus (`src/lib/limits.ts`) : 5 e-mails max par jour vers une même adresse (tous prêteurs), nouveaux prêts par jour selon l'offre (`maxNewLoansPerDay`, compté dans `EmailLog`), pas d'adresse web dans les noms et objets. Changer l'adresse de l'emprunteur d'un prêt en cours passe par les mêmes contrôles qu'une création (`newBorrowerRefusal` dans `src/lib/loans.ts`) et lui envoie l'e-mail de confirmation. `reminderCount` couvre toute la vie du prêt : changer la date ne le remet pas à zéro. Le journal `EmailLog` porte `thirdParty` et `senderId` pour ces comptes.
 - Vente : au premier paiement, `sendOrderConfirmation` (`src/lib/billing.ts`) envoie la confirmation de commande (L221-13) avec les CGU/CGV en pièce jointe (copie HTML de `/cgu`). Pendant 14 jours après `User.subscriptionStartedAt`, la page Offre affiche « Se rétracter du contrat ici » (`/api/billing/withdraw`) : arrêt immédiat, remboursement Stripe automatique de tout ce qui a été payé depuis la souscription (paiements négatifs dans `Payment`), accusé de réception daté.
+- Mode du site (`src/lib/sitemode.ts`, table `SiteSetting`, page admin `/admin/site`) : « site testeur » (BETA, par défaut) = tout gratuit, jusqu'à `BETA_LIMITS` (200 prêts en cours, 50 nouveaux par jour), aucune offre vendue (checkout → 403 `SITE_IN_BETA`) ; « site payant » (PAID) = offres de `plans.ts`. Le passage au payant se programme au moins 30 jours à l'avance : `runSiteMode` (tâche horaire) envoie l'annonce par e-mail puis bascule à la date. Rien n'est supprimé : au-delà de l'offre gratuite, seuls la création et la réouverture de prêts sont bloquées. Les limites passent toujours par `limitsFor(user)`. Les scripts de test mettent le site en PAID pendant leur exécution.
 - Sauvegardes : service `backup` (pg_dump quotidien dans `sauvegardes/`, 14 jours). `robots.ts`, `sitemap.ts` et `opengraph-image.tsx` dans `src/app` ; `APP_URL` est passé en argument de build Docker.
 - Si l'e-mail de l'emprunteur correspond à un compte, il reçoit aussi des **notifications dans l'appli** et voit le prêt dans « Emprunts ».
 - Le prêteur est alerté quand une échéance est dépassée. Il clôture le prêt quand l'objet revient.
@@ -74,7 +75,7 @@ npm run db:seed -- --demo        # + fausses données pour voir le dashboard adm
 npm run dev
 ```
 - Vérifier : `npx tsc --noEmit` (script `npm run lint`) et `npm run build`.
-- Tests de bout en bout (serveur de dev lancé, même base) : `npm run test:securite`, `npm run test:anti-abus`, `npm run test:prets` et `npm run test:vente` (voir l'en-tête des scripts pour les variables).
+- Tests de bout en bout (serveur de dev lancé, même base) : `npm run test:securite`, `npm run test:anti-abus`, `npm run test:prets`, `npm run test:vente` et `npm run test:mode-site` (voir l'en-tête des scripts pour les variables).
 - Modifier la base : éditer `prisma/schema.prisma`, puis `npx prisma migrate dev --name <nom>`, puis committer la migration.
 
 ## Structure
@@ -157,7 +158,7 @@ Voir `.env.example`. Les principales :
    - Éditeur du site : la SARL HERMES FINANCE SOURCING - H.F.S. (SIREN 492 768 742, Saint-Étienne, gérante Suzan Yildiz), renseignée dans `src/lib/legal.ts`. Restent à compléter : capital, e-mail, téléphone, régime de TVA, hébergeur, médiateur.
 3. **SMTP réel** (Brevo, Resend…) et domaine d'envoi (SPF/DKIM) pour ne pas finir en spam.
 4. **Déploiement** : VPS avec la même stack Docker + reverse proxy HTTPS (Caddy), `APP_URL` en https, `JWT_SECRET` fort, mot de passe admin changé.
-5. **Tests** : `scripts/test-securite.ts`, `scripts/test-anti-abus.ts`, `scripts/test-prets.ts` et `scripts/test-vente.ts` (de bout en bout, à lancer à la main). Manquent : webhook Stripe et remboursement Stripe réel (le test de vente passe par le paiement de démo), CI GitHub.
+5. **Tests** : `scripts/test-securite.ts`, `scripts/test-anti-abus.ts`, `scripts/test-prets.ts`, `scripts/test-vente.ts` et `scripts/test-mode-site.ts` (de bout en bout, à lancer à la main). Manquent : webhook Stripe et remboursement Stripe réel (le test de vente passe par le paiement de démo), CI GitHub.
    - Dépendances : `npm audit` ne signale plus que `deepmerge-ts`, dans l'outil en ligne de commande Prisma (corrigé seulement en Prisma 7, migration lourde). `zod` est en v4, avec les messages par défaut en français (`z.config` dans `src/lib/api.ts`).
 6. **Notifications push** : `public/sw.js` gère déjà `push`, mais il n'y a ni abonnement Web Push ni envoi côté serveur. Aujourd'hui les notifications sont seulement dans l'appli, rafraîchies toutes les 60 s.
 7. **Mobile** : Capacitor (`npx cap add ios/android`, remplacer `server.url` dans `capacitor.config.json`). Attention : Apple et Google imposent leur paiement intégré pour vendre un abonnement dans l'app. Plan prévu : l'abonnement se prend sur le site.

@@ -8,6 +8,7 @@ import { Icon, type IconName } from "./Icon";
 import { useMe, type Me } from "./Providers";
 import { Avatar, DayNight, Menu, Meter, SkeletonRows, Spinner, ThemeSwitch } from "./ui";
 import { api } from "@/lib/client";
+import { PaidSwitchBanner } from "./SiteMode";
 
 export { Brand } from "./Brand";
 
@@ -87,7 +88,7 @@ function Shell({ children, admin }: { children: React.ReactNode; admin: boolean 
           {me && <UserMenu me={me} logout={logout} side="bottom" align="end" compact />}
         </header>
         <main className="main">
-          <div className={`main-inner ${admin ? "wide" : ""}`}>{ready ? <>{!me.user.emailVerifiedAt && <VerifyBanner me={me} />}{children}</> : <Boot />}</div>
+          <div className={`main-inner ${admin ? "wide" : ""}`}>{ready ? <>{!me.user.emailVerifiedAt && <VerifyBanner me={me} />}{me.site?.paidFrom && <PaidSwitchBanner paidFrom={me.site.paidFrom} />}{children}</> : <Boot />}</div>
         </main>
       </div>
       <TabBar me={me} path={path} />
@@ -177,9 +178,9 @@ function Sidebar({ me, path, onSearch, logout }: { me: Me | null; path: string; 
       {me && (
         <div className="sb-foot">
           <Link href="/abonnement" className="sb-plan">
-            <div className="sb-plan-top"><span>Offre {me.plan.name}</span><span className="mono">{me.activeLoans}/{me.plan.maxLoans}</span></div>
+            <div className="sb-plan-top"><span>{me.site?.mode === "BETA" && me.plan.id === "FREE" ? "Phase de test gratuite" : `Offre ${me.plan.name}`}</span><span className="mono">{me.activeLoans}/{me.plan.maxLoans}</span></div>
             <Meter value={me.activeLoans / Math.max(1, me.plan.maxLoans)} tone={me.activeLoans >= me.plan.maxLoans ? "full" : undefined} />
-            {me.plan.id === "FREE" && <span className="sb-plan-cta">Passer à 10 prêts<Icon name="arrowRight" size={13} /></span>}
+            {me.plan.id === "FREE" && me.site?.mode !== "BETA" && <span className="sb-plan-cta">Passer à 10 prêts<Icon name="arrowRight" size={13} /></span>}
           </Link>
           <UserMenu me={me} logout={logout} side="top" align="start" />
         </div>
