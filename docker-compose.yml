@@ -36,6 +36,8 @@ services:
       - path: .env
         required: false
     environment:
+      # port d'écoute dans le conteneur (le Dockerfile lit PORT, que fournissent les hébergeurs comme Railway)
+      PORT: "3000"
       DATABASE_URL: postgresql://pret:${DB_PASSWORD:-pret}@db:5432/pret
       APP_URL: ${APP_URL:-http://localhost:3000}
       JWT_SECRET: ${JWT_SECRET:-change-moi-avant-de-mettre-en-ligne}

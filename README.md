@@ -67,7 +67,8 @@ Sans SMTP, les e-mails sont affichés dans la console.
 
 > ⚖️ **Avant d'ouvrir au public** : remplis `src/lib/legal.ts` (identité, hébergeur, médiateur…) et suis la checklist de [docs/CONFORMITE.md](docs/CONFORMITE.md) (RGPD, mentions légales, CGV).
 
-1. **Hébergement sur un VPS (recommandé)** : la même stack Docker, avec Caddy devant pour le HTTPS.
+0. **Railway** (le plus simple, sans serveur à gérer) : suis [docs/DEPLOIEMENT-RAILWAY.md](docs/DEPLOIEMENT-RAILWAY.md).
+1. **Hébergement sur un VPS** : la même stack Docker, avec Caddy devant pour le HTTPS.
    - Fais pointer ton nom de domaine vers l'IP du serveur, ouvre les ports 80 et 443.
    - Copie `.env.example` en `.env` et remplis la partie « Production » : `DOMAIN`, `APP_URL=https://…`, `JWT_SECRET`, `CRON_SECRET`, `DB_PASSWORD` (avant le tout premier lancement), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SMTP_*`.
    - Lance : `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
