@@ -6,7 +6,8 @@ Railway construit l'image à partir du `Dockerfile` du dépôt et redéploie à 
 
 - **Un compte Railway** (railway.com), connecté à ton compte GitHub. Un service web qui tourne en permanence demande une offre payante : vérifie les tarifs sur railway.com/pricing.
 - **Un service d'envoi d'e-mails** (Brevo, Resend, Mailgun…) avec ses identifiants SMTP. **Obligatoire** : sans vrai SMTP, le site refuse de démarrer en HTTPS (les e-mails de confirmation et les rappels sont le cœur du produit).
-- **Les secrets** à générer (dans Git Bash) : lance deux fois `openssl rand -base64 48`, un résultat pour `JWT_SECRET`, l'autre pour `CRON_SECRET`. Ne les mets jamais dans Git.
+- **Aucun secret à inventer** : sans `JWT_SECRET`, le site génère sa clé au premier démarrage et la garde en base (`src/lib/app-secret.ts`). `CRON_SECRET` est inutile sur Railway (la tâche horaire n'appelle pas le site par HTTP). Le seul secret à saisir est la clé SMTP de Brevo (`SMTP_PASS`).
+- **Le compte admin** : pas besoin d'`ADMIN_PASSWORD`. Mets ton adresse dans `ADMIN_EMAIL`, puis inscris-toi sur le site avec cette adresse : en confirmant l'adresse, le compte devient admin.
 - **Les mentions légales** : tant que `src/lib/legal.ts` contient « [À COMPLÉTER] » (e-mail, téléphone, capital, TVA, adresse de l'hébergeur, médiateur), ces trous s'affichent sur le site. Remplis-les avant de partager l'adresse publiquement.
 
 ## 1. Créer le projet

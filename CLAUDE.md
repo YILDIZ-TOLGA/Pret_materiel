@@ -61,6 +61,7 @@ docker compose logs -f app   # logs du site
 - Aucun `.env` n'est obligatoire. Les valeurs par défaut sont dans `docker-compose.yml` et se surchargent avec un `.env` (modèle : `.env.example`).
 - Après une modification du code : `docker compose up -d --build` pour reconstruire.
 - **Production** : `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build` (Caddy en HTTPS via `Caddyfile`, app sans port publié, Mailpit désactivé, `DEMO_BILLING=false`).
+- En production sans `JWT_SECRET`, `src/lib/app-secret.ts` génère la clé une fois et la garde dans `SiteSetting.appSecret` (site et tâche horaire la partagent) ; les références d'hébergeur non résolues (`${{…}}`) sont ignorées. `CRON_SECRET` est facultatif (sans lui, l'appel HTTP `/api/cron/reminders` est refusé). Sur un site public sans `ADMIN_PASSWORD`, le seed ne crée pas d'admin : on s'inscrit avec `ADMIN_EMAIL` et la confirmation de l'adresse donne le rôle admin.
 - Avec `APP_URL` en `https://`, `src/instrumentation.ts` → `src/lib/config-check.ts` **refuse de démarrer** si un réglage d'exemple reste (JWT_SECRET, CRON_SECRET, mot de passe de base `pret`, SMTP Mailpit, admin avec `admin1234`). Le seed remplace le mot de passe d'exemple de l'admin si un `ADMIN_PASSWORD` fort est fourni.
 - Le conteneur `app` tourne sous l'utilisateur `node` (pas root).
 

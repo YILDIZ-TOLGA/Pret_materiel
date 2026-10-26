@@ -231,6 +231,8 @@ model SiteSetting {
   // passage au mode payant programmé (au moins 30 jours après l'annonce, CGU art. 10)
   paidFrom    DateTime?
   paidSince   DateTime?
+  // clé de signature générée au premier démarrage si JWT_SECRET n'est pas fourni (src/lib/app-secret.ts)
+  appSecret   String?
   updatedAt   DateTime  @updatedAt
   updatedById String?
 }

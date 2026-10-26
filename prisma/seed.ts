@@ -4,6 +4,7 @@
  */
 import { PrismaClient, type Plan } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { dropUnresolvedReferences } from "../src/lib/app-secret";
 import { DEFAULT_ADMIN_PASSWORDS, isPublicSite } from "../src/lib/config-check";
 import { PLANS } from "../src/lib/plans";
 import { passwordSchema } from "../src/lib/validation";
@@ -18,7 +19,14 @@ const pick = <T,>(a: T[]) => a[rand(a.length)];
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400000 - rand(86400000));
 
 async function main() {
+  dropUnresolvedReferences();
   const email = (process.env.ADMIN_EMAIL || "admin@exemple.com").toLowerCase();
+  // Site public sans ADMIN_PASSWORD : pas de compte créé ici. L'admin s'inscrit sur le site avec ADMIN_EMAIL
+  // et reçoit le rôle admin en confirmant son adresse (src/lib/account.ts, confirmEmail).
+  if (isPublicSite() && !process.env.ADMIN_PASSWORD) {
+    console.log(`Admin : inscris-toi sur le site avec ${process.env.ADMIN_EMAIL || "l'adresse ADMIN_EMAIL"} puis confirme l'adresse pour devenir admin.`);
+    return;
+  }
   const password = process.env.ADMIN_PASSWORD || "admin1234";
   const strong = !DEFAULT_ADMIN_PASSWORDS.includes(password) && passwordSchema.safeParse(password).success;
   const existing = await prisma.user.findUnique({ where: { email } });
