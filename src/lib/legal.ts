@@ -38,7 +38,7 @@ export const LEGAL = {
   processors: [
     { name: "Railway Corporation (États-Unis)", role: "Hébergement du site et de la base de données", location: "Données hébergées dans l'Union européenne (région EU West, Pays-Bas) ; société américaine : transferts éventuels encadrés par l'accord de traitement des données (DPA) de Railway et les clauses contractuelles types de la Commission européenne" },
     { name: "Stripe Payments Europe Ltd.", role: "Paiement des abonnements", location: "Irlande ; transferts possibles vers les États-Unis encadrés par le Data Privacy Framework et des clauses contractuelles types" },
-    { name: "Prestataire d'envoi d'e-mails (SMTP)", role: "Envoi des e-mails de rappel et de service", location: "À COMPLÉTER (ex. Brevo, France)" },
+    { name: "Brevo (Sendinblue SAS, France)", role: "Envoi des e-mails de rappel et de service", location: "Union européenne (à confirmer dans l'accord de traitement des données de Brevo)" },
   ],
 
   // Médiateur de la consommation (Code de la consommation, art. L612-1) : obligatoire pour vendre
