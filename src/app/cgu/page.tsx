@@ -16,7 +16,7 @@ export default function Page() {
         <a href="#vente">Partie 2 — Conditions générales de vente (CGV)</a>
         <a href="#litiges">Partie 3 — Droit applicable et litiges</a>
       </nav>
-      <p className="hint">Version {TERMS_VERSION}. Éditeur : {editor.name}, {editor.address}, SIRET {editor.siret}, {editor.rcs}, {editor.email}, {editor.phone}.</p>
+      <p className="hint">Version {TERMS_VERSION}. Éditeur : {[editor.name, editor.siret && `SIRET ${editor.siret}`, editor.rcs, editor.email, editor.phone].filter(Boolean).join(", ")}.</p>
 
       <h2 id="utilisation">Partie 1 — Conditions générales d&apos;utilisation</h2>
 
@@ -56,9 +56,20 @@ export default function Page() {
 
       <h3>5. Disponibilité</h3>
       <p>L&apos;éditeur s&apos;efforce de rendre le service accessible en permanence mais ne peut le garantir : des interruptions peuvent survenir pour maintenance, mise à jour ou incident. Les e-mails peuvent ne pas être délivrés (adresse erronée, filtre anti-spam, désinscription du destinataire) : l&apos;historique d&apos;envoi visible dans l&apos;application ne garantit pas leur lecture. Exportez régulièrement vos données si elles sont importantes pour vous (bouton « Export CSV » du bilan et « Télécharger mes données » de la page Mon compte).</p>
+      <p>Pendant la phase de test, le service est fourni gratuitement et « en l&apos;état » : il peut évoluer, être interrompu ou arrêté à tout moment, sans garantie de disponibilité, de délivrance des e-mails ni de résultat. En cas d&apos;arrêt définitif, les utilisateurs sont prévenus au moins 30 jours à l&apos;avance pour pouvoir exporter leurs données.</p>
 
       <h3>6. Responsabilité</h3>
-      <p>L&apos;éditeur est tenu d&apos;une obligation de moyens. Il n&apos;est pas responsable des dommages résultant d&apos;une utilisation du service non conforme aux présentes conditions, du fait d&apos;un tiers (notamment d&apos;un emprunteur), d&apos;informations inexactes saisies par l&apos;utilisateur ou d&apos;un cas de force majeure. Ces limites ne s&apos;appliquent pas en cas de faute lourde ou intentionnelle de l&apos;éditeur, ni dans les cas où la loi interdit de limiter sa responsabilité ; elles ne privent pas le consommateur de ses droits légaux, notamment de la garantie légale de conformité des contenus et services numériques (articles L224-25-12 et suivants du Code de la consommation).</p>
+      <p>{LEGAL.siteName} est un simple outil de suivi : l&apos;éditeur n&apos;est pas partie aux prêts et n&apos;intervient jamais entre prêteurs et emprunteurs. Dans toute la mesure permise par la loi, l&apos;éditeur n&apos;est pas responsable :</p>
+      <ul>
+        <li>de la non-restitution, de la perte, du vol ou de la dégradation d&apos;un objet prêté, ni du non-remboursement d&apos;une somme ;</li>
+        <li>des litiges entre prêteurs et emprunteurs, ni de leurs relations ;</li>
+        <li>des informations saisies par les utilisateurs (exactitude, licéité) ni des conséquences de leur envoi aux emprunteurs ;</li>
+        <li>d&apos;un rappel ou d&apos;un e-mail non envoyé, envoyé en retard, non reçu ou classé en indésirable ;</li>
+        <li>d&apos;une interruption, d&apos;une erreur ou d&apos;une indisponibilité du service, ni d&apos;une perte de données ;</li>
+        <li>des dommages indirects, tels qu&apos;une perte de chance ou un préjudice financier ou commercial ;</li>
+        <li>des dommages résultant d&apos;une utilisation non conforme aux présentes conditions, du fait d&apos;un tiers (notamment d&apos;un emprunteur) ou d&apos;un cas de force majeure.</li>
+      </ul>
+      <p>L&apos;éditeur est tenu d&apos;une simple obligation de moyens. Ces limites ne s&apos;appliquent pas en cas de faute lourde ou intentionnelle de l&apos;éditeur, ni aux dommages corporels, ni dans les cas où la loi interdit de limiter sa responsabilité. Elles ne privent pas l&apos;utilisateur des droits que la loi lui reconnaît, notamment sur ses données personnelles et, pour un service payant, de la garantie légale de conformité des contenus et services numériques (articles L224-25-12 et suivants du Code de la consommation).</p>
       <p>Si votre utilisation du service, contraire aux présentes conditions, conduit un tiers à réclamer quoi que ce soit à l&apos;éditeur, vous vous engagez à l&apos;indemniser des conséquences de cette réclamation.</p>
 
       <h3>7. Suspension</h3>
@@ -74,6 +85,9 @@ export default function Page() {
       <p>L&apos;éditeur peut faire évoluer les présentes conditions. Les utilisateurs sont informés de toute modification importante au moins 30 jours avant son entrée en vigueur. Si vous refusez les nouvelles conditions, vous pouvez supprimer votre compte et résilier votre abonnement sans frais avant cette date ; les modifications de prix ne s&apos;appliquent jamais à une période d&apos;abonnement déjà payée.</p>
 
       <h2 id="vente">Partie 2 — Conditions générales de vente</h2>
+      {!editor.siret && (
+        <div className="box"><p><strong>Pas encore applicable.</strong> Pendant la phase de test, le service est entièrement gratuit et aucune offre n&apos;est vendue. Les conditions de vente ci-dessous ne s&apos;appliqueront qu&apos;à l&apos;ouverture des offres payantes, qui seront alors proposées par un professionnel identifié dans ces conditions et dans les mentions légales, avec un préavis d&apos;au moins 30 jours.</p></div>
+      )}
       <p>Ces conditions s&apos;appliquent à la souscription d&apos;un abonnement payant par un consommateur ou, pour les offres Pro, par une structure. Les articles 16 et 17 ne concernent que les offres Pro. Les droits prévus aux articles 13 et 14 (rétractation avec remboursement intégral, résiliation en ligne, préavis avant la reconduction) sont accordés à tous les clients, y compris professionnels.</p>
 
       <h3>11. Offres et prix</h3>
@@ -156,7 +170,9 @@ export default function Page() {
 
       <h2 id="litiges">Partie 3 — Droit applicable et litiges</h2>
       <p>Les présentes conditions sont soumises au droit français. En cas de difficulté, contactez d&apos;abord le service client à {editor.email} : nous nous engageons à répondre sous 15 jours.</p>
-      <p>À défaut d&apos;accord, et après une réclamation écrite restée sans réponse satisfaisante, vous pouvez recourir gratuitement au médiateur de la consommation dont relève l&apos;éditeur : <strong>{LEGAL.mediator.name}</strong> ({LEGAL.mediator.url}), dans un délai d&apos;un an à compter de votre réclamation (articles L612-1 et suivants du Code de la consommation).</p>
+      {LEGAL.mediator.name
+        ? <p>À défaut d&apos;accord, et après une réclamation écrite restée sans réponse satisfaisante, vous pouvez recourir gratuitement au médiateur de la consommation dont relève l&apos;éditeur : <strong>{LEGAL.mediator.name}</strong> ({LEGAL.mediator.url}), dans un délai d&apos;un an à compter de votre réclamation (articles L612-1 et suivants du Code de la consommation).</p>
+        : <p>Pendant la phase de test gratuite, aucun médiateur de la consommation n&apos;est désigné, rien n&apos;étant vendu ; un médiateur sera indiqué avant l&apos;ouverture de toute offre payante.</p>}
       <p>Faute de résolution amiable, le litige relève des tribunaux compétents selon les règles de droit commun ; le consommateur peut saisir, à son choix, la juridiction du lieu où il demeurait au moment de la conclusion du contrat ou de la survenance du fait dommageable (article R631-3 du Code de la consommation).</p>
     </LegalPage>
   );

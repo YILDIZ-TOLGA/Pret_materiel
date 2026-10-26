@@ -1,37 +1,37 @@
 /**
  * Informations légales affichées dans les mentions légales, la politique de confidentialité et les CGU/CGV.
  *
- * ⚠️ À REMPLIR AVANT LA MISE EN LIGNE : tant qu'une valeur contient « À COMPLÉTER »,
- * elle s'affiche telle quelle sur le site (c'est voulu : impossible de l'oublier).
+ * Une valeur vide n'est pas affichée (éditeur non professionnel pendant la phase de test gratuite).
  * Après une modification des CGU/CGV, change TERMS_VERSION et LEGAL_UPDATED_AT.
  */
-const TODO = "[À COMPLÉTER]";
 
 export const LEGAL = {
   siteName: "Prêt Matériel",
   siteUrl: process.env.APP_URL || "https://pret-materiel.fr",
 
-  // Éditeur du site (LCEN, art. 6 III). Vendre des abonnements = activité professionnelle :
-  // l'identité complète est obligatoire. Source : annuaire-entreprises.data.gouv.fr (SIREN 492 768 742),
-  // relevé le 25 octobre 2026. À revérifier sur l'extrait Kbis (capital, RCS) avant la mise en ligne.
+  // Éditeur du site (LCEN, art. 6 III). Phase de test gratuite : un particulier, éditeur non professionnel,
+  // qui peut garder son adresse et son téléphone confidentiels en les communiquant à l'hébergeur (LCEN,
+  // art. 6, III, 2). Son nom et un e-mail de contact restent obligatoires (RGPD, art. 13 et 14).
+  // Pour VENDRE des abonnements, il faudra une activité déclarée (micro-entreprise ou société) : renseigner
+  // alors siret, rcs, adresse, téléphone, TVA et médiateur. Sans siret, le passage au payant est bloqué.
   editor: {
-    name: "HERMES FINANCE SOURCING - H.F.S.",
-    legalForm: `Société à responsabilité limitée (SARL) au capital de ${TODO} €`, // capital : voir le Kbis ou les statuts
-    address: "Immeuble Horizon, Esplanade de France, 3 rue Jacques Constant Milleret, 42000 Saint-Étienne",
-    siret: "492 768 742 00024",
-    rcs: "RCS Saint-Étienne 492 768 742", // greffe du siège, à confirmer sur le Kbis
-    // n° de TVA intracommunautaire : seulement si la société est assujettie à la TVA (calculé depuis le SIREN : FR48492768742)
+    name: "Tolga Yildiz",
+    legalForm: "Particulier, éditeur non professionnel (phase de test gratuite)",
+    address: "communiquée à l'hébergeur (article 6, III, 2 de la loi n° 2004-575 du 21 juin 2004)",
+    siret: "", // vide = pas d'activité commerciale déclarée : rien ne peut être vendu
+    rcs: "",
     vatNumber: "",
-    email: TODO, // adresse de contact (support et demandes RGPD)
-    phone: TODO, // obligatoire pour un professionnel qui vend en ligne
-    publicationDirector: "Suzan Yildiz, gérante", // le représentant légal, sauf désignation d'une autre personne
+    email: "contact@codebtpsecure.cloud", // support, demandes RGPD, signalements
+    phone: "", // vide : éditeur non professionnel ; obligatoire dès qu'on vend en ligne
+    publicationDirector: "Tolga Yildiz",
   },
 
   // Hébergeur du site (LCEN, art. 6 III) : nom, adresse, téléphone.
   host: {
     name: "Railway Corporation", // hébergement du site et de la base (région EU West, Pays-Bas)
-    address: TODO, // adresse postale : voir railway.com/legal/terms ou le DPA (railway.com/legal/dpa)
-    phone: TODO, // obligatoire (LCEN) : à demander à Railway si absent de ses documents
+    address: "548 Market St PMB 68956, San Francisco, CA 94104, États-Unis", // source : railway.com/legal/dpa
+    // LCEN : le téléphone de l'hébergeur est demandé ; Railway n'en publie pas, on donne son contact officiel
+    phone: "non communiqué par l'hébergeur (contact : privacy@railway.com)",
   },
 
   // Sous-traitants (RGPD, art. 28) : à ajuster selon les services réellement utilisés.
@@ -43,22 +43,29 @@ export const LEGAL = {
 
   // Médiateur de la consommation (Code de la consommation, art. L612-1) : obligatoire pour vendre
   // à des particuliers. Adhésion à faire auprès d'un médiateur agréé (liste : economie.gouv.fr/mediation-conso).
+  // Vide tant que rien n'est vendu (phase de test gratuite) : les pages l'indiquent.
   mediator: {
-    name: TODO,
-    url: TODO,
+    name: "",
+    url: "",
   },
 
   // Mention de TVA à côté des prix, selon le régime de la société (à demander à son comptable) :
   //  - franchise en base de TVA : « TVA non applicable, art. 293 B du CGI » (et vatNumber vide) ;
   //  - assujettie : « TVA 20 % incluse » (et vatNumber renseigné). Les prix de plans.ts sont des prix TTC.
-  vatMention: `${TODO} (régime de TVA)`,
+  vatMention: "Mention de TVA précisée à l'ouverture des offres payantes",
 
   // Âge minimum pour créer un compte (consentement numérique en France : 15 ans).
   minAge: 15,
 };
 
-export const TERMS_VERSION = "2026-10-25";
-export const LEGAL_UPDATED_AT = "25 octobre 2026";
+/**
+ * Un professionnel identifié (SIRET) peut vendre : condition pour passer le site en mode payant.
+ * En développement (tests, paiement de démo), la condition est levée.
+ */
+export const sellerReady = () => !!LEGAL.editor.siret || process.env.NODE_ENV !== "production";
+
+export const TERMS_VERSION = "2026-10-26";
+export const LEGAL_UPDATED_AT = "26 octobre 2026";
 
 /** Durées de conservation (appliquées par la purge automatique, voir src/lib/retention.ts). */
 export const RETENTION = {

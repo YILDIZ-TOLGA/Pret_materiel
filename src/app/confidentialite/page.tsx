@@ -16,7 +16,7 @@ export default function Page() {
       </div>
 
       <h2>1. Responsable du traitement</h2>
-      <p>{editor.name}, {editor.address}. Contact pour toute question ou demande relative à vos données : <strong>{editor.email}</strong>.</p>
+      <p>{editor.name}{editor.siret ? `, ${editor.address}` : ", éditeur non professionnel"}. Contact pour toute question ou demande relative à vos données : <strong>{editor.email}</strong>.</p>
       <p>Pour les informations que vous saisissez sur vos emprunteurs (nom, e-mail, téléphone, notes), vous en êtes vous-même responsable au sens où vous choisissez de les enregistrer ; {LEGAL.siteName} les traite pour vous fournir le service de rappel. Ces données ne doivent servir qu&apos;au suivi de vos prêts (voir les <Link href="/cgu">conditions générales</Link>).</p>
       <p><strong>Offres Pro</strong> : lorsqu&apos;une entreprise, une association ou un autre organisme utilise {LEGAL.siteName} pour suivre ce qu&apos;il prête (à ses salariés, membres, élèves ou clients), c&apos;est cet organisme qui est responsable du traitement des données de ses emprunteurs. {LEGAL.siteName} agit alors comme sous-traitant, dans les conditions de l&apos;<Link href="/cgu#sous-traitance">accord de sous-traitance</Link> des CGV. Les emprunteurs concernés peuvent exercer leurs droits auprès de cet organisme, ou nous écrire : nous transmettrons. Les e-mails qu&apos;ils reçoivent nomment cet organisme. Seules exceptions, dont {LEGAL.siteName} reste responsable pour protéger les emprunteurs (intérêt légitime) : la liste des adresses désinscrites et le plafond d&apos;e-mails par destinataire, communs à tous les utilisateurs du service.</p>
 

@@ -14,13 +14,13 @@ export default function Page() {
       <h2>Éditeur</h2>
       <table className="tbl kv"><tbody>
         <tr><td>Nom ou raison sociale</td><td>{editor.name}</td></tr>
-        <tr><td>Forme juridique</td><td>{editor.legalForm}</td></tr>
+        <tr><td>Statut</td><td>{editor.legalForm}</td></tr>
         <tr><td>Adresse</td><td>{editor.address}</td></tr>
-        <tr><td>SIRET</td><td>{editor.siret}</td></tr>
-        <tr><td>Immatriculation</td><td>{editor.rcs}</td></tr>
+        {editor.siret && <tr><td>SIRET</td><td>{editor.siret}</td></tr>}
+        {editor.rcs && <tr><td>Immatriculation</td><td>{editor.rcs}</td></tr>}
         {editor.vatNumber && <tr><td>N° TVA intracommunautaire</td><td>{editor.vatNumber}</td></tr>}
         <tr><td>E-mail</td><td>{editor.email}</td></tr>
-        <tr><td>Téléphone</td><td>{editor.phone}</td></tr>
+        {editor.phone && <tr><td>Téléphone</td><td>{editor.phone}</td></tr>}
         <tr><td>Directeur de la publication</td><td>{editor.publicationDirector}</td></tr>
       </tbody></table>
 
@@ -41,7 +41,9 @@ export default function Page() {
       <p>Pour signaler un contenu illicite ou un abus (par exemple des e-mails de rappel envoyés à tort), écrivez à {editor.email} en précisant l&apos;adresse e-mail concernée et la nature du problème.</p>
 
       <h2>Médiation de la consommation</h2>
-      <p>En cas de litige non résolu avec le service client, le consommateur peut recourir gratuitement au médiateur de la consommation : {LEGAL.mediator.name} ({LEGAL.mediator.url}). Les conditions sont détaillées dans les <Link href="/cgu#litiges">conditions générales</Link>.</p>
+      {LEGAL.mediator.name
+        ? <p>En cas de litige non résolu avec le service client, le consommateur peut recourir gratuitement au médiateur de la consommation : {LEGAL.mediator.name} ({LEGAL.mediator.url}). Les conditions sont détaillées dans les <Link href="/cgu#litiges">conditions générales</Link>.</p>
+        : <p>Pendant la phase de test, le service est entièrement gratuit et rien n&apos;est vendu : aucun médiateur de la consommation n&apos;est désigné. Un médiateur sera indiqué ici avant l&apos;ouverture de toute offre payante.</p>}
     </LegalPage>
   );
 }

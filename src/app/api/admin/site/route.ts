@@ -4,6 +4,7 @@ import { error, json, withAdmin, zodError } from "@/lib/api";
 import { PAID_PLANS, effectivePlan, stripePriceId } from "@/lib/plans";
 import { BETA_LIMITS, PAID_NOTICE_DAYS, earliestPaidDay, lendersOverFreeCap, parisMidnight, siteSettings, siteState } from "@/lib/sitemode";
 import { demoBilling, stripe } from "@/lib/stripe";
+import { sellerReady } from "@/lib/legal";
 
 /** État du mode du site, avec ce qu'il faut savoir avant de changer. */
 async function state() {
@@ -21,7 +22,7 @@ async function state() {
   const paymentReady = demoBilling || (!!stripe && PAID_PLANS.every((p) => !!stripePriceId(p)));
   return {
     mode, paidFrom, paidSince: settings.paidSince, updatedAt: settings.updatedAt, updatedBy,
-    earliestPaidDay: earliestPaidDay(), noticeDays: PAID_NOTICE_DAYS, betaLimits: BETA_LIMITS, paymentReady,
+    earliestPaidDay: earliestPaidDay(), noticeDays: PAID_NOTICE_DAYS, betaLimits: BETA_LIMITS, paymentReady, sellerReady: sellerReady(),
     stats: {
       users, verified, noticed, overFreeCap: overFreeCap.length,
       paying: paying.filter((u) => effectivePlan(u) !== "FREE").length,
@@ -53,6 +54,8 @@ export const POST = withAdmin(async (admin, req) => {
       return error(`Le passage au mode payant doit être annoncé au moins ${PAID_NOTICE_DAYS} jours à l'avance (CGU, article 10) : choisis le ${earliestPaidDay()} ou plus tard.`);
     }
     const s = await state();
+    // Vendre est une activité professionnelle : pas de site payant sans éditeur identifié (SIRET dans src/lib/legal.ts)
+    if (!s.sellerReady) return error("Pas de passage au payant sans activité déclarée : renseigne le SIRET, l'adresse, le téléphone, la TVA et le médiateur de l'éditeur (src/lib/legal.ts).", 409);
     if (!s.paymentReady) return error("Le paiement n'est pas configuré (clés Stripe et prix des 6 offres) : les utilisateurs ne pourraient pas s'abonner.", 409);
     await prisma.siteSetting.update({ where: { id: 1 }, data: { paidFrom: parisMidnight(body.day), updatedById: admin.id } });
   } else if (body.action === "cancel") {
