@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { prisma } from "./db";
 
 /**
@@ -18,7 +17,8 @@ export function dropUnresolvedReferences() {
 export async function ensureAppSecret() {
   dropUnresolvedReferences();
   if (process.env.JWT_SECRET || process.env.NODE_ENV !== "production") return;
-  const generated = randomBytes(48).toString("base64url");
+  // Web Crypto plutôt que le module « crypto » de Node : ce fichier est aussi compilé pour l'environnement edge
+  const generated = Buffer.from(globalThis.crypto.getRandomValues(new Uint8Array(48))).toString("base64url");
   await prisma.siteSetting.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
   // si deux processus démarrent en même temps, un seul écrit sa clé : les deux relisent la même
   await prisma.siteSetting.updateMany({ where: { id: 1, appSecret: null }, data: { appSecret: generated } });

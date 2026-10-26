@@ -12,7 +12,7 @@ import { PLANS } from "@/lib/plans";
 type State = {
   mode: "BETA" | "PAID"; paidFrom: string | null; paidSince: string | null; updatedAt: string;
   updatedBy: { name: string; email: string } | null;
-  earliestPaidDay: string; noticeDays: number; betaLimits: { maxLoans: number; maxNewLoansPerDay: number }; paymentReady: boolean;
+  earliestPaidDay: string; noticeDays: number; betaLimits: { maxLoans: number; maxNewLoansPerDay: number }; paymentReady: boolean; sellerReady: boolean;
   stats: { users: number; verified: number; noticed: number; overFreeCap: number; paying: number; stripeSubscriptions: number };
 };
 
@@ -87,12 +87,13 @@ export default function SiteModePage() {
             <p className="small" style={{ margin: 0, color: "var(--ink-2)" }}>
               Le changement est annoncé à tous les utilisateurs par e-mail et dans l&apos;appli, au moins {s.noticeDays} jours avant (CGU, article 10). À la date choisie, les offres payantes s&apos;ouvrent : chacun garde tous ses prêts, mais au-delà de {PLANS.FREE.maxLoans} prêts en cours il faudra une offre pour en créer de nouveaux.
             </p>
+            {!s.sellerReady && <div className="banner late"><Icon name="alert" size={16} />Vendre demande une activité déclarée (micro-entreprise ou société) : il faut d&apos;abord renseigner le SIRET, l&apos;adresse, le téléphone, la TVA et le médiateur dans les mentions légales.</div>}
             {!s.paymentReady && <div className="banner late"><Icon name="alert" size={16} />Le paiement n&apos;est pas configuré (clés Stripe et prix des 6 offres) : impossible de programmer le passage au payant pour l&apos;instant.</div>}
             <div className="row" style={{ gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
               <label className="field" style={{ minWidth: 220 }}>Date du passage au payant
                 <input type="date" value={day} min={s.earliestPaidDay} onChange={(e) => setDay(e.target.value)} />
               </label>
-              <button type="button" className="btn primary" disabled={busy || !s.paymentReady || !day || day < s.earliestPaidDay} onClick={schedule}>
+              <button type="button" className="btn primary" disabled={busy || !s.sellerReady || !s.paymentReady || !day || day < s.earliestPaidDay} onClick={schedule}>
                 {busy ? <><Spinner />Un instant…</> : "Programmer le passage au payant"}
               </button>
             </div>
