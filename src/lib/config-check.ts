@@ -14,10 +14,12 @@ export function configProblems(env: NodeJS.ProcessEnv = process.env): string[] {
   if (jwt.length < 32 || DEFAULT_SECRET.test(jwt)) {
     problems.push("JWT_SECRET : mets une chaîne aléatoire d'au moins 32 caractères (par exemple : openssl rand -base64 48).");
   }
+  // CRON_SECRET protège l'appel HTTP de la tâche horaire. Absent, cet appel est simplement refusé
+  // (sur Railway, la tâche horaire tourne directement avec scripts/cron.ts et n'en a pas besoin).
   const cron = env.CRON_SECRET || "";
-  if (cron.length < 24 || DEFAULT_SECRET.test(cron)) {
-    problems.push("CRON_SECRET : mets une chaîne aléatoire d'au moins 24 caractères, différente de JWT_SECRET.");
-  } else if (cron === jwt) {
+  if (cron && (cron.length < 24 || DEFAULT_SECRET.test(cron))) {
+    problems.push("CRON_SECRET : mets une chaîne aléatoire d'au moins 24 caractères, différente de JWT_SECRET (ou retire-le si la tâche horaire ne passe pas par HTTP).");
+  } else if (cron && cron === jwt) {
     problems.push("CRON_SECRET doit être différent de JWT_SECRET.");
   }
   if (env.ADMIN_PASSWORD && DEFAULT_ADMIN_PASSWORDS.includes(env.ADMIN_PASSWORD)) {
