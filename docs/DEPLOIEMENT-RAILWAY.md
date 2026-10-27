@@ -40,6 +40,10 @@ DEMO_BILLING=false
 
 Les clés Stripe (`STRIPE_*`) ne sont pas nécessaires tant que le site est en **site testeur** (tout gratuit) : elles le deviendront avant de passer en site payant.
 
+### E-mails : API Brevo obligatoire sur Railway
+
+Railway bloque le SMTP sortant sur les offres Free, Trial et Hobby (le site affiche alors « Échec envoi mail Connection timeout »). Utilise l'API web de Brevo : Brevo → **SMTP et API → Clés API → Générer une nouvelle clé API**, puis ajoute `BREVO_API_KEY` dans les variables partagées. `MAIL_FROM` doit utiliser un domaine authentifié dans ce compte Brevo.
+
 ## 3. Adresse publique
 
 1. Service du site → **Settings** → **Networking** → **Generate Domain** (ou **Custom Domain** pour ton propre nom de domaine). Port : `3000`.

@@ -28,8 +28,9 @@ export function configProblems(env: NodeJS.ProcessEnv = process.env): string[] {
   if (/:\/\/[^:]+:pret@/.test(env.DATABASE_URL || "")) {
     problems.push("DB_PASSWORD : le mot de passe de la base est celui d'exemple (« pret »). À fixer avant le premier lancement : il n'est pris en compte qu'à la création de la base.");
   }
-  if (!env.SMTP_HOST || env.SMTP_HOST === "mailpit") {
-    problems.push("SMTP_HOST : configure un vrai serveur d'envoi (Brevo, Resend…). Avec Mailpit, aucun e-mail n'arrive à destination.");
+  // Envoi par l'API Brevo (BREVO_API_KEY) ou par un vrai serveur SMTP
+  if (!env.BREVO_API_KEY && (!env.SMTP_HOST || env.SMTP_HOST === "mailpit")) {
+    problems.push("E-mails : mets BREVO_API_KEY (API Brevo) ou un vrai SMTP_HOST (Brevo, Resend…). Avec Mailpit, aucun e-mail n'arrive à destination.");
   }
   return problems;
 }

@@ -9,6 +9,41 @@ const DAY = 86400000;
 export const thirdPartyMailsToday = (to: string) =>
   prisma.emailLog.count({ where: { to: to.toLowerCase(), thirdParty: true, ok: true, createdAt: { gt: new Date(Date.now() - DAY) } } });
 
+/**
+ * Deux façons d'envoyer :
+ *  - API web de Brevo (BREVO_API_KEY), en HTTPS : à utiliser quand l'hébergeur bloque le SMTP sortant
+ *    (Railway le bloque sur les offres Free, Trial et Hobby) ;
+ *  - SMTP (SMTP_HOST…), par exemple Mailpit en local ou un relais SMTP chez un hébergeur qui l'autorise.
+ * L'API est prioritaire si sa clé est présente.
+ */
+const brevoKey = () => process.env.BREVO_API_KEY;
+
+/** « Prêt Matériel <no-reply@exemple.fr> » → { name, email } */
+export function parseFrom(from: string) {
+  const m = from.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  return m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { email: from.trim() };
+}
+
+async function sendWithBrevoApi(msg: { to: string; subject: string; html: string; text: string; headers?: Record<string, string>; attachments?: { filename: string; content: string }[] }) {
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: { "api-key": brevoKey()!, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({
+      sender: parseFrom(process.env.MAIL_FROM || ""),
+      to: [{ email: msg.to }],
+      subject: msg.subject,
+      htmlContent: msg.html,
+      textContent: msg.text,
+      ...(msg.headers ? { headers: msg.headers } : {}),
+      ...(msg.attachments?.length
+        ? { attachment: msg.attachments.map((a) => ({ name: a.filename, content: Buffer.from(a.content, "utf8").toString("base64") })) }
+        : {}),
+    }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`API Brevo ${res.status} : ${(await res.text()).slice(0, 300)}`);
+}
+
 const transporter = process.env.SMTP_HOST
   ? nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -84,7 +119,9 @@ export async function sendMail(opts: { to: string; subject: string; kind: string
   let ok = true;
   let err: string | undefined;
   try {
-    if (transporter) {
+    if (brevoKey()) {
+      await sendWithBrevoApi({ to, subject: opts.subject, html, text, headers, attachments: opts.attachments });
+    } else if (transporter) {
       await transporter.sendMail({ from: process.env.MAIL_FROM, to, subject: opts.subject, html, text, headers, attachments: opts.attachments });
     } else {
       const joined = opts.attachments?.length ? `\nPièces jointes : ${opts.attachments.map((a) => a.filename).join(", ")}` : "";
