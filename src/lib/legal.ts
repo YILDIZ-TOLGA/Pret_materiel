@@ -64,8 +64,8 @@ export const LEGAL = {
  */
 export const sellerReady = () => !!LEGAL.editor.siret || process.env.NODE_ENV !== "production";
 
-export const TERMS_VERSION = "2026-10-26";
-export const LEGAL_UPDATED_AT = "26 octobre 2026";
+export const TERMS_VERSION = "2026-10-28";
+export const LEGAL_UPDATED_AT = "28 octobre 2026";
 
 /** Durées de conservation (appliquées par la purge automatique, voir src/lib/retention.ts). */
 export const RETENTION = {
