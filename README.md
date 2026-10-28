@@ -135,6 +135,7 @@ Le service `backup` de `docker-compose.yml` enregistre une copie complète de la
   ```bash
   docker compose exec -T db pg_restore --clean --if-exists --no-owner -U pret -d pret < sauvegardes/pret-AAAAMMJJ-HHMM.dump
   ```
+- Sur Railway, ce service n'existe pas : la tâche horaire envoie une copie par jour dans un stockage S3 (`BACKUP_S3_*`, voir `src/lib/backup.ts` et `docs/DEPLOIEMENT-RAILWAY.md`).
 - En production, copie aussi ce dossier **hors du serveur** (stockage objet chez un autre prestataire, ou ton ordinateur) : une sauvegarde sur la même machine ne protège pas d'une panne de disque.
 
 ## Tests

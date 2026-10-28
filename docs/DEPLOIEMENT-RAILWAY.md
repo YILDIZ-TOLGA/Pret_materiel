@@ -64,11 +64,29 @@ Ce service démarre, envoie les rappels, applique les durées de conservation et
 
 ## 5. Sauvegardes
 
-Le service `backup` de `docker-compose.yml` n'existe pas sur Railway. Active les **sauvegardes** de la base PostgreSQL dans Railway (onglet **Backups** du service Postgres), et garde une copie hors de Railway de temps en temps :
+Le service `backup` de `docker-compose.yml` n'existe pas sur Railway, et les sauvegardes automatiques de l'onglet **Backups** du service Postgres sont réservées à l'offre Pro. La tâche horaire fait donc la sauvegarde elle-même (`src/lib/backup.ts`) : une copie complète de la base par jour (`pg_dump`), envoyée dans un stockage S3 de Railway, gardée 14 jours. En cas d'échec, un e-mail part vers `ADMIN_EMAIL` (une fois par jour au plus) et la tâche réessaie chaque heure.
+
+1. **New** → **Bucket**, nom `sauvegardes`, région **Amsterdam** (EU).
+2. Service de la tâche horaire → **Variables** :
+
+```
+BACKUP_S3_ENDPOINT=${{sauvegardes.ENDPOINT}}
+BACKUP_S3_BUCKET=${{sauvegardes.BUCKET}}
+BACKUP_S3_REGION=${{sauvegardes.REGION}}
+BACKUP_S3_ACCESS_KEY_ID=${{sauvegardes.ACCESS_KEY_ID}}
+BACKUP_S3_SECRET_ACCESS_KEY=${{sauvegardes.SECRET_ACCESS_KEY}}
+```
+
+   Si l'onglet **Credentials** du bucket indique des adresses « path-style », ajoute `BACKUP_S3_PATH_STYLE=true`.
+3. Les copies (`pret-AAAAMMJJ-HHMM.dump`, heure UTC) se voient dans le bucket → **Files**, d'où on peut les télécharger.
+
+**Restaurer** une copie (remplace le contenu de la base) : télécharge le fichier, active temporairement l'accès public de la base (service Postgres → **Settings** → **Networking** → **TCP Proxy**), puis :
 
 ```bash
-pg_dump -Fc "<DATABASE_URL publique de Railway>" -f pret-AAAAMMJJ.dump
+pg_restore --clean --if-exists --no-owner -d "<DATABASE_PUBLIC_URL du service Postgres>" pret-AAAAMMJJ-HHMM.dump
 ```
+
+Retire ensuite le TCP Proxy. Le stockage est chez Railway, comme la base : télécharge de temps en temps une copie sur ton ordinateur, pour le cas où le compte Railway lui-même deviendrait inaccessible.
 
 ## 6. Vérifier
 

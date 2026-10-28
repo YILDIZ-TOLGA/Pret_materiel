@@ -18,6 +18,7 @@
     "test:mode-site": "tsx scripts/test-mode-site.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1159.0",
     "@prisma/client": "6.19.3",
     "bcryptjs": "^3.0.2",
     "jose": "^6.1.0",

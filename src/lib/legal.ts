@@ -36,7 +36,7 @@ export const LEGAL = {
 
   // Sous-traitants (RGPD, art. 28) : à ajuster selon les services réellement utilisés.
   processors: [
-    { name: "Railway Corporation (États-Unis)", role: "Hébergement du site et de la base de données", location: "Données hébergées dans l'Union européenne (région EU West, Pays-Bas) ; société américaine : transferts éventuels encadrés par l'accord de traitement des données (DPA) de Railway et les clauses contractuelles types de la Commission européenne" },
+    { name: "Railway Corporation (États-Unis)", role: "Hébergement du site et de la base de données, sauvegardes quotidiennes de la base", location: "Données hébergées dans l'Union européenne (région EU West, Pays-Bas ; sauvegardes dans un stockage Railway à Amsterdam) ; société américaine : transferts éventuels encadrés par l'accord de traitement des données (DPA) de Railway et les clauses contractuelles types de la Commission européenne" },
     { name: "Stripe Payments Europe Ltd.", role: "Paiement des abonnements", location: "Irlande ; transferts possibles vers les États-Unis encadrés par le Data Privacy Framework et des clauses contractuelles types" },
     { name: "Brevo (Sendinblue SAS, France)", role: "Envoi des e-mails de rappel et de service", location: "Union européenne (à confirmer dans l'accord de traitement des données de Brevo)" },
   ],
@@ -76,7 +76,7 @@ export const RETENTION = {
   emailLogMonths: 12, // journal technique des e-mails envoyés
   readNotificationMonths: 12, // notifications lues
   sessionDays: 30, // session de connexion sur un appareil
-  backupDays: 14, // sauvegardes quotidiennes de la base (BACKUP_DAYS dans docker-compose.yml : garder la même valeur)
+  backupDays: 14, // sauvegardes quotidiennes de la base : src/lib/backup.ts (Railway) et BACKUP_DAYS dans docker-compose.yml (même valeur)
   verifyEmailLinkHours: 48, // lien de confirmation d'adresse e-mail
   resetPasswordLinkHours: 1, // lien de réinitialisation du mot de passe
 };
