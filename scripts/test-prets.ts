@@ -73,7 +73,7 @@ async function register(name: string, plan?: "ENTREPRISE_YEARLY") {
 const SIG = { signerName: "Prêteur Test", signature: { w: 600, h: 200, strokes: [[40, 120, 120, 60, 200, 140, 280, 70, 360, 130, 440, 80, 520, 120, 560, 100]] }, accept: true };
 const due = (days: number) => new Date(Date.now() + days * DAY).toISOString();
 const loanTo = (c: Client, to: string, extra: Record<string, unknown> = {}) =>
-  c.post("/api/loans", { item: "Perceuse", borrowerName: "Test", borrowerEmail: to, dueAt: due(7), ...extra });
+  c.post("/api/loans", { item: "Perceuse", borrowerFirstName: "Test", borrowerLastName: "Emprunteur", borrowerBirthDate: "1990-05-14", borrowerEmail: to, dueAt: due(7), ...extra });
 
 async function cleanup() {
   await prisma.user.deleteMany({ where: { email: { endsWith: `@${DOMAIN}` } } });

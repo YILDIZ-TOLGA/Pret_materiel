@@ -9,7 +9,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { DayNight, Spinner, Stamp } from "@/components/ui";
 import { sameAmountInFigures, sameAmountInWords } from "@/lib/amount-words";
 import { api, dateFr, euros } from "@/lib/client";
-import { DOC_TITLES, NAME_PLACEHOLDER, lenderLabel, type DocKind } from "@/lib/receipt-text";
+import { DOC_TITLES, NAME_PLACEHOLDER, docBirth, lenderLabel, type DocKind } from "@/lib/receipt-text";
 import { signatureProblem, type SignatureData } from "@/lib/signature";
 
 type Doc = { id: string; number: string; kind: DocKind; signedAt: string };
@@ -17,7 +17,7 @@ type Data = {
   ackStatus: "NONE" | "PENDING" | "SIGNED" | "REFUSED"; ackAt: string | null; refusalReason: string | null; canSign: boolean;
   loan: { ref: string; kind: "OBJECT" | "MONEY"; item: string; description: string | null; amountCents: number | null; repaidCents: number; lentAt: string; dueAt: string; status: "ACTIVE" | "RETURNED"; returnedAt: string | null };
   lender: { organization: string | null; name: string; email: string };
-  borrower: { name: string; email: string };
+  borrower: { name: string; email: string; birthDate: string | null };
   statement: string[];
   amountWords: string | null;
   documents: Doc[];
@@ -150,7 +150,7 @@ function SignPage() {
           <div className="fiche-part fiche-body">
             <dl className="fiche-grid">
               <div><dt>Prêté par</dt><dd style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }}><span>{d.lender.organization ?? d.lender.name}</span>{d.lender.organization && <span className="small muted">{d.lender.name}</span>}</dd></div>
-              <div><dt>Emprunteur</dt><dd style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }}><span>{d.borrower.name}</span><span className="small muted">{d.borrower.email}</span></dd></div>
+              <div><dt>Emprunteur</dt><dd style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }}><span>{d.borrower.name}</span>{d.borrower.birthDate && <span className="small muted">né(e) le {docBirth(d.borrower.birthDate)}</span>}<span className="small muted">{d.borrower.email}</span></dd></div>
               <div><dt>Prêté le</dt><dd className="mono">{dateFr(d.loan.lentAt)}</dd></div>
               <div><dt>{money ? "À rembourser le" : "À rendre le"}</dt><dd className="mono">{dateFr(d.loan.dueAt)}</dd></div>
               <div style={{ gridColumn: "1 / -1" }}><dt>Contacter le prêteur</dt><dd><a href={`mailto:${d.lender.email}`}>{d.lender.email}</a></dd></div>

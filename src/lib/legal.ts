@@ -65,14 +65,18 @@ export const LEGAL = {
  */
 export const sellerReady = () => !!LEGAL.editor.siret || process.env.NODE_ENV !== "production";
 
-export const TERMS_VERSION = "2026-10-30";
+export const TERMS_VERSION = "2026-10-30.2";
 export const LEGAL_UPDATED_AT = "30 octobre 2026";
 /**
  * Version des conditions qu'un compte doit avoir acceptée pour enregistrer de nouveaux prêts. À avancer seulement
- * pour un changement qui demande un nouvel accord (ici : service réservé aux professionnels, accusés de réception
- * signés). Une simple mise à jour des textes change TERMS_VERSION seulement.
+ * pour un changement qui demande un nouvel accord : 2026-10-30, service réservé aux professionnels et accusés de
+ * réception signés ; 2026-10-30.2, identité de l'emprunteur (prénom, nom, date de naissance, majeur) ajoutée à
+ * l'accord de sous-traitance. Une simple mise à jour des textes change TERMS_VERSION seulement.
+ * Les versions se comparent comme du texte : AAAA-MM-JJ, suivi au besoin de « .2 », « .3 »… le même jour.
  */
-export const REQUIRED_TERMS_VERSION = "2026-10-30";
+export const REQUIRED_TERMS_VERSION = "2026-10-30.2";
+/** Première version réservée aux professionnels : les comptes plus anciens voient l'annonce du passage au B2B. */
+export const B2B_TERMS_VERSION = "2026-10-30";
 export const termsUpToDate = (u: { termsVersion: string | null }) => !!u.termsVersion && u.termsVersion >= REQUIRED_TERMS_VERSION;
 
 /** Durées de conservation (appliquées par la purge automatique, voir src/lib/retention.ts). */

@@ -44,7 +44,8 @@ export async function GET(req: Request) {
       lentAt: loan.lentAt, dueAt: loan.dueAt, status: loan.status, returnedAt: loan.returnedAt,
     },
     lender: { organization: loan.lender.organization, name: loan.lender.name, email: loan.lender.email },
-    borrower: { name: loan.borrowerName, email: maskEmail(loan.borrowerEmail) },
+    // la date de naissance figure dans la déclaration à signer : l'emprunteur doit pouvoir la vérifier
+    borrower: { name: loan.borrowerName, email: maskEmail(loan.borrowerEmail), birthDate: loan.borrowerBirthDate?.toISOString().slice(0, 10) ?? null },
     // aperçu de la déclaration, avec le nom à compléter : le texte signé est construit par le même code
     statement: loanStatementFor(NAME_PLACEHOLDER, loan, loan.lender),
     amountWords: money ? amountInWords(loan.amountCents!) : null,

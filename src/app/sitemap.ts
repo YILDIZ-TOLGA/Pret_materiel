@@ -4,7 +4,8 @@ import { LEGAL, TERMS_VERSION } from "@/lib/legal";
 /** sitemap.xml : les pages publiques du site. */
 export default function sitemap(): MetadataRoute.Sitemap {
   const url = (path: string) => `${LEGAL.siteUrl}${path}`;
-  const legalDate = new Date(TERMS_VERSION);
+  // version AAAA-MM-JJ, éventuellement suivie de « .2 » (deuxième version du même jour)
+  const legalDate = new Date(TERMS_VERSION.slice(0, 10));
   return [
     { url: url("/"), changeFrequency: "weekly", priority: 1 },
     { url: url("/inscription"), changeFrequency: "monthly", priority: 0.8 },

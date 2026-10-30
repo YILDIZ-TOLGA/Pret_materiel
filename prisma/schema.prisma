@@ -135,7 +135,13 @@ model Loan {
   repaidCents    Int        @default(0)
   currency       String     @default("eur")
   description    String?
+  // nom affiché partout (listes, e-mails, documents) : « Prénom Nom », tiré des deux champs suivants
   borrowerName   String
+  // Identité de l'emprunteur, obligatoire pour tout nouveau prêt (vide pour les prêts antérieurs) : elle figure
+  // sur les documents signés pour l'identifier sans ambiguïté. Il doit être majeur à la date du prêt.
+  borrowerFirstName String?
+  borrowerLastName  String?
+  borrowerBirthDate DateTime? @db.Date
   borrowerEmail  String
   borrowerPhone  String?
   lentAt         DateTime   @default(now())

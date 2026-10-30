@@ -100,8 +100,8 @@ export async function sendMail(opts: { to: string; subject: string; kind: string
     ? {
         // Information de l'emprunteur (art. 14 RGPD) : la structure cliente est responsable du traitement.
         text: opts.thirdParty.organization
-          ? `Vous recevez cet e-mail car ${opts.thirdParty.organization} (${opts.thirdParty.lenderName}) a enregistré sur Prêt Matériel un prêt à votre nom, avec votre nom et votre adresse e-mail. ${opts.thirdParty.organization} est responsable du traitement de ces données, que Prêt Matériel traite pour son compte uniquement pour l'accusé de réception à signer, les reçus et les rappels liés à ce prêt. Pour exercer vos droits, adressez-vous à ${opts.thirdParty.organization} ou écrivez-nous.`
-          : `Vous recevez cet e-mail car ${opts.thirdParty.lenderName} a enregistré sur Prêt Matériel un prêt à votre nom, avec votre nom et votre adresse e-mail. Ces données servent uniquement à l'accusé de réception à signer, aux reçus et aux rappels liés à ce prêt.`,
+          ? `Vous recevez cet e-mail car ${opts.thirdParty.organization} (${opts.thirdParty.lenderName}) a enregistré sur Prêt Matériel un prêt à votre nom, avec votre identité (nom, prénom, date de naissance) et votre adresse e-mail. ${opts.thirdParty.organization} est responsable du traitement de ces données, que Prêt Matériel traite pour son compte uniquement pour l'accusé de réception à signer, les reçus et les rappels liés à ce prêt. Pour exercer vos droits, adressez-vous à ${opts.thirdParty.organization} ou écrivez-nous.`
+          : `Vous recevez cet e-mail car ${opts.thirdParty.lenderName} a enregistré sur Prêt Matériel un prêt à votre nom, avec votre identité (nom, prénom, date de naissance) et votre adresse e-mail. Ces données servent uniquement à l'accusé de réception à signer, aux reçus et aux rappels liés à ce prêt.`,
         links: [
           { label: "Ne plus recevoir ces e-mails", url: optOutUrl(to) },
           { label: "Politique de confidentialité", url: `${appUrl()}/confidentialite` },

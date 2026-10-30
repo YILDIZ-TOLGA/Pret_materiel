@@ -10,7 +10,7 @@ Appli de suivi des prêts de matériel **et d'argent**, réservée aux professio
 | | |
 |---|---|
 | Comptes | Inscription / connexion (e-mail + mot de passe, sessions JWT : cookie sur le web, `Bearer` sur mobile) |
-| Prêts de matériel | Désignation, détails, emprunteur (nom, e-mail, tél.), date de prêt, date de retour, note privée. Modifier, clôturer, rouvrir, supprimer |
+| Prêts de matériel | Désignation, détails, emprunteur (prénom, nom, date de naissance — majeur —, e-mail, tél.), date de prêt, date de retour, note privée. Modifier, clôturer, rouvrir, supprimer |
 | Prêts d'argent | Montant + motif (avance sur frais, acompte…). Remboursements partiels avec historique, reste dû calculé, clôture automatique quand tout est remboursé. Les e-mails parlent de montants (« les 30 € restants sur 50 € ») |
 | Accusé de réception | À la création, l'emprunteur reçoit un lien personnel (chiffré, sans compte) : récapitulatif complet, signature au doigt ou à la souris (ou au clavier), ou contestation. Pour un prêt d'argent, il écrit la somme en lettres et en chiffres (art. 1376 C. civ.). Relance automatique à 48 h, renvoi manuel. Modifier le prêt demande une nouvelle signature |
 | Documents signés | Accusé de réception (emprunteur), reçu de remboursement et attestation de restitution (prêteur) : contenu figé, tracé, date, IP, navigateur, empreinte SHA-256. PDF (police embarquée) envoyé aux deux parties et téléchargeable ; le prêteur doit l'imprimer, Prêt Matériel n'archive pas (CGU art. 3 bis) |

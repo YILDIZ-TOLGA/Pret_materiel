@@ -69,7 +69,7 @@ async function register(name: string, plan?: "ENTREPRISE_YEARLY") {
 // signature du prêteur (tracé valable) pour les reçus de remboursement et les attestations de retour
 const SIG = { signerName: "Prêteur Test", signature: { w: 600, h: 200, strokes: [[40, 120, 120, 60, 200, 140, 280, 70, 360, 130, 440, 80, 520, 120, 560, 100]] }, accept: true };
 const loanTo = (c: Client, to: string, item = "Perceuse") =>
-  c.post("/api/loans", { item, borrowerName: "Test", borrowerEmail: to, dueAt: new Date(Date.now() + 7 * DAY).toISOString() });
+  c.post("/api/loans", { item, borrowerFirstName: "Test", borrowerLastName: "Emprunteur", borrowerBirthDate: "1990-05-14", borrowerEmail: to, dueAt: new Date(Date.now() + 7 * DAY).toISOString() });
 
 async function cleanup() {
   await prisma.user.deleteMany({ where: { email: { endsWith: `@${DOMAIN}` } } });
@@ -179,7 +179,7 @@ async function main() {
   const fresh = await register("liens", "ENTREPRISE_YEARLY");
   r = await loanTo(fresh, email("ami3"), "Ta banque : www.faux-site.com");
   check("objet avec une adresse web → 400", r.status === 400 && /site internet/.test(r.data.error), r.data);
-  r = await fresh.post("/api/loans", { item: "Livre", borrowerName: "http://piege.example", borrowerEmail: email("ami3"), dueAt: new Date(Date.now() + 7 * DAY).toISOString() });
+  r = await fresh.post("/api/loans", { item: "Livre", borrowerFirstName: "Paul", borrowerLastName: "http://piege.example", borrowerBirthDate: "1990-05-14", borrowerEmail: email("ami3"), dueAt: new Date(Date.now() + 7 * DAY).toISOString() });
   check("nom d'emprunteur avec un lien → 400", r.status === 400, r.data);
   r = await new Client().post("/api/auth/register", { name: "promo-impots.fr", organization: "Structure", email: email("pirate"), password: PW, acceptTerms: true });
   check("nom avec une adresse web à l'inscription → 400", r.status === 400, r.data);
