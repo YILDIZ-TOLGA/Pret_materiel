@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { error, json, withUser, zodError } from "@/lib/api";
 import { limitsFor } from "@/lib/sitemode";
 import { newBorrowerRefusal, onLoanCreated } from "@/lib/loans";
-import { checkDates, checkLoanKind, loanSchema } from "@/lib/validation";
+import { borrowerFullName, checkBorrowerAge, checkDates, checkLoanKind, loanSchema } from "@/lib/validation";
 
 export const GET = withUser(async (user, req) => {
   const status = new URL(req.url).searchParams.get("status");
@@ -17,8 +17,10 @@ export const POST = withUser(async (user, req) => {
   const parsed = loanSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return zodError(parsed.error);
   const data = parsed.data;
-  const kindError = checkLoanKind(data) ?? checkDates(data.lentAt ?? new Date(), data.dueAt);
+  const lentAt = data.lentAt ?? new Date();
+  const kindError = checkLoanKind(data) ?? checkDates(lentAt, data.dueAt) ?? checkBorrowerAge(data.borrowerBirthDate, lentAt);
   if (kindError) return error(kindError);
+  const borrowerName = borrowerFullName(data.borrowerFirstName, data.borrowerLastName);
 
   // Anti-abus : pas d'e-mail envoyé à un tiers depuis un compte dont l'adresse n'est pas prouvée
   if (!user.emailVerifiedAt) {
@@ -29,13 +31,14 @@ export const POST = withUser(async (user, req) => {
   if (active >= limit) {
     return json({ error: limit === 0 ? "Un abonnement est nécessaire pour enregistrer des prêts : choisis l'offre Entreprise." : `Limite atteinte : ${limit} prêts en cours avec ton offre.`, code: "LIMIT_REACHED" }, 402);
   }
-  const refusal = await newBorrowerRefusal(user, data.borrowerEmail, data.borrowerName);
+  const refusal = await newBorrowerRefusal(user, data.borrowerEmail, borrowerName);
   if (refusal) return json({ error: refusal.error, code: refusal.code }, refusal.status);
 
   const borrower = await prisma.user.findFirst({ where: { email: data.borrowerEmail, emailVerifiedAt: { not: null } }, select: { id: true } });
   const loan = await prisma.loan.create({
     data: {
       ...data,
+      borrowerName,
       kind: data.kind ?? "OBJECT",
       item: data.item || "Prêt d'argent",
       amountCents: data.kind === "MONEY" ? data.amountCents : null,

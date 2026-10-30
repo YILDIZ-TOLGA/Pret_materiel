@@ -2,7 +2,8 @@
  * Tests de bout en bout des documents signés : accusé de réception signé par l'emprunteur (lien personnel,
  * sans compte), somme écrite en lettres et en chiffres pour un prêt d'argent, contestation, nouvelle signature
  * après modification, reçus de remboursement et attestation de restitution signés par le prêteur, PDF,
- * accès aux documents, relance de signature, nouvelles conditions à accepter.
+ * accès aux documents, relance de signature, nouvelles conditions à accepter, identité de l'emprunteur
+ * (prénom, nom, date de naissance, majeur).
  *
  * À lancer contre un serveur de dev qui tourne, avec la même base :
  *   DATABASE_URL=… JWT_SECRET=… TEST_BASE_URL=http://localhost:3001 npx tsx scripts/test-signatures.ts
@@ -94,7 +95,7 @@ async function main() {
 
   section("1. Nouveau prêt : demande de signature à l'emprunteur");
   const lender = await register("atelier", { plan: true, organization: "Atelier Martin", fullName: "Claire Martin" });
-  let r = await lender.post("/api/loans", { item: "Perforateur Hilti", description: "Avec coffret", borrowerName: "Léa Martin", borrowerEmail: email("lea"), dueAt: due(10), notes: "NOTE-SECRETE" });
+  let r = await lender.post("/api/loans", { item: "Perforateur Hilti", description: "Avec coffret", borrowerFirstName: "Léa", borrowerLastName: "Martin", borrowerBirthDate: "1990-05-14", borrowerEmail: email("lea"), dueAt: due(10), notes: "NOTE-SECRETE" });
   check("prêt créé, demande envoyée", r.status === 201 && r.data.signRequest === "sent" && r.data.loan.ackStatus === "PENDING" && !!r.data.loan.ackRequestedAt, r.data);
   const objectId = r.data.loan.id;
   check("e-mail de demande de signature journalisé (compte dans le plafond de nouveaux prêts)", (await mails(email("lea"), "loan_created")) === 1);
@@ -104,6 +105,7 @@ async function main() {
   check("…avec le récapitulatif complet et la structure du prêteur", r.data.loan.item === "Perforateur Hilti" && r.data.loan.description === "Avec coffret" && r.data.lender.organization === "Atelier Martin" && !!r.data.loan.dueAt, r.data);
   check("…sans la note privée du prêteur ni l'adresse de l'emprunteur en clair", !JSON.stringify(r.data).includes("NOTE-SECRETE") && r.data.borrower.email === `l•••@${DOMAIN}`, r.data.borrower);
   check("…et la déclaration à signer, nom à compléter", r.data.statement.length === 2 && r.data.statement[0].includes("[nom et prénom]") && r.data.statement[0].includes("reçu d'Atelier Martin (Claire Martin)"), r.data.statement);
+  check("…avec la date de naissance de l'emprunteur, à vérifier avant de signer", r.data.borrower.name === "Léa Martin" && r.data.borrower.birthDate === "1990-05-14" && r.data.statement[0].includes("[nom et prénom], né(e) le 14 mai 1990, reconnais"), { b: r.data.borrower, s: r.data.statement[0] });
   r = await anon.get(`/api/sign?t=${encodeURIComponent(t1.slice(0, -3) + (t1.endsWith("AAA") ? "BBB" : "AAA"))}`);
   check("lien modifié → 400", r.status === 400, r.data);
   const lenderDetail = await lender.get(`/api/loans/${objectId}`);
@@ -123,7 +125,8 @@ async function main() {
   const loanAfter = await prisma.loan.findUniqueOrThrow({ where: { id: objectId } });
   check("le prêt est signé", loanAfter.ackStatus === "SIGNED" && !!loanAfter.ackAt);
   check("document : signataire, adresse du lien, IP et navigateur enregistrés", ar.kind === "LOAN" && ar.signerName === "Léa Martin" && ar.signerEmail === email("lea") && ar.ip === borrowerTab.ip && ar.userAgent === "test-signatures", { ip: ar.ip, ua: ar.userAgent });
-  check("la déclaration enregistrée contient le nom saisi", JSON.stringify(ar.content).includes("Je soussigné(e) Léa Martin reconnais avoir reçu d'Atelier Martin (Claire Martin)"), (ar.content as any).statement);
+  check("la déclaration enregistrée contient le nom saisi et la date de naissance", JSON.stringify(ar.content).includes("Je soussigné(e) Léa Martin, né(e) le 14 mai 1990, reconnais avoir reçu d'Atelier Martin (Claire Martin)"), (ar.content as any).statement);
+  check("…et l'identité de l'emprunteur figure dans les parties du document", (ar.content as any).borrower?.name === "Léa Martin" && (ar.content as any).borrower?.birthDate === "1990-05-14", (ar.content as any).borrower);
   check("l'empreinte SHA-256 se recalcule à l'identique depuis la base", ar.hash === receiptHash(ar) && /^[0-9a-f]{64}$/.test(ar.hash), ar.hash);
   check("PDF envoyé au prêteur (à imprimer)", (await mails(email("atelier"), "receipt_lender")) === 1);
   check("copie envoyée à l'emprunteur", (await mails(email("lea"), "receipt_loan")) === 1);
@@ -144,7 +147,7 @@ async function main() {
   check("l'emprunteur télécharge sa copie depuis son lien", r.status === 200 && r.bytes.subarray(0, 5).toString() === "%PDF-", { status: r.status, type: r.type });
 
   section("4. Prêt d'argent : somme écrite par l'emprunteur, reçus signés par le prêteur");
-  r = await lender.post("/api/loans", { kind: "MONEY", amountCents: 5000, item: "Avance sur frais", borrowerName: "Julien Petit", borrowerEmail: email("julien"), dueAt: due(20) });
+  r = await lender.post("/api/loans", { kind: "MONEY", amountCents: 5000, item: "Avance sur frais", borrowerFirstName: "Julien", borrowerLastName: "Petit", borrowerBirthDate: "1990-05-14", borrowerEmail: email("julien"), dueAt: due(20) });
   const moneyId = r.data.loan.id;
   const t2 = await tokenOf(moneyId);
   r = await anon.get(`/api/sign?t=${encodeURIComponent(t2)}`);
@@ -174,7 +177,7 @@ async function main() {
   check("…« intégralement remboursé »", (last.content as any).payment.amountCents === 2400 && JSON.stringify(last.content).includes("intégralement remboursé"));
 
   section("5. Contestation par l'emprunteur");
-  r = await lender.post("/api/loans", { item: "Échelle", borrowerName: "Karim Benali", borrowerEmail: email("karim"), lentAt: due(-20), dueAt: due(-5) });
+  r = await lender.post("/api/loans", { item: "Échelle", borrowerFirstName: "Karim", borrowerLastName: "Benali", borrowerBirthDate: "1990-05-14", borrowerEmail: email("karim"), lentAt: due(-20), dueAt: due(-5) });
   const disputedId = r.data.loan.id;
   const t3 = await tokenOf(disputedId);
   r = await anon.post("/api/sign", { t: t3, action: "refuse", reason: "Je n'ai jamais emprunté d'échelle" });
@@ -221,7 +224,7 @@ async function main() {
   check("…mais la note privée reste modifiable", r.status === 200, r.data);
 
   section("8. Relance de signature et demande manuelle");
-  r = await lender.post("/api/loans", { item: "Vidéoprojecteur", borrowerName: "Emma Richard", borrowerEmail: email("emma"), dueAt: due(30) });
+  r = await lender.post("/api/loans", { item: "Vidéoprojecteur", borrowerFirstName: "Emma", borrowerLastName: "Richard", borrowerBirthDate: "1990-05-14", borrowerEmail: email("emma"), dueAt: due(30) });
   const slowId = r.data.loan.id;
   r = await lender.post(`/api/loans/${slowId}/sign-request`);
   check("renvoyer la demande moins de 24 h après → 429", r.status === 429, r.data);
@@ -238,21 +241,37 @@ async function main() {
   const lenderId = (await prisma.user.findUniqueOrThrow({ where: { email: email("atelier") } })).id;
   const old = await prisma.loan.create({ data: { lenderId, item: "Ancien prêt", borrowerName: "Ancien", borrowerEmail: email("ancien"), dueAt: new Date(Date.now() + 9 * DAY), ackStatus: "NONE" } });
   r = await lender.post(`/api/loans/${old.id}/sign-request`);
-  check("prêt enregistré avant les accusés : la signature peut être demandée", r.status === 200 && (await prisma.loan.findUniqueOrThrow({ where: { id: old.id } })).ackStatus === "PENDING", r.data);
+  check("prêt enregistré avant les accusés, sans identité : demande refusée tant qu'elle manque", r.status === 400 && /date de naissance/.test(r.data.error) && (await prisma.loan.findUniqueOrThrow({ where: { id: old.id } })).ackStatus === "NONE", r.data);
+  r = await lender.patch(`/api/loans/${old.id}`, { notes: "à compléter" });
+  check("…une note privée reste modifiable sans l'identité", r.status === 200, r.data);
+  r = await lender.patch(`/api/loans/${old.id}`, { remindBefore: false });
+  check("…tout comme les rappels", r.status === 200 && r.data.loan.remindBefore === false, r.data);
+  r = await lender.patch(`/api/loans/${old.id}`, { borrowerFirstName: "Jeanne", borrowerLastName: "Ancien", borrowerBirthDate: "1975-11-02" });
+  check("…identité complétée : nom affiché « Prénom Nom », pas de demande envoyée d'office", r.status === 200 && r.data.loan.borrowerName === "Jeanne Ancien" && r.data.loan.ackStatus === "NONE" && r.data.signRequest === null, r.data);
+  r = await lender.post(`/api/loans/${old.id}/sign-request`);
+  check("…puis la signature peut être demandée", r.status === 200 && (await prisma.loan.findUniqueOrThrow({ where: { id: old.id } })).ackStatus === "PENDING", r.data);
 
   section("9. Comptes créés avant : nouvelles conditions à accepter");
   const former = await register("ancien-client", { plan: true });
   await prisma.user.update({ where: { email: email("ancien-client") }, data: { termsVersion: "2026-10-28", organization: null } });
   r = await former.get("/api/auth/me");
   check("profil : conditions à accepter", r.data.termsUpToDate === false, r.data.termsUpToDate);
-  r = await former.post("/api/loans", { item: "Tente", borrowerName: "Ami", borrowerEmail: email("ami"), dueAt: due(7) });
+  r = await former.post("/api/loans", { item: "Tente", borrowerFirstName: "Ami", borrowerLastName: "Emprunteur", borrowerBirthDate: "1990-05-14", borrowerEmail: email("ami"), dueAt: due(7) });
   check("créer un prêt → 403 TERMS_UPDATE_REQUIRED", r.status === 403 && r.data.code === "TERMS_UPDATE_REQUIRED", r.data);
   r = await former.post("/api/account/terms", { acceptTerms: true });
   check("accepter sans nom de structure → 400", r.status === 400, r.data);
   r = await former.post("/api/account/terms", { acceptTerms: true, organization: "Club de voile" });
   check("accepter avec la structure → 200, version enregistrée", r.status === 200 && r.data.user.organization === "Club de voile" && !!r.data.user.termsVersion, r.data);
-  r = await former.post("/api/loans", { item: "Tente", borrowerName: "Ami", borrowerEmail: email("ami"), dueAt: due(7) });
+  r = await former.post("/api/loans", { item: "Tente", borrowerFirstName: "Ami", borrowerLastName: "Emprunteur", borrowerBirthDate: "1990-05-14", borrowerEmail: email("ami"), dueAt: due(7) });
   check("ensuite, créer un prêt → 201", r.status === 201, r.data);
+  // compte qui a accepté les conditions réservées aux professionnels, mais pas l'ajout de l'identité de l'emprunteur
+  await prisma.user.update({ where: { email: email("ancien-client") }, data: { termsVersion: "2026-10-30" } });
+  r = await former.get("/api/auth/me");
+  check("conditions du 30 octobre sans l'identité de l'emprunteur : nouvel accord demandé", r.data.termsUpToDate === false, r.data.termsUpToDate);
+  r = await former.post("/api/loans", { item: "Pagaie", borrowerFirstName: "Ami", borrowerLastName: "Emprunteur", borrowerBirthDate: "1990-05-14", borrowerEmail: email("ami"), dueAt: due(7) });
+  check("…créer un prêt → 403 TERMS_UPDATE_REQUIRED", r.status === 403 && r.data.code === "TERMS_UPDATE_REQUIRED", r.data);
+  r = await former.post("/api/account/terms", { acceptTerms: true });
+  check("…accepter (structure déjà connue) → 200", r.status === 200 && r.data.user.termsVersion > "2026-10-30", r.data.user?.termsVersion);
 
   section("10. Emprunteur inscrit et export des données");
   const leaAccount = await register("lea", { organization: "Bureau d'études Martin" });
@@ -264,6 +283,46 @@ async function main() {
   check("l'emprunteur inscrit télécharge l'attestation", r.status === 200 && r.type === "application/pdf", r.status);
   r = await lender.get("/api/account/export");
   check("l'export du prêteur contient les documents signés", JSON.stringify(r.data).includes(ar.number) && JSON.stringify(r.data).includes(at.number));
+  r = await leaAccount.get("/api/account/export");
+  const received = r.data.loansReceived?.find((l: any) => l.id === objectId);
+  check("l'export de l'emprunteur contient l'identité saisie par le prêteur", received?.borrowerName === "Léa Martin" && received?.borrowerFirstName === "Léa" && received?.borrowerBirthDate?.startsWith("1990-05-14"), received);
+
+  section("11. Identité de l'emprunteur : prénom, nom et date de naissance");
+  const idBase = { item: "Niveau laser", borrowerEmail: email("id1"), dueAt: due(15) };
+  r = await lender.post("/api/loans", idBase);
+  check("sans identité → 400", r.status === 400 && /Prénom de l'emprunteur requis/.test(r.data.error), r.data);
+  r = await lender.post("/api/loans", { ...idBase, borrowerFirstName: "Inès", borrowerLastName: "Moreau" });
+  check("sans date de naissance → 400", r.status === 400 && /Date de naissance de l'emprunteur requise/.test(r.data.error), r.data);
+  r = await lender.post("/api/loans", { ...idBase, borrowerFirstName: "Inès", borrowerLastName: "Moreau", borrowerBirthDate: "1990-02-30" });
+  check("date qui n'existe pas → 400", r.status === 400 && /invalide/.test(r.data.error), r.data);
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
+  // dates de naissance relatives au jour de Paris, celui que l'API utilise pour l'âge
+  const parisToday = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+  const yearsAgo = (y: number, days = 0) => { const d = new Date(`${parisToday}T12:00:00Z`); d.setUTCFullYear(d.getUTCFullYear() - y); return ymd(new Date(d.getTime() + days * DAY)); };
+  r = await lender.post("/api/loans", { ...idBase, borrowerFirstName: "Inès", borrowerLastName: "Moreau", borrowerBirthDate: yearsAgo(17) });
+  check("emprunteur mineur → 400, représentant légal à indiquer", r.status === 400 && /majeur/.test(r.data.error) && /représentant légal/.test(r.data.error), r.data);
+  r = await lender.post("/api/loans", { ...idBase, borrowerFirstName: "Inès", borrowerLastName: "Moreau", borrowerBirthDate: yearsAgo(18, -100), lentAt: due(-200) });
+  check("majeur aujourd'hui mais mineur à la date du prêt → 400", r.status === 400 && /majeur à la date du prêt/.test(r.data.error), r.data);
+  r = await lender.post("/api/loans", { ...idBase, borrowerFirstName: "Inès", borrowerLastName: "http://faux-site.example", borrowerBirthDate: "1992-07-01" });
+  check("adresse web dans le nom → 400", r.status === 400 && /site internet/.test(r.data.error), r.data);
+  check("aucun e-mail envoyé pour ces refus", (await mails(email("id1"), "loan_created")) === 0);
+  r = await lender.post("/api/loans", { ...idBase, borrowerFirstName: "  Inès  Claire ", borrowerLastName: " Moreau ", borrowerBirthDate: yearsAgo(18) });
+  check("18 ans aujourd'hui → 201, nom affiché « Prénom Nom » sans espaces en trop", r.status === 201 && r.data.loan.borrowerName === "Inès Claire Moreau" && r.data.loan.borrowerFirstName === "Inès Claire" && r.data.loan.borrowerBirthDate.startsWith(yearsAgo(18)), r.data.loan);
+  const idLoan = r.data.loan.id;
+  const tId = await tokenOf(idLoan);
+  r = await new Client().post("/api/sign", { t: tId, action: "sign", signerName: "Inès Claire Moreau", signature: SIGNATURE, accept: true });
+  check("l'emprunteur signe", r.status === 200, r.data);
+  r = await lender.patch(`/api/loans/${idLoan}`, { borrowerBirthDate: "1991-03-08" });
+  const reSigned = await prisma.loan.findUniqueOrThrow({ where: { id: idLoan } });
+  check("corriger la date de naissance d'un prêt signé → nouvel accusé à signer", r.status === 200 && r.data.signRequest === "sent" && reSigned.ackStatus === "PENDING" && reSigned.ackVersion === 2, { status: r.status, sr: r.data.signRequest, ack: reSigned.ackStatus, v: reSigned.ackVersion });
+  r = await anon.get(`/api/sign?t=${encodeURIComponent(tId)}`);
+  check("…l'ancien lien n'est plus valable (410)", r.status === 410, r.data);
+  r = await anon.get(`/api/sign?t=${encodeURIComponent(await tokenOf(idLoan))}`);
+  check("…le nouveau montre la date corrigée", r.status === 200 && r.data.borrower.birthDate === "1991-03-08" && r.data.statement[0].includes("né(e) le 8 mars 1991"), r.data.borrower);
+  r = await lender.patch(`/api/loans/${idLoan}`, { borrowerBirthDate: yearsAgo(16) });
+  check("modifier pour une date de mineur → 400", r.status === 400 && /majeur/.test(r.data.error), r.data);
+  r = await lender.patch(`/api/loans/${idLoan}`, { borrowerLastName: "" });
+  check("vider le nom → 400", r.status === 400 && /Nom de l'emprunteur requis/.test(r.data.error), r.data);
 }
 
 main()

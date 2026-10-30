@@ -15,7 +15,8 @@ export type ReceiptContent = {
   // numéro de fiche du prêt, comme dans l'application
   ref: string;
   lender: DocLender;
-  borrower: { name: string; email: string; phone: string | null };
+  // birthDate : AAAA-MM-JJ, absente des documents des prêts enregistrés avant que l'identité soit demandée
+  borrower: { name: string; email: string; phone: string | null; birthDate?: string | null };
   loan: DocLoan;
   statement: string[];
   // reçus : numéro de l'accusé de réception du prêt, s'il a été signé
@@ -39,6 +40,8 @@ export const NAME_PLACEHOLDER = "[nom et prénom]";
 
 /** « 3 octobre 2026 », heure de Paris (la même date sur le serveur et dans le navigateur). */
 export const docDay = (d: string | Date) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" });
+/** Date de naissance (AAAA-MM-JJ ou date ISO à minuit UTC) : « 12 mars 1985 », sans décalage de fuseau. */
+export const docBirth = (d: string) => new Date(`${d.slice(0, 10)}T00:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 /** « 3 octobre 2026 à 14:32 » */
 export const docDateTime = (d: string | Date) => `${docDay(d)} à ${new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`;
 
@@ -55,17 +58,18 @@ const isMoneyLoan = (l: DocLoan) => l.kind === "MONEY" && !!l.amountCents;
 const motive = (l: DocLoan) => (l.item && l.item !== "Prêt d'argent" ? `, pour le motif suivant : ${l.item}` : "");
 const forOrg = (l: { organization: string | null }) => (l.organization ? `, agissant pour ${l.organization},` : "");
 
-/** Déclaration de l'accusé de réception, signée par l'emprunteur. */
-export function loanStatement(signer: string, lender: { organization: string | null; name: string }, loan: DocLoan) {
+/** Déclaration de l'accusé de réception, signée par l'emprunteur (birthDate : sa date de naissance, si connue). */
+export function loanStatement(signer: string, lender: { organization: string | null; name: string }, loan: DocLoan, birthDate?: string | null) {
   const from = lenderLabel(lender);
+  const me = `Je soussigné(e) ${signer}${birthDate ? `, né(e) le ${docBirth(birthDate)},` : ""}`;
   if (isMoneyLoan(loan)) {
     return [
-      `Je soussigné(e) ${signer} reconnais avoir reçu ${de(from)}, le ${docDay(loan.lentAt)}, à titre de prêt, la somme de ${sum(loan.amountCents!)}${motive(loan)}.`,
+      `${me} reconnais avoir reçu ${de(from)}, le ${docDay(loan.lentAt)}, à titre de prêt, la somme de ${sum(loan.amountCents!)}${motive(loan)}.`,
       `Je m'engage à rembourser cette somme au plus tard le ${docDay(loan.dueAt)}.`,
     ];
   }
   return [
-    `Je soussigné(e) ${signer} reconnais avoir reçu ${de(from)}, le ${docDay(loan.lentAt)}, à titre de prêt, le bien suivant : ${loan.item}${loan.description ? ` (${loan.description})` : ""}.`,
+    `${me} reconnais avoir reçu ${de(from)}, le ${docDay(loan.lentAt)}, à titre de prêt, le bien suivant : ${loan.item}${loan.description ? ` (${loan.description})` : ""}.`,
     `Je m'engage à en prendre soin et à le restituer au plus tard le ${docDay(loan.dueAt)}.`,
   ];
 }

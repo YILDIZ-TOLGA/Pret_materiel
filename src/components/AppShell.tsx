@@ -8,6 +8,7 @@ import { Icon, type IconName } from "./Icon";
 import { useMe, type Me } from "./Providers";
 import { Avatar, DayNight, Menu, Meter, SkeletonRows, Spinner, ThemeSwitch } from "./ui";
 import { api } from "@/lib/client";
+import { B2B_TERMS_VERSION } from "@/lib/legal";
 import { PaidSwitchBanner } from "./SiteMode";
 
 export { Brand } from "./Brand";
@@ -140,9 +141,16 @@ function TermsBanner({ me }: { me: Me }) {
     <form className="banner soon" role="region" aria-label="Nouvelles conditions" style={{ marginBottom: 20, flexWrap: "wrap" }} onSubmit={submit}>
       <Icon name="info" size={16} />
       <div className="stack" style={{ flex: "1 1 300px", gap: 10 }}>
-        <span>
-          <strong>Prêt Matériel devient un service pour les professionnels.</strong> L&apos;emprunteur signe un accusé de réception en ligne, chaque remboursement ou retour donne un reçu signé à imprimer, et l&apos;offre devient unique. Lis les <Link href="/cgu" target="_blank">nouvelles conditions</Link> : tes prêts sont conservés, mais pour en enregistrer de nouveaux il faut les accepter.
-        </span>
+        {/* compte qui a déjà accepté les conditions réservées aux professionnels : seule l'identité de l'emprunteur change */}
+        {me.user.termsVersion && me.user.termsVersion >= B2B_TERMS_VERSION ? (
+          <span>
+            <strong>Conditions mises à jour : identité de l&apos;emprunteur.</strong> Chaque prêt indique désormais le prénom, le nom et la date de naissance de l&apos;emprunteur, qui doit être majeur : ils figurent sur l&apos;accusé de réception et les reçus. Lis les <Link href="/cgu" target="_blank">nouvelles conditions</Link> (articles 3 et 17) : pour enregistrer de nouveaux prêts, il faut les accepter.
+          </span>
+        ) : (
+          <span>
+            <strong>Prêt Matériel devient un service pour les professionnels.</strong> L&apos;emprunteur signe un accusé de réception en ligne, chaque remboursement ou retour donne un reçu signé à imprimer, et l&apos;offre devient unique. Lis les <Link href="/cgu" target="_blank">nouvelles conditions</Link> : tes prêts sont conservés, mais pour en enregistrer de nouveaux il faut les accepter.
+          </span>
+        )}
         {!me.user.organization && (
           <label className="field">Nom de ta structure <span className="opt">— entreprise, association…</span>
             <input value={org} onChange={(e) => setOrg(e.target.value)} required maxLength={120} autoComplete="organization" />

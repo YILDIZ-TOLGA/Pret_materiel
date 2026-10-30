@@ -7,7 +7,7 @@ import { isOptedOut } from "@/lib/optout";
 import { signatureProof } from "@/lib/pdf-response";
 import { deliverReceipt, receiptSummary, repaymentReceipt, returnReceipt } from "@/lib/receipts";
 import { limitsFor } from "@/lib/sitemode";
-import { checkDates, checkLoanKind, checkSignature, loanSchema, repaySchema, returnSchema } from "@/lib/validation";
+import { borrowerFullName, checkBorrowerAge, checkDates, checkLoanKind, checkSignature, identityMissing, loanSchema, repaySchema, returnSchema } from "@/lib/validation";
 
 type Ctx = { params: Promise<{ id: string }> };
 const details = {
@@ -17,7 +17,10 @@ const details = {
 // Remboursement ajouté quand on clôturait un prêt d'argent sans reçu (prêts antérieurs aux reçus signés)
 const CLOSING_NOTE = "Solde à la clôture";
 // Ce qui figure sur l'accusé de réception : le modifier demande une nouvelle signature à l'emprunteur
-const SIGNED_FIELDS = ["kind", "item", "amountCents", "description", "lentAt", "dueAt", "borrowerName", "borrowerEmail"] as const;
+const SIGNED_FIELDS = [
+  "kind", "item", "amountCents", "description", "lentAt", "dueAt",
+  "borrowerName", "borrowerFirstName", "borrowerLastName", "borrowerBirthDate", "borrowerEmail",
+] as const;
 
 async function own(userId: string, id: string) {
   const loan = await prisma.loan.findUnique({ where: { id }, include: details });
@@ -141,8 +144,16 @@ export const PATCH = withUser<Ctx>(async (user, req, { params }) => {
   const parsed = loanSchema.partial().safeParse(body);
   if (!parsed.success) return zodError(parsed.error);
   const kind = parsed.data.kind ?? loan.kind;
+  // identité de l'emprunteur après la modification (les prêts antérieurs peuvent ne pas l'avoir)
+  const identity = {
+    borrowerFirstName: parsed.data.borrowerFirstName ?? loan.borrowerFirstName,
+    borrowerLastName: parsed.data.borrowerLastName ?? loan.borrowerLastName,
+    borrowerBirthDate: parsed.data.borrowerBirthDate ?? loan.borrowerBirthDate,
+  };
+  const lentAt = parsed.data.lentAt ?? loan.lentAt;
   const kindError = checkLoanKind({ kind, item: parsed.data.item ?? loan.item, amountCents: parsed.data.amountCents ?? loan.amountCents })
-    ?? checkDates(parsed.data.lentAt ?? loan.lentAt, parsed.data.dueAt ?? loan.dueAt);
+    ?? checkDates(lentAt, parsed.data.dueAt ?? loan.dueAt)
+    ?? (identity.borrowerBirthDate && (parsed.data.borrowerBirthDate || parsed.data.lentAt) ? checkBorrowerAge(identity.borrowerBirthDate, lentAt) : null);
   if (kindError) return error(kindError);
   if (kind === "MONEY" && parsed.data.amountCents) {
     if (parsed.data.amountCents < loan.repaidCents) return error("Le montant ne peut pas être inférieur à ce qui a déjà été remboursé");
@@ -151,6 +162,9 @@ export const PATCH = withUser<Ctx>(async (user, req, { params }) => {
   const data = { ...parsed.data } as Record<string, unknown>;
   if (kind === "MONEY" && !parsed.data.item && parsed.data.item !== undefined) data.item = "Prêt d'argent";
   if (kind === "OBJECT") data.amountCents = null;
+  if ((parsed.data.borrowerFirstName || parsed.data.borrowerLastName) && identity.borrowerFirstName && identity.borrowerLastName) {
+    data.borrowerName = borrowerFullName(identity.borrowerFirstName, identity.borrowerLastName);
+  }
   const changed = (k: string) => k in data && !same(data[k], loan[k as keyof Loan]);
 
   // Prêt clôturé dont les documents sont signés : il est figé, seules les notes privées restent modifiables
@@ -162,7 +176,7 @@ export const PATCH = withUser<Ctx>(async (user, req, { params }) => {
   const newEmail = parsed.data.borrowerEmail && parsed.data.borrowerEmail !== loan.borrowerEmail ? parsed.data.borrowerEmail : null;
   if (newEmail) {
     if (loan.status === "ACTIVE") {
-      const refusal = await newBorrowerRefusal(user, newEmail, parsed.data.borrowerName ?? loan.borrowerName);
+      const refusal = await newBorrowerRefusal(user, newEmail, (data.borrowerName as string | undefined) ?? loan.borrowerName);
       if (refusal) return json({ error: refusal.error, code: refusal.code }, refusal.status);
       Object.assign(data, { reminderCount: 0, lastReminderAt: null });
     }
@@ -172,7 +186,12 @@ export const PATCH = withUser<Ctx>(async (user, req, { params }) => {
   // Ce qui figure sur l'accusé de réception a changé : l'emprunteur signe la nouvelle version (les liens déjà
   // envoyés ne permettent plus de signer l'ancienne). Les documents déjà signés restent dans l'historique.
   const resign = loan.status === "ACTIVE" && SIGNED_FIELDS.some(changed) && (loan.ackStatus !== "NONE" || !!newEmail);
-  if (resign) Object.assign(data, { ackStatus: "PENDING", ackVersion: { increment: 1 }, ackRequestedAt: new Date(), ackAt: null, ackRefusalReason: null, ackRemindedAt: null });
+  if (resign) {
+    // l'accusé de réception porte l'identité complète de l'emprunteur
+    const missing = identityMissing(identity);
+    if (missing) return error(missing);
+    Object.assign(data, { ackStatus: "PENDING", ackVersion: { increment: 1 }, ackRequestedAt: new Date(), ackAt: null, ackRefusalReason: null, ackRemindedAt: null });
+  }
   // Nouvelle échéance : le prêteur sera réalerté et le rappel de la veille repartira. Le compteur de rappels,
   // lui, n'est pas remis à zéro (plafond sur toute la vie du prêt, voir runReminders).
   if (parsed.data.dueAt && changed("dueAt")) data.lastReminderAt = null;

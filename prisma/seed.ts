@@ -69,11 +69,14 @@ async function main() {
       const returned = Math.random() < 0.6 && due < new Date() ? new Date(due.getTime() + (rand(10) - 5) * 86400000) : null;
       const money = Math.random() < 0.3;
       const amountCents = money ? (1 + rand(20)) * 5000 : null;
+      // identité fictive de l'emprunteur (majeur) : prénom, nom, date de naissance
+      const [first, last] = pick(names).split(" ");
+      const birth = new Date(Date.UTC(1960 + rand(45), rand(12), 1 + rand(28)));
       await prisma.loan.create({
         data: {
           lenderId: u.id, item: money ? pick(["Avance sur frais de mission", "Acompte sur salaire", "Prêt d'argent", "Dépannage"]) : pick(items),
           kind: money ? "MONEY" : "OBJECT", amountCents, repaidCents: money ? (returned ? amountCents! : rand(2) * Math.floor(amountCents! / 2)) : 0,
-          borrowerName: pick(names), borrowerEmail: `ami${rand(100)}@exemple.com`, lentAt: lent, dueAt: due, createdAt: lent, status: returned ? "RETURNED" : "ACTIVE", returnedAt: returned,
+          borrowerName: `${first} ${last}`, borrowerFirstName: first, borrowerLastName: last, borrowerBirthDate: birth, borrowerEmail: `ami${rand(100)}@exemple.com`, lentAt: lent, dueAt: due, createdAt: lent, status: returned ? "RETURNED" : "ACTIVE", returnedAt: returned,
           // données de démonstration : pas de document signé (accusé de réception non demandé ou en attente)
           ackStatus: pick(["NONE", "NONE", "PENDING", "REFUSED"] as const), ackRequestedAt: lent },
       });

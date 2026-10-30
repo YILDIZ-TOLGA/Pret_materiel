@@ -856,6 +856,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .fsec-title { display: flex; align-items: baseline; gap: 10px; font-size: 16px; letter-spacing: -.01em; }
 .fsec-title .n { font: 500 11px var(--f-mono); color: var(--brand); letter-spacing: .06em; }
 .fsec .grid-2 { gap: 14px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+/* identité de l'emprunteur : prénom, nom, date de naissance sur une ligne quand la place le permet */
+.fsec .grid-3 { gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.hint.warn { color: var(--soon); }
 .reveal-more { align-self: flex-start; appearance: none; border: 0; background: none; padding: 2px 0; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font: 500 13.5px var(--f-sans); color: var(--brand); }
 .reveal-more:hover { text-decoration: underline; text-underline-offset: 3px; }
 .grow-in { animation: rise .35s var(--ease) both; }
@@ -911,7 +914,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 @media (max-width: 959px) {
   .lform-card { padding: 22px 18px 4px; border-radius: var(--r); }
   .lform-submit { bottom: calc(66px + env(safe-area-inset-bottom)); }
-  .lform-submit .btn.primary { flex: 1; min-width: 0; }
+  /* libellé long (« Enregistrer et envoyer pour signature ») : il passe sur deux lignes au lieu de déborder du bouton */
+  .lform-submit .btn.primary { flex: 1; min-width: 0; height: auto; min-height: var(--h); padding-block: 9px; white-space: normal; line-height: 1.25; text-align: center; }
 }
 @media (max-width: 420px) { .kind { grid-template-columns: 1fr; } }
 

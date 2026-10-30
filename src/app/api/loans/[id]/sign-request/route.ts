@@ -4,6 +4,7 @@ import { termsUpToDate } from "@/lib/legal";
 import { MAIL_LIMITS } from "@/lib/limits";
 import { sendSignRequest } from "@/lib/loans";
 import { isOptedOut } from "@/lib/optout";
+import { identityMissing } from "@/lib/validation";
 
 type Ctx = { params: Promise<{ id: string }> };
 const DAY = 86400000;
@@ -20,6 +21,9 @@ export const POST = withUser<Ctx>(async (user, _req, { params }) => {
   if (loan.ackStatus === "REFUSED") {
     return error(`${loan.borrowerName} conteste ce prêt. Corrige-le (une nouvelle demande partira) ou contacte cette personne directement.`, 409);
   }
+  // prêt enregistré avant que l'identité soit demandée : à compléter avant toute demande de signature
+  const missing = identityMissing(loan);
+  if (missing) return error(missing);
   if (!termsUpToDate(user) || !user.organization) {
     return error("Accepte d'abord les nouvelles conditions et indique le nom de ta structure (bandeau en haut de l'application).", 403);
   }

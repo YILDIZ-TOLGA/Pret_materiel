@@ -59,7 +59,7 @@ async function register(name: string, admin = false) {
 // signature du prêteur (tracé valable) pour les reçus de remboursement et les attestations de retour
 const SIG = { signerName: "Prêteur Test", signature: { w: 600, h: 200, strokes: [[40, 120, 120, 60, 200, 140, 280, 70, 360, 130, 440, 80, 520, 120, 560, 100]] }, accept: true };
 const loanTo = (c: Client, i: number) =>
-  c.post("/api/loans", { item: `Objet ${i}`, borrowerName: "Ami", borrowerEmail: email(`ami${i}`), dueAt: new Date(Date.now() + 7 * DAY).toISOString() });
+  c.post("/api/loans", { item: `Objet ${i}`, borrowerFirstName: "Ami", borrowerLastName: "Emprunteur", borrowerBirthDate: "1990-05-14", borrowerEmail: email(`ami${i}`), dueAt: new Date(Date.now() + 7 * DAY).toISOString() });
 
 async function cleanup() {
   await prisma.payment.deleteMany({ where: { user: { email: { endsWith: `@${DOMAIN}` } } } });

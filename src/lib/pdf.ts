@@ -5,7 +5,7 @@ import { LineCapStyle, PDFDocument, PDFName, PDFString, rgb, type PDFFont, type 
 import type { ReceiptKind } from "@prisma/client";
 import { amountInFigures, amountInWords } from "./amount-words";
 import { LEGAL } from "./legal";
-import { docDateTime, docDay, type ReceiptContent } from "./receipt-text";
+import { docBirth, docDateTime, docDay, type ReceiptContent } from "./receipt-text";
 import { isDrawn, signaturePath, type SignatureData } from "./signature";
 
 /**
@@ -127,6 +127,7 @@ export async function receiptPdf(r: PdfReceipt): Promise<Uint8Array> {
   ]);
   const rightEnd = party(M.x + WIDTH / 2 + 10, "EMPRUNTEUR", [
     [c.borrower.name, F.b, C.ink],
+    ...(c.borrower.birthDate ? [[`né(e) le ${docBirth(c.borrower.birthDate)}`, F.r, C.ink2] as [string, PDFFont, ReturnType<typeof rgb>]] : []),
     [c.borrower.email, F.r, C.ink2],
     ...(c.borrower.phone ? [[c.borrower.phone, F.r, C.ink2] as [string, PDFFont, ReturnType<typeof rgb>]] : []),
   ]);

@@ -13,21 +13,46 @@ const longDate = (s: string) => (s ? new Date(`${s}T12:00:00`).toLocaleDateStrin
 const DURATIONS: [number, string][] = [[7, "1 semaine"], [14, "2 semaines"], [30, "1 mois"], [90, "3 mois"]];
 
 export type LoanInput = {
-  kind: "OBJECT" | "MONEY"; amount: string; item: string; description: string; borrowerName: string; borrowerEmail: string; borrowerPhone: string;
+  kind: "OBJECT" | "MONEY"; amount: string; item: string; description: string;
+  borrowerFirstName: string; borrowerLastName: string; borrowerBirthDate: string; borrowerEmail: string; borrowerPhone: string;
   lentAt: string; dueAt: string; autoReminder: boolean; remindBefore: boolean; notes: string;
 };
 
-type Person = { name: string; email: string; phone: string | null; count: number };
+// exact : prénom et nom saisis tels quels ; sinon proposés à partir du nom d'un prêt antérieur, à vérifier
+type Person = { name: string; first: string; last: string; birth: string; exact: boolean; email: string; phone: string | null; count: number };
 
-/** Emprunteurs déjà enregistrés, pour compléter nom, e-mail et téléphone en un clic. */
+/** Prénom et nom proposés pour un prêt enregistré avant que l'identité soit demandée (premier mot = prénom). */
+const splitName = (name: string) => {
+  const [first = "", ...rest] = name.trim().split(/\s+/);
+  return { first, last: rest.join(" ") };
+};
+const fullName = (v: { borrowerFirstName: string; borrowerLastName: string }) => `${v.borrowerFirstName.trim()} ${v.borrowerLastName.trim()}`.trim();
+
+/** L'emprunteur aurait moins de 18 ans à la date du prêt ou aujourd'hui (même règle que l'API). */
+function isMinor(birth: string, lentAt: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birth)) return false;
+  const today = toInput(new Date());
+  return `${Number(birth.slice(0, 4)) + 18}${birth.slice(4)}` > (lentAt && lentAt < today ? lentAt : today);
+}
+
+/** Emprunteurs déjà enregistrés, pour compléter identité, e-mail et téléphone en un clic. */
 function useKnownBorrowers() {
   const [people, setPeople] = useState<Person[]>([]);
   useEffect(() => {
     api<{ loans: LoanDTO[] }>("/api/loans").then((r) => {
       const m = new Map<string, Person>();
       for (const l of r.loans) {
+        const exact = !!(l.borrowerFirstName && l.borrowerLastName);
+        const id = exact ? { first: l.borrowerFirstName!, last: l.borrowerLastName! } : splitName(l.borrowerName);
         const p = m.get(l.borrowerEmail);
-        if (p) { p.count++; p.phone ??= l.borrowerPhone; } else m.set(l.borrowerEmail, { name: l.borrowerName, email: l.borrowerEmail, phone: l.borrowerPhone, count: 1 });
+        if (!p) {
+          m.set(l.borrowerEmail, { name: l.borrowerName, ...id, birth: l.borrowerBirthDate?.slice(0, 10) ?? "", exact, email: l.borrowerEmail, phone: l.borrowerPhone, count: 1 });
+          continue;
+        }
+        p.count++;
+        p.phone ??= l.borrowerPhone;
+        if (!p.birth && l.borrowerBirthDate) p.birth = l.borrowerBirthDate.slice(0, 10);
+        if (!p.exact && exact) Object.assign(p, id, { name: l.borrowerName, exact });
       }
       setPeople([...m.values()].sort((a, b) => b.count - a.count));
     }).catch(() => {});
@@ -38,11 +63,18 @@ function useKnownBorrowers() {
 export function LoanForm({ initial, submitLabel, onSubmit, onCancel }: { initial?: LoanDTO; submitLabel: string; onSubmit: (v: LoanInput) => Promise<void>; onCancel?: () => void }) {
   const { me } = useMe();
   const people = useKnownBorrowers();
+  // Identité obligatoire pour un nouveau prêt et pour un prêt en cours ; un prêt clôturé enregistré avant qu'elle
+  // soit demandée peut rester sans (aucun document ne sera plus signé). Pour un prêt en cours sans identité, le
+  // prénom et le nom sont proposés à partir du nom déjà enregistré.
+  const idRequired = !initial || initial.status === "ACTIVE";
+  const legacy = initial && !initial.borrowerFirstName && initial.status === "ACTIVE" ? splitName(initial.borrowerName) : null;
   const [v, setV] = useState<LoanInput>({
     kind: initial?.kind ?? "OBJECT",
     amount: initial?.amountCents ? String(initial.amountCents / 100).replace(".", ",") : "",
     item: initial?.kind === "MONEY" && initial.item === "Prêt d'argent" ? "" : initial?.item ?? "", description: initial?.description ?? "",
-    borrowerName: initial?.borrowerName ?? "", borrowerEmail: initial?.borrowerEmail ?? "", borrowerPhone: initial?.borrowerPhone ?? "",
+    borrowerFirstName: initial?.borrowerFirstName ?? legacy?.first ?? "", borrowerLastName: initial?.borrowerLastName ?? legacy?.last ?? "",
+    borrowerBirthDate: initial?.borrowerBirthDate?.slice(0, 10) ?? "",
+    borrowerEmail: initial?.borrowerEmail ?? "", borrowerPhone: initial?.borrowerPhone ?? "",
     lentAt: initial ? toInput(new Date(initial.lentAt)) : inDays(0),
     dueAt: initial ? toInput(new Date(initial.dueAt)) : inDays(14),
     autoReminder: initial?.autoReminder ?? true, remindBefore: initial?.remindBefore ?? true, notes: initial?.notes ?? "",
@@ -118,9 +150,18 @@ export function LoanForm({ initial, submitLabel, onSubmit, onCancel }: { initial
 
         <section className="fsec" aria-labelledby="f-who">
           <h2 className="fsec-title" id="f-who"><span className="n">02</span>À qui</h2>
-          <BorrowerName value={v.borrowerName} people={people}
-            onChange={(name) => setV({ ...v, borrowerName: name })}
-            onPick={(p) => setV({ ...v, borrowerName: p.name, borrowerEmail: p.email, borrowerPhone: p.phone ?? "" })} />
+          <div className="grid grid-3">
+            <BorrowerCombo value={v.borrowerFirstName} selected={fullName(v)} people={people} required={idRequired}
+              onChange={(first) => setV({ ...v, borrowerFirstName: first })}
+              onPick={(p) => setV({ ...v, borrowerFirstName: p.first, borrowerLastName: p.last, borrowerBirthDate: p.birth || v.borrowerBirthDate, borrowerEmail: p.email, borrowerPhone: p.phone ?? "" })} />
+            <label className="field">Nom<input value={v.borrowerLastName} onChange={set("borrowerLastName")} required={idRequired} maxLength={60} autoComplete="off" /></label>
+            <label className="field">Date de naissance
+              <input type="date" value={v.borrowerBirthDate} onChange={set("borrowerBirthDate")} required={idRequired} min="1900-01-01" max={toInput(new Date())} aria-describedby="f-id-hint" />
+            </label>
+          </div>
+          {isMinor(v.borrowerBirthDate, v.lentAt)
+            ? <p className="hint warn" id="f-id-hint" aria-live="polite">L&apos;emprunteur doit être majeur. Pour un mineur, indique son représentant légal (parent ou tuteur) : c&apos;est lui qui empruntera et signera.</p>
+            : <p className="hint" id="f-id-hint" aria-live="polite">Prénom, nom et date de naissance figurent sur l&apos;accusé de réception et les reçus : ils identifient l&apos;emprunteur sans ambiguïté. Il doit être majeur.</p>}
           <div className="grid grid-2">
             <label className="field">Adresse e-mail<input type="email" value={v.borrowerEmail} onChange={set("borrowerEmail")} required autoComplete="off" /></label>
             <label className="field"><span>Téléphone <span className="opt">— optionnel</span></span><input type="tel" value={v.borrowerPhone} onChange={set("borrowerPhone")} autoComplete="off" /></label>
@@ -179,7 +220,10 @@ export function LoanForm({ initial, submitLabel, onSubmit, onCancel }: { initial
   );
 }
 
-function BorrowerName({ value, people, onChange, onPick }: { value: string; people: Person[]; onChange: (v: string) => void; onPick: (p: Person) => void }) {
+/** Prénom, avec les emprunteurs déjà enregistrés en suggestion (recherche sur le prénom, le nom ou l'adresse). */
+function BorrowerCombo({ value, selected, people, required, onChange, onPick }: {
+  value: string; selected: string; people: Person[]; required: boolean; onChange: (v: string) => void; onPick: (p: Person) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState(0);
   const nq = norm(value.trim());
@@ -191,7 +235,7 @@ function BorrowerName({ value, people, onChange, onPick }: { value: string; peop
     return 0;
   };
   const matches = (nq ? people.map((p) => ({ p, s: score(p) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s).map((x) => x.p) : people)
-    .filter((p) => norm(p.name) !== nq)
+    .filter((p) => norm(`${p.first} ${p.last}`) !== norm(selected))
     .slice(0, 5);
   const show = open && matches.length > 0;
 
@@ -206,8 +250,8 @@ function BorrowerName({ value, people, onChange, onPick }: { value: string; peop
 
   return (
     <div className="combo">
-      <label className="field">Nom
-        <input value={value} required maxLength={80} autoComplete="off" role="combobox" aria-expanded={show} aria-controls="borrower-list" aria-autocomplete="list"
+      <label className="field">Prénom
+        <input value={value} required={required} maxLength={60} autoComplete="off" role="combobox" aria-expanded={show} aria-controls="borrower-list" aria-autocomplete="list"
           aria-activedescendant={show ? `bo-${sel}` : undefined}
           onChange={(e) => { onChange(e.target.value); setOpen(true); setSel(0); }}
           onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)} onKeyDown={onKey} />
@@ -243,7 +287,7 @@ function PreviewFiche({ v }: { v: LoanInput }) {
       </div>
       <div className="fiche-part fiche-body">
         <dl className="fiche-grid">
-          <div><dt>Emprunteur</dt><dd>{v.borrowerName.trim() ? <><Avatar name={v.borrowerName} size="xs" /><span className="truncate">{v.borrowerName}</span></> : <span className="placeholder">—</span>}</dd></div>
+          <div><dt>Emprunteur</dt><dd>{fullName(v) ? <><Avatar name={fullName(v)} size="xs" /><span className="truncate">{fullName(v)}</span></> : <span className="placeholder">—</span>}</dd></div>
           <div><dt>Retour</dt><dd className="mono">{v.dueAt ? dateShort(`${v.dueAt}T12:00:00`) : "—"}</dd></div>
         </dl>
       </div>
@@ -269,7 +313,7 @@ function MailPreview({ v, lender }: { v: LoanInput; lender: string }) {
         </div>
       </div>
       <div className="mail-prev-body">
-        <p>Bonjour {v.borrowerName.trim() || "…"},</p>
+        <p>Bonjour {fullName(v) || "…"},</p>
         <p>{lender} vous a prêté {what} le {longDate(v.lentAt)}, {money ? "à rembourser" : "à rendre"} le {longDate(v.dueAt)}.</p>
         <p>Merci de vérifier le récapitulatif et de signer l&apos;accusé de réception en ligne : cela prend une minute, sans créer de compte.</p>
         <p><span className="mail-prev-btn">Lire et signer l&apos;accusé de réception</span></p>
@@ -281,11 +325,15 @@ function MailPreview({ v, lender }: { v: LoanInput; lender: string }) {
 
 /** Convertit le formulaire en payload API (dates à midi local pour éviter les décalages de fuseau). */
 export function toPayload(v: LoanInput) {
-  const { amount, ...rest } = v;
+  const { amount, borrowerFirstName, borrowerLastName, borrowerBirthDate, ...rest } = v;
   const amountCents = v.kind === "MONEY" ? Math.round(Number(amount.replace(",", ".").replace(/\s/g, "")) * 100) : null;
   if (v.kind === "MONEY" && (!amountCents || amountCents <= 0)) throw new Error("Montant invalide");
   return {
     ...rest,
+    // identité laissée vide (prêt clôturé enregistré avant qu'elle soit demandée) : rien n'est envoyé
+    ...(borrowerFirstName.trim() ? { borrowerFirstName } : {}),
+    ...(borrowerLastName.trim() ? { borrowerLastName } : {}),
+    ...(borrowerBirthDate ? { borrowerBirthDate } : {}),
     amountCents,
     description: v.description || null, borrowerPhone: v.borrowerPhone || null, notes: v.notes || null,
     lentAt: new Date(`${v.lentAt}T12:00:00`).toISOString(),

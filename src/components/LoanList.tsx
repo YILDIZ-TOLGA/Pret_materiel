@@ -14,6 +14,8 @@ export type AckStatus = "NONE" | "PENDING" | "SIGNED" | "REFUSED";
 
 export type LoanDTO = {
   id: string; kind: "OBJECT" | "MONEY"; amountCents: number | null; repaidCents: number; repayments?: RepaymentDTO[]; item: string; description: string | null; borrowerName: string; borrowerEmail: string; borrowerPhone: string | null;
+  // identité de l'emprunteur (date de naissance : date ISO à minuit UTC) ; vide pour les prêts antérieurs
+  borrowerFirstName: string | null; borrowerLastName: string | null; borrowerBirthDate: string | null;
   lentAt: string; dueAt: string; status: "ACTIVE" | "RETURNED"; returnedAt: string | null; autoReminder: boolean; remindBefore: boolean;
   lastReminderAt: string | null; reminderCount: number; notes: string | null; borrowerId: string | null;
   /** accusé de réception signé par l'emprunteur */

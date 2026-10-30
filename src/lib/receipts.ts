@@ -40,6 +40,8 @@ export const receiptHash = (r: Hashed) => createHash("sha256").update(canonical(
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const newNumber = (kind: ReceiptKind) => `${DOC_PREFIX[kind]}-${[...randomBytes(8)].map((b) => ALPHABET[b % 32]).join("")}`;
 
+/** Date de naissance de l'emprunteur (AAAA-MM-JJ), si elle a été saisie. */
+const birthOf = (l: Loan) => l.borrowerBirthDate?.toISOString().slice(0, 10) ?? null;
 const docLoan = (l: Loan) => ({ kind: l.kind, item: l.item, description: l.description, amountCents: l.amountCents, lentAt: l.lentAt.toISOString(), dueAt: l.dueAt.toISOString() });
 
 /** Parties et prêt, communs aux trois documents. */
@@ -48,13 +50,13 @@ function docBase(kind: ReceiptKind, loan: Loan, lender: Lender) {
     title: DOC_TITLES[kind],
     ref: docRef(loan.id),
     lender: { organization: lender.organization, name: lender.name, email: lender.email },
-    borrower: { name: loan.borrowerName, email: loan.borrowerEmail, phone: loan.borrowerPhone },
+    borrower: { name: loan.borrowerName, email: loan.borrowerEmail, phone: loan.borrowerPhone, ...(birthOf(loan) ? { birthDate: birthOf(loan) } : {}) },
     loan: docLoan(loan),
   };
 }
 
 /** Texte que l'emprunteur lit puis signe (aperçu de la page de signature, avec le nom à compléter). */
-export const loanStatementFor = (signer: string, loan: Loan, lender: Lender) => loanStatement(signer, lender, docLoan(loan));
+export const loanStatementFor = (signer: string, loan: Loan, lender: Lender) => loanStatement(signer, lender, docLoan(loan), birthOf(loan));
 
 /** Numéro de l'accusé de réception signé le plus récent du prêt, rappelé sur les reçus. */
 async function ackNumber(tx: Prisma.TransactionClient, loanId: string) {

@@ -22,13 +22,30 @@ const LINK = /(https?:\/\/|www\.|[a-z0-9-]\.(com|fr|net|org|io|co|me|ly|xyz|info
 export const noLink = (s: string) => !LINK.test(s);
 export const NO_LINK = "Pas d'adresse de site internet dans ce champ";
 
+/** « 1985-03-12 » → ce jour à minuit UTC (une date du calendrier, sans heure), ou null s'il n'existe pas (31 février…). */
+export function calendarDay(s: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s ? d : null;
+}
+
+// Identité de l'emprunteur, reprise sur l'accusé de réception et les reçus (le nom affiché en est tiré)
+const personName = (label: string) => z.string({ message: `${label} de l'emprunteur requis` })
+  .transform((s) => s.trim().replace(/\s+/g, " "))
+  .pipe(z.string().min(1, `${label} de l'emprunteur requis`).max(60, `${label} de l'emprunteur : 60 caractères maximum`).refine(noLink, NO_LINK));
+const birthDateSchema = z.string({ message: "Date de naissance de l'emprunteur requise" }).trim()
+  .refine((s) => !!calendarDay(s), "Date de naissance de l'emprunteur invalide")
+  .transform((s) => calendarDay(s)!);
+
 export const loanSchema = z.object({
   kind: z.enum(["OBJECT", "MONEY"]).optional(),
   // objet prêté, ou motif pour un prêt d'argent
   item: z.string().trim().max(120).refine(noLink, NO_LINK).optional(),
   amountCents: z.number().int().positive("Montant invalide").max(100_000_000, "Montant trop élevé").optional().nullable(),
   description: z.string().trim().max(1000).optional().nullable(),
-  borrowerName: z.string().trim().min(1, "Nom de l'emprunteur requis").max(80).refine(noLink, NO_LINK),
+  borrowerFirstName: personName("Prénom"),
+  borrowerLastName: personName("Nom"),
+  borrowerBirthDate: birthDateSchema,
   borrowerEmail: z.string().trim().toLowerCase().email("E-mail de l'emprunteur invalide"),
   borrowerPhone: z.string().trim().max(30).optional().nullable(),
   lentAt: z.coerce.date().optional(),
@@ -96,6 +113,34 @@ export const borrowerSignSchema = z.discriminatedUnion("action", [
 /** La date de retour ne peut pas précéder la date du prêt ; renvoie un message d'erreur ou null. */
 export function checkDates(lentAt: Date, dueAt: Date) {
   return dueAt.getTime() < lentAt.getTime() ? "La date de retour doit être après la date du prêt" : null;
+}
+
+/** « Prénom Nom », le nom de l'emprunteur affiché dans les listes, les e-mails et les documents. */
+export const borrowerFullName = (first: string, last: string) => `${first} ${last}`;
+
+const parisToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+/**
+ * Un mineur ne peut pas s'engager seul (art. 1146 C. civ.) : l'emprunteur doit être majeur à la date du prêt
+ * et le jour où il signe. Pour un mineur, c'est son représentant légal qui emprunte et signe.
+ * Renvoie un message d'erreur ou null.
+ */
+export function checkBorrowerAge(birthDate: Date, lentAt: Date) {
+  const birth = birthDate.toISOString().slice(0, 10);
+  if (birth > parisToday()) return "La date de naissance de l'emprunteur est dans le futur";
+  if (birth < "1900-01-01") return "Date de naissance de l'emprunteur invalide";
+  // 18e anniversaire, comparé aux dates du calendrier (AAAA-MM-JJ)
+  const adultOn = `${Number(birth.slice(0, 4)) + 18}${birth.slice(4)}`;
+  const minor = "Pour un mineur, indique son représentant légal (parent ou tuteur) : c'est lui qui empruntera et signera.";
+  if (adultOn > lentAt.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" })) return `L'emprunteur doit être majeur à la date du prêt. ${minor}`;
+  if (adultOn > parisToday()) return `L'emprunteur doit être majeur pour signer l'accusé de réception. ${minor}`;
+  return null;
+}
+
+/** Identité complète de l'emprunteur, exigée pour tout document qu'il signe ; renvoie un message d'erreur ou null. */
+export function identityMissing(l: { borrowerFirstName: string | null; borrowerLastName: string | null; borrowerBirthDate: Date | null }) {
+  return l.borrowerFirstName && l.borrowerLastName && l.borrowerBirthDate
+    ? null
+    : "Prénom, nom et date de naissance de l'emprunteur requis : ils figurent sur l'accusé de réception qu'il signe.";
 }
 
 /** Règles propres au type de prêt ; renvoie un message d'erreur ou null. */

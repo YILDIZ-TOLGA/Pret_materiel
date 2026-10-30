@@ -11,7 +11,7 @@ import { SignDialog, type SignRequest, type SignResult } from "@/components/Sign
 import { useToast } from "@/components/Toast";
 import { Avatar, CountUp, DueChip, EmptyState, Menu, Meter, PageHeader, Spinner, Stamp, Switch } from "@/components/ui";
 import { api, dateFr, dateShort, dayDiff, downloadFile, dueInfo, euros, isMoney, loanTitle, moneyReason, relTime, remainingCents } from "@/lib/client";
-import { DOC_TITLES } from "@/lib/receipt-text";
+import { DOC_TITLES, docBirth } from "@/lib/receipt-text";
 
 const HOUR = 3600000;
 /** Montant animé : arrondi à l'euro pendant le défilement, exact à l'arrivée. */
@@ -223,7 +223,17 @@ function LoanDetail() {
             </div>
             <div className="fiche-part fiche-body">
               <dl className="fiche-grid">
-                <div><dt>Emprunteur</dt><dd><Avatar name={loan.borrowerName} size="sm" />{loan.borrowerName}{loan.borrowerId && <span className="tag brand" title="L'emprunteur a un compte Prêt Matériel">Membre</span>}</dd></div>
+                <div>
+                  <dt>Emprunteur</dt>
+                  <dd style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <Avatar name={loan.borrowerName} size="sm" />{loan.borrowerName}{loan.borrowerId && <span className="tag brand" title="L'emprunteur a un compte Prêt Matériel">Membre</span>}
+                    </span>
+                    {loan.borrowerBirthDate
+                      ? <span className="small muted">né(e) le {docBirth(loan.borrowerBirthDate)}</span>
+                      : <span className="small muted">Identité à compléter : prénom, nom et date de naissance</span>}
+                  </dd>
+                </div>
                 <div>
                   <dt>Contact</dt>
                   <dd style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
@@ -357,6 +367,8 @@ function AckCard({ loan, optedOut, busy, onRequest, onDownload }: {
   const active = loan.status === "ACTIVE";
   const ack = loan.receipts?.find((r) => r.kind === "LOAN");
   const recent = !!loan.ackRequestedAt && Date.now() - new Date(loan.ackRequestedAt).getTime() < 86400000;
+  // prêt enregistré avant que l'identité soit demandée : à compléter avant toute demande de signature
+  const noId = !(loan.borrowerFirstName && loan.borrowerLastName && loan.borrowerBirthDate);
   let ico: "check" | "hourglass" | "alert" | "file" = "file", tone = "", t = "", d: React.ReactNode = null, action: React.ReactNode = null;
   if (loan.ackStatus === "SIGNED") {
     ico = "check"; tone = "ok"; t = "Accusé de réception signé";
@@ -365,14 +377,14 @@ function AckCard({ loan, optedOut, busy, onRequest, onDownload }: {
   } else if (loan.ackStatus === "PENDING") {
     ico = "hourglass"; tone = "soon"; t = active ? "En attente de la signature" : "Jamais signé";
     d = <>{loan.ackRequestedAt ? <>Demande envoyée à {loan.borrowerEmail} le {fmtDateTime(loan.ackRequestedAt)}.</> : null}{ack && <> Une version précédente a été signée (n° {ack.number}).</>}</>;
-    if (active) action = <button type="button" className="btn block" disabled={busy || recent || optedOut} onClick={onRequest}><Icon name="send" size={15} />Renvoyer la demande</button>;
+    if (active) action = <button type="button" className="btn block" disabled={busy || recent || optedOut || noId} onClick={onRequest}><Icon name="send" size={15} />Renvoyer la demande</button>;
   } else if (loan.ackStatus === "REFUSED") {
     ico = "alert"; tone = "late"; t = "Prêt contesté par l'emprunteur";
     d = <>le {fmtDateTime(loan.ackAt ?? loan.lentAt)}{loan.ackRefusalReason ? <> : « {loan.ackRefusalReason} ».</> : "."} Plus aucun rappel ne lui est envoyé. Corrige le prêt (une nouvelle demande partira) ou supprime-le.</>;
   } else {
     t = "Pas d'accusé de réception";
     d = "Prêt enregistré avant les accusés de réception signés.";
-    if (active) action = <button type="button" className="btn block" disabled={busy || optedOut} onClick={onRequest}><Icon name="signature" size={15} />Demander la signature</button>;
+    if (active) action = <button type="button" className="btn block" disabled={busy || optedOut || noId} onClick={onRequest}><Icon name="signature" size={15} />Demander la signature</button>;
   }
   return (
     <section className="side-card" aria-label="Accusé de réception">
@@ -384,7 +396,10 @@ function AckCard({ loan, optedOut, busy, onRequest, onDownload }: {
         </div>
         {action}
         {optedOut && <p className="side-note">{loan.borrowerName} a bloqué les e-mails de Prêt Matériel : ni demande de signature, ni reçu, ni rappel ne lui parviennent.</p>}
-        {!optedOut && loan.ackStatus === "PENDING" && active && recent && <p className="side-note">Nouvel envoi possible 24 h après la dernière demande.</p>}
+        {!optedOut && loan.ackStatus === "PENDING" && active && recent && !noId && <p className="side-note">Nouvel envoi possible 24 h après la dernière demande.</p>}
+        {!optedOut && active && noId && (loan.ackStatus === "PENDING" || loan.ackStatus === "NONE") && (
+          <p className="side-note">Complète d&apos;abord le prénom, le nom et la date de naissance de l&apos;emprunteur (bouton Modifier) : ils figurent sur l&apos;accusé de réception.</p>
+        )}
       </div>
     </section>
   );

@@ -8,11 +8,14 @@ export const GET = withUser(async (user) => {
     // prêts enregistrés, avec leurs documents signés (contenu, tracé, éléments de preuve)
     prisma.loan.findMany({ where: { lenderId: user.id }, include: { repayments: true, receipts: true }, orderBy: { createdAt: "asc" } }),
     prisma.loan.findMany({
-      where: { borrowerId: user.id },
+      // mêmes prêts que la page Emprunts (src/app/api/borrowed/route.ts) : liés au compte ou à l'adresse confirmée
+      where: user.emailVerifiedAt ? { OR: [{ borrowerId: user.id }, { borrowerEmail: user.email }] } : { borrowerId: user.id },
       // les notes privées du prêteur ne concernent que lui
       select: {
         id: true, kind: true, item: true, amountCents: true, repaidCents: true, currency: true, description: true, lentAt: true, dueAt: true, status: true, returnedAt: true,
         ackStatus: true, ackAt: true, ackRefusalReason: true, lender: { select: { name: true, email: true, organization: true } },
+        // identité de l'emprunteur telle que le prêteur l'a saisie (ce sont ses propres données)
+        borrowerName: true, borrowerFirstName: true, borrowerLastName: true, borrowerBirthDate: true,
         // documents du prêt ; l'adresse IP et le navigateur ne sont donnés que pour ce que l'emprunteur a signé lui-même
         receipts: { select: { number: true, kind: true, content: true, signature: true, signerName: true, signerEmail: true, signedAt: true, ip: true, userAgent: true, hash: true } },
       },

@@ -79,7 +79,7 @@ async function register(name: string, verified = false) {
   return c;
 }
 const paid = (e: string) => prisma.user.update({ where: { email: e }, data: { plan: "ENTREPRISE_YEARLY", planExpiresAt: new Date(Date.now() + 30 * 86400000) } });
-const loanTo = (c: Client, to: string, item = "Perceuse") => c.post("/api/loans", { item, borrowerName: "Test", borrowerEmail: to, dueAt: new Date(Date.now() + 7 * 86400000).toISOString() });
+const loanTo = (c: Client, to: string, item = "Perceuse") => c.post("/api/loans", { item, borrowerFirstName: "Test", borrowerLastName: "Emprunteur", borrowerBirthDate: "1990-05-14", borrowerEmail: to, dueAt: new Date(Date.now() + 7 * 86400000).toISOString() });
 
 async function cleanup() {
   await prisma.user.deleteMany({ where: { email: { endsWith: `@${DOMAIN}` } } });
@@ -177,9 +177,9 @@ async function main() {
   r = await loanTo(alice, email("dan"), "Échelle");
   check("prêt à un compte confirmé : rattaché tout de suite", r.data.loan?.borrowerId === danU.id, r.data);
   const eveC = await register("eve");
-  r = await alice.req("PATCH", `/api/loans/${danLoanId}`, { borrowerEmail: email("eve"), borrowerName: "Eve", item: "Vélo", dueAt: new Date(Date.now() + 86400000).toISOString() });
+  r = await alice.req("PATCH", `/api/loans/${danLoanId}`, { borrowerEmail: email("eve"), borrowerFirstName: "Eve", item: "Vélo", dueAt: new Date(Date.now() + 86400000).toISOString() });
   check("modification vers un compte non confirmé : rattachement retiré", r.status === 200 && (await prisma.loan.findUnique({ where: { id: danLoanId } }))?.borrowerId === null, r.data);
-  r = await alice.req("PATCH", `/api/loans/${danLoanId}`, { borrowerEmail: email("dan"), borrowerName: "Dan", item: "Vélo", dueAt: new Date(Date.now() + 86400000).toISOString() });
+  r = await alice.req("PATCH", `/api/loans/${danLoanId}`, { borrowerEmail: email("dan"), borrowerFirstName: "Dan", item: "Vélo", dueAt: new Date(Date.now() + 86400000).toISOString() });
   check("modification vers un compte confirmé : rattaché", (await prisma.loan.findUnique({ where: { id: danLoanId } }))?.borrowerId === danU.id);
   r = await loanTo(alice, email("alice"));
   check("se prêter à soi-même reste interdit", r.status === 400);
