@@ -11,7 +11,7 @@ const hits = new Map<string, number[]>();
  * dernière valeur, ajoutée par le reverse proxy (Caddy, nginx) juste devant le site. CF-Connecting-IP
  * n'est lu que si le site est derrière Cloudflare (BEHIND_CLOUDFLARE=true), sinon il serait falsifiable.
  */
-async function clientIp() {
+export async function clientIp() {
   const h = await headers();
   if (process.env.BEHIND_CLOUDFLARE === "true" && h.get("cf-connecting-ip")) return h.get("cf-connecting-ip")!;
   const chain = h.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean);

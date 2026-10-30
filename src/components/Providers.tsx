@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { api, isNativeApp, saveAuthToken } from "@/lib/client";
 
 export type Me = {
-  user: { id: string; name: string; organization: string | null; email: string; role: "USER" | "ADMIN"; plan: string; planExpiresAt: string | null; stripeSubscriptionId: string | null; cancelAtPeriodEnd: boolean; createdAt: string; termsAcceptedAt: string | null;
+  user: { id: string; name: string; organization: string | null; email: string; role: "USER" | "ADMIN"; plan: string; planExpiresAt: string | null; stripeSubscriptionId: string | null; cancelAtPeriodEnd: boolean; createdAt: string; termsAcceptedAt: string | null; termsVersion: string | null;
     /** null tant que l'adresse n'a pas été confirmée par le lien reçu par e-mail */
     emailVerifiedAt: string | null; pendingEmail: string | null };
   plan: { id: string; name: string; maxLoans: number; priceLabel: string };
@@ -15,6 +15,8 @@ export type Me = {
   site?: { mode: "BETA" | "PAID"; paidFrom: string | null };
   /** Date limite pour se rétracter de l'abonnement en cours, ou null si ce n'est plus possible. */
   withdrawalUntil?: string | null;
+  /** Conditions acceptées dans la version en vigueur (sinon : à accepter pour enregistrer des prêts). */
+  termsUpToDate?: boolean;
 };
 
 type Ctx = { me: Me | null; loading: boolean; refresh: () => Promise<void>; logout: () => Promise<void> };

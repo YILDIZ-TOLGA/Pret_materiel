@@ -72,6 +72,12 @@ export const GET = withAdmin(async (_user, req) => {
   const [pages, referrers, devices, browsers, countries] = await Promise.all([top("path"), top("referrer"), top("device"), top("browser"), top("country")]);
 
   const moneyLoans = await prisma.loan.aggregate({ where: { kind: "MONEY" }, _count: true, _sum: { amountCents: true, repaidCents: true } });
+  // accusés de réception (prêts en cours) et documents signés
+  const [acks, receipts] = await Promise.all([
+    prisma.loan.groupBy({ by: ["ackStatus"], _count: true, where: { status: "ACTIVE" } }),
+    prisma.receipt.count(),
+  ]);
+  const ack = Object.fromEntries(acks.map((a) => [a.ackStatus, a._count]));
 
   const [recentPayments, recentUsers, revenueByPlan] = await Promise.all([
     prisma.payment.findMany({ orderBy: { createdAt: "desc" }, take: 10, include: { user: { select: { email: true, name: true } } } }),
@@ -108,6 +114,7 @@ export const GET = withAdmin(async (_user, req) => {
       moneyLoans: moneyLoans._count,
       moneyLentCents: moneyLoans._sum.amountCents ?? 0,
       moneyRepaidCents: moneyLoans._sum.repaidCents ?? 0,
+      ackSigned: ack.SIGNED ?? 0, ackPending: ack.PENDING ?? 0, ackRefused: ack.REFUSED ?? 0, receipts,
       views: viewsRange, viewsPrev,
       visitors, visitorsPrev: num(visitorsPrevRow?.n),
       viewsPerVisitor: visitors ? viewsRange / visitors : 0,

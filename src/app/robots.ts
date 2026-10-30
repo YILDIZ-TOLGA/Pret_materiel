@@ -10,7 +10,7 @@ export default function robots(): MetadataRoute.Robots {
       disallow: [
         "/api/", "/admin", "/prets", "/bilan", "/emprunts", "/notifications", "/abonnement", "/compte",
         // pages ouvertes par un lien personnel reçu par e-mail
-        "/desinscription", "/verifier-email", "/reinitialiser-mot-de-passe",
+        "/desinscription", "/verifier-email", "/reinitialiser-mot-de-passe", "/signer",
       ],
     },
     sitemap: `${LEGAL.siteUrl}/sitemap.xml`,

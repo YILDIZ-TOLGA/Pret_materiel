@@ -73,12 +73,12 @@ async function linkFor(userId: string, kind: AuthTokenKind, to: string, ttlMs = 
 
 async function register(name: string, verified = false) {
   const c = new Client();
-  const r = await c.post("/api/auth/register", { name, email: email(name), password: PW, acceptTerms: true });
+  const r = await c.post("/api/auth/register", { name, organization: `Structure ${name}`, email: email(name), password: PW, acceptTerms: true });
   if (r.status !== 201) throw new Error(`Inscription ${name} impossible : ${JSON.stringify(r.data)}`);
   if (verified) await prisma.user.update({ where: { email: email(name) }, data: { emailVerifiedAt: new Date() } });
   return c;
 }
-const paid = (e: string) => prisma.user.update({ where: { email: e }, data: { plan: "PERSO_MONTHLY", planExpiresAt: new Date(Date.now() + 30 * 86400000) } });
+const paid = (e: string) => prisma.user.update({ where: { email: e }, data: { plan: "ENTREPRISE_YEARLY", planExpiresAt: new Date(Date.now() + 30 * 86400000) } });
 const loanTo = (c: Client, to: string, item = "Perceuse") => c.post("/api/loans", { item, borrowerName: "Test", borrowerEmail: to, dueAt: new Date(Date.now() + 7 * 86400000).toISOString() });
 
 async function cleanup() {
@@ -94,7 +94,7 @@ async function main() {
 
   section("1. Inscription et confirmation de l'adresse");
   const alice = new Client();
-  let r = await alice.post("/api/auth/register", { name: "alice", email: email("alice"), password: PW, acceptTerms: true });
+  let r = await alice.post("/api/auth/register", { name: "alice", organization: "Structure test", email: email("alice"), password: PW, acceptTerms: true });
   check("inscription → 201", r.status === 201, r.data);
   check("le mot de passe n'est jamais renvoyé", !JSON.stringify(r.data).includes("passwordHash"));
   check("adresse non confirmée à l'inscription", r.data.user?.emailVerifiedAt === null);
@@ -103,7 +103,7 @@ async function main() {
   r = await loanTo(alice, email("x1"));
   check("création de prêt refusée tant que l'adresse n'est pas confirmée → 403", r.status === 403 && r.data.code === "EMAIL_NOT_VERIFIED", r);
   check("aucun e-mail envoyé à l'emprunteur", (await prisma.emailLog.count({ where: { to: email("x1") } })) === 0);
-  r = await alice.post("/api/auth/register", { name: "bis", email: email("alice"), password: PW, acceptTerms: true });
+  r = await alice.post("/api/auth/register", { name: "bis", organization: "Structure test", email: email("alice"), password: PW, acceptTerms: true });
   check("double inscription avec la même adresse → 409", r.status === 409);
 
   for (let i = 1; i <= 3; i++) {
@@ -144,7 +144,7 @@ async function main() {
   check("prêt à une adresse sans compte : non rattaché", r.data.loan?.borrowerId === null);
   check("e-mail envoyé à l'emprunteur", (await mailsTo(email("chloe"), "loan_created")) === 1);
   const pirate = new Client();
-  r = await pirate.post("/api/auth/register", { name: "Pirate", email: email("chloe"), password: PW, acceptTerms: true });
+  r = await pirate.post("/api/auth/register", { name: "Pirate", organization: "Structure test", email: email("chloe"), password: PW, acceptTerms: true });
   check("un inconnu peut s'inscrire avec l'adresse de l'emprunteur…", r.status === 201);
   r = await pirate.get("/api/borrowed");
   check("… mais ne voit aucun de ses emprunts", Array.isArray(r.data.loans) && r.data.loans.length === 0, r.data);
@@ -391,7 +391,8 @@ async function main() {
   check("admin seulement une fois l'adresse confirmée", (await userBy(email("boss")))?.role === "ADMIN");
   const demo = async (env: Record<string, string>) => {
     const { execFileSync } = await import("node:child_process");
-    const out = execFileSync(process.execPath, ["--import", "tsx", "-e", "import('./src/lib/stripe.ts').then(m => console.log(m.demoBilling))"], {
+    // selon la version de tsx, les exports du module chargé ici arrivent directement ou sous `default`
+    const out = execFileSync(process.execPath, ["--import", "tsx", "-e", "import('./src/lib/stripe.ts').then(m => console.log(m.demoBilling ?? m.default?.demoBilling))"], {
       env: { ...process.env, STRIPE_SECRET_KEY: "", ...env }, encoding: "utf8",
     });
     return out.trim() === "true";

@@ -51,11 +51,13 @@ class Client {
 const email = (name: string) => `${name}@${DOMAIN}`;
 async function register(name: string, admin = false) {
   const c = new Client();
-  const r = await c.post("/api/auth/register", { name, email: email(name), password: PW, acceptTerms: true });
+  const r = await c.post("/api/auth/register", { name, organization: `Structure ${name}`, email: email(name), password: PW, acceptTerms: true });
   if (r.status !== 201) throw new Error(`Inscription ${name} impossible : ${JSON.stringify(r.data)}`);
   await prisma.user.update({ where: { email: email(name) }, data: { emailVerifiedAt: new Date(), ...(admin ? { role: "ADMIN" as const } : {}) } });
   return c;
 }
+// signature du prêteur (tracé valable) pour les reçus de remboursement et les attestations de retour
+const SIG = { signerName: "Prêteur Test", signature: { w: 600, h: 200, strokes: [[40, 120, 120, 60, 200, 140, 280, 70, 360, 130, 440, 80, 520, 120, 560, 100]] }, accept: true };
 const loanTo = (c: Client, i: number) =>
   c.post("/api/loans", { item: `Objet ${i}`, borrowerName: "Ami", borrowerEmail: email(`ami${i}`), dueAt: new Date(Date.now() + 7 * DAY).toISOString() });
 
@@ -82,14 +84,14 @@ async function main() {
   let r = await new Client().get("/api/site");
   check("la route publique annonce la phase de test", r.status === 200 && r.data.mode === "BETA" && r.data.betaLimits.maxLoans === BETA_LIMITS.maxLoans, r.data);
   const ids: string[] = [];
-  for (let i = 0; i < PLANS.FREE.maxLoans + 2; i++) {
+  for (let i = 0; i < 3; i++) {
     r = await loanTo(user, i);
     if (r.status === 201) ids.push(r.data.loan.id);
   }
-  check(`${PLANS.FREE.maxLoans + 2} prêts en cours sans payer (au-delà de l'offre gratuite)`, ids.length === PLANS.FREE.maxLoans + 2, r.data);
+  check("3 prêts en cours sans abonnement ni paiement", ids.length === 3, r.data);
   r = await user.get("/api/auth/me");
   check("profil : limite de la phase de test, nom « Phase de test »", r.data.site?.mode === "BETA" && r.data.plan.maxLoans === BETA_LIMITS.maxLoans && r.data.plan.name === "Phase de test", { site: r.data.site, plan: r.data.plan });
-  r = await user.post("/api/billing/checkout", { plan: "PERSO_MONTHLY", acceptSalesTerms: true });
+  r = await user.post("/api/billing/checkout", { plan: "ENTREPRISE_YEARLY", acceptSalesTerms: true });
   check("aucune offre en vente → 403 SITE_IN_BETA", r.status === 403 && r.data.code === "SITE_IN_BETA", r.data);
 
   section("2. Programmer le passage au payant (admin)");
@@ -113,36 +115,37 @@ async function main() {
   check("…et dans l'appli", (await prisma.notification.count({ where: { user: { email: email("utilisateur") }, title: { startsWith: "Passage au mode payant" } } })) === 1);
   await runSiteMode();
   check("pas de doublon à la tâche suivante", (await prisma.emailLog.count({ where: { to: email("utilisateur"), kind: "paid_mode_notice" } })) === 1);
-  r = await user.post("/api/billing/checkout", { plan: "PERSO_MONTHLY", acceptSalesTerms: true });
+  r = await user.post("/api/billing/checkout", { plan: "ENTREPRISE_YEARLY", acceptSalesTerms: true });
   check("avant la date, toujours rien en vente", r.status === 403);
 
   section("3. À la date : site payant, rien n'est supprimé");
   job = await runSiteMode(new Date(paidFrom.getTime() + 3600000));
   check("le site bascule en payant", job.switched && (await prisma.siteSetting.findUniqueOrThrow({ where: { id: 1 } })).mode === "PAID", job);
   check("tous les prêts sont conservés", (await prisma.loan.count({ where: { lender: { email: email("utilisateur") }, status: "ACTIVE" } })) === ids.length);
-  check("l'utilisateur au-delà de l'offre gratuite est prévenu", (await prisma.notification.count({ where: { user: { email: email("utilisateur") }, title: "Le site est passé en mode payant" } })) === 1);
+  check("l'utilisateur sans abonnement qui a des prêts en cours est prévenu", (await prisma.notification.count({ where: { user: { email: email("utilisateur") }, title: "Le site est passé en mode payant" } })) === 1);
   r = await user.get("/api/auth/me");
-  check("profil : limites de l'offre gratuite", r.data.site?.mode === "PAID" && r.data.plan.maxLoans === PLANS.FREE.maxLoans, r.data.plan);
+  check("profil : sans abonnement, aucun nouveau prêt possible", r.data.site?.mode === "PAID" && r.data.plan.maxLoans === PLANS.FREE.maxLoans && PLANS.FREE.maxLoans === 0, r.data.plan);
   r = await loanTo(user, 99);
-  check("créer un prêt au-delà de l'offre gratuite → 402 LIMIT_REACHED", r.status === 402 && r.data.code === "LIMIT_REACHED", r.data);
+  check("créer un prêt sans abonnement → 402 LIMIT_REACHED", r.status === 402 && r.data.code === "LIMIT_REACHED", r.data);
   r = await user.patch(`/api/loans/${ids[0]}`, { item: "Objet renommé" });
   check("les prêts existants restent modifiables", r.status === 200 && r.data.loan.item === "Objet renommé", r.data);
-  r = await user.patch(`/api/loans/${ids[0]}`, { action: "return" });
-  check("…et clôturables", r.status === 200 && r.data.loan.status === "RETURNED", r.data);
-  r = await user.patch(`/api/loans/${ids[0]}`, { action: "reopen" });
-  check("rouvrir au-delà de l'offre gratuite → 402", r.status === 402, r.data);
-  for (const id of ids.slice(1, 3)) await user.patch(`/api/loans/${id}`, { action: "return" });
+  r = await user.patch(`/api/loans/${ids[0]}`, { action: "return", ...SIG });
+  check("…et clôturables (attestation signée)", r.status === 200 && r.data.loan.status === "RETURNED", r.data);
+  // ancien prêt clôturé sans document signé : sa réouverture compte comme une création
+  await prisma.loan.update({ where: { id: ids[1] }, data: { status: "RETURNED", returnedAt: new Date(), ackStatus: "NONE" } });
+  r = await user.patch(`/api/loans/${ids[1]}`, { action: "reopen" });
+  check("rouvrir sans abonnement → 402", r.status === 402, r.data);
+  r = await user.post("/api/billing/checkout", { plan: "ENTREPRISE_YEARLY", acceptSalesTerms: true });
+  check("l'offre Entreprise est en vente (paiement de démo)", r.status === 200, r.data);
   r = await loanTo(user, 100);
-  check("une fois sous la limite, créer redevient possible", r.status === 201, r.data);
-  r = await user.post("/api/billing/checkout", { plan: "PERSO_MONTHLY", acceptSalesTerms: true });
-  check("les offres sont en vente (paiement de démo)", r.status === 200, r.data);
+  check("une fois abonné, créer redevient possible", r.status === 201, r.data);
   await prisma.user.update({ where: { email: email("utilisateur") }, data: { plan: "FREE", planExpiresAt: null, subscriptionStartedAt: null } });
 
   section("4. Retour en site testeur et annulation");
   r = await admin.post("/api/admin/site", { action: "beta" });
   check("retour immédiat en site testeur", r.status === 200 && r.data.mode === "BETA", r.data);
   r = await loanTo(user, 101);
-  check("créer redevient gratuit au-delà de l'offre gratuite", r.status === 201, r.data);
+  check("créer redevient gratuit, sans abonnement", r.status === 201, r.data);
   r = await admin.post("/api/admin/site", { action: "schedule", day });
   r = await admin.post("/api/admin/site", { action: "cancel" });
   check("annuler un passage programmé", r.status === 200 && r.data.paidFrom === null && r.data.mode === "BETA", r.data);

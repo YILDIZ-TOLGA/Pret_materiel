@@ -16,8 +16,8 @@ async function syncSubscription(sub: Stripe.Subscription) {
   const alive = ["active", "trialing", "past_due"].includes(sub.status);
 
   if (alive && !plan) {
-    // Prix inconnu (ancien tarif, variable STRIPE_PRICE_* manquante) : ne surtout pas repasser le client en
-    // gratuit alors qu'il paie. On garde son offre et on met juste à jour la période.
+    // Prix inconnu (ancien tarif, variable STRIPE_PRICE_* manquante) : ne surtout pas retirer l'abonnement d'un
+    // client qui paie. On garde son offre et on met juste à jour la période.
     console.error(`Webhook Stripe : prix ${item?.price.id} inconnu pour l'abonnement ${sub.id}, offre ${user.plan} conservée`);
     if (item) {
       await prisma.user.update({
@@ -36,7 +36,7 @@ async function syncSubscription(sub: Stripe.Subscription) {
     });
   } else if (user.stripeSubscriptionId === sub.id) {
     await prisma.user.update({ where: { id: user.id }, data: { plan: "FREE", planExpiresAt: null, stripeSubscriptionId: null, cancelAtPeriodEnd: false, subscriptionStartedAt: null } });
-    await notify(user.id, "Abonnement terminé", "Ton abonnement est terminé : tu repasses à l'offre gratuite.", "/abonnement");
+    await notify(user.id, "Abonnement terminé", "Ton abonnement est terminé. Tes prêts restent consultables ; pour en enregistrer de nouveaux, il faudra te réabonner.", "/abonnement");
   }
 }
 
@@ -45,7 +45,7 @@ async function recordPayment(invoice: Stripe.Invoice) {
   const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
   const user = customerId ? await prisma.user.findUnique({ where: { stripeCustomerId: customerId } }) : null;
   const priceId = invoice.lines.data[0]?.pricing?.price_details?.price;
-  const plan = (typeof priceId === "string" && planFromPriceId(priceId)) || user?.plan || "PERSO_MONTHLY";
+  const plan = (typeof priceId === "string" && planFromPriceId(priceId)) || (user && user.plan !== "FREE" ? user.plan : "ENTREPRISE_YEARLY");
   // Stripe peut rejouer un événement : on n'agit qu'à la première réception de cette facture
   if (await prisma.payment.findUnique({ where: { providerRef: invoice.id }, select: { id: true } })) return;
   try {
@@ -77,7 +77,7 @@ async function paymentFailed(invoice: Stripe.Invoice) {
     title: `Bonjour ${user.name},`,
     paragraphs: [
       `Le prélèvement de ton abonnement ${PLANS[user.plan].name} n'a pas abouti. Notre prestataire de paiement va réessayer dans les prochains jours.`,
-      "Pour garder ton offre, vérifie ou mets à jour ton moyen de paiement. Sans paiement, ton compte repassera à l'offre gratuite ; tes prêts sont conservés.",
+      "Pour garder ton offre, vérifie ou mets à jour ton moyen de paiement. Sans paiement, l'abonnement s'arrêtera : tes prêts et tes documents restent consultables, mais tu ne pourras plus en enregistrer de nouveaux.",
       `Une question ? Écris-nous à ${LEGAL.editor.email}.`,
     ],
     cta: { label: "Mettre à jour mon moyen de paiement", url: `${appUrl}/abonnement` },

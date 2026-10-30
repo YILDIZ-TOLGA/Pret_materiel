@@ -36,7 +36,7 @@ async function sendRenewalNotices() {
       paragraphs: [
         `Ton abonnement ${plan.name} (${plan.priceLabel}) arrive à échéance le ${fmtDate(u.planExpiresAt!)}. Sans action de ta part, il sera reconduit pour un an et ${plan.priceLabel.replace(" / an", "")} seront prélevés à cette date.`,
         `DATE LIMITE POUR NE PAS RECONDUIRE TON ABONNEMENT : ${fmtDate(new Date(u.planExpiresAt!.getTime() - DAY))}.`,
-        "Tu peux résilier à tout moment en quelques clics depuis la page Offre de l'application. L'abonnement restera actif jusqu'à l'échéance, puis ton compte repassera à l'offre gratuite sans perdre tes prêts.",
+        "Tu peux résilier à tout moment en quelques clics depuis la page Offre de l'application. L'abonnement restera actif jusqu'à l'échéance ; tes prêts et tes documents signés resteront ensuite consultables.",
         `Question ? ${LEGAL.editor.email}`,
       ],
       cta: { label: "Gérer mon abonnement", url: `${appUrl()}/abonnement` },

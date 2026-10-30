@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { signatureProblem, type SignatureData } from "./signature";
 
 /**
  * Mot de passe conforme à la recommandation CNIL (délibération 2022-100) avec limitation des essais :
@@ -37,10 +38,60 @@ export const loanSchema = z.object({
   notes: z.string().trim().max(1000).optional().nullable(),
 });
 
+/** Signature tracée (voir src/lib/signature.ts) ou au clavier. La qualité du tracé se vérifie avec checkSignature. */
+export const signatureSchema = z.union([
+  z.object({
+    w: z.number().int().min(100).max(2000),
+    h: z.number().int().min(40).max(1000),
+    strokes: z.array(z.array(z.number().int().min(0).max(2000)).min(2).max(4000)).min(1).max(80),
+  }),
+  z.object({ typed: z.literal(true) }),
+], { error: "Signature manquante ou invalide" });
+
+/** Problème du tracé (trop court, hors cadre…), ou null. */
+export const checkSignature = (s: SignatureData) => ("strokes" in s ? signatureProblem(s) : null);
+
+export const signerNameSchema = z.string().trim().min(2, "Nom et prénom du signataire requis").max(120).refine(noLink, NO_LINK);
+
+/** Signature d'un reçu par le prêteur (remboursement, retour), depuis son compte. */
+const lenderSign = {
+  signerName: signerNameSchema,
+  signature: signatureSchema,
+  accept: z.literal(true, { message: "Coche la case pour signer le document" }),
+};
+
+/** Remboursement reçu, avec le reçu signé par le prêteur. `note` (espèces, virement…) figure sur le reçu. */
 export const repaySchema = z.object({
   amountCents: z.number().int().positive("Montant invalide"),
-  note: z.string().trim().max(200).optional().nullable(),
+  note: z.string().trim().max(200).refine(noLink, NO_LINK).optional().nullable(),
+  ...lenderSign,
 });
+
+/** Retour de l'objet (ou solde d'un prêt d'argent), avec l'attestation signée par le prêteur. */
+export const returnSchema = z.object({
+  // observations sur l'état du bien au retour, reprises dans l'attestation
+  note: z.string().trim().max(500).refine(noLink, NO_LINK).optional().nullable(),
+  ...lenderSign,
+});
+
+/** Page de signature de l'emprunteur : signer l'accusé de réception, ou contester le prêt. */
+export const borrowerSignSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("sign"),
+    t: z.string().min(20).max(400),
+    signerName: signerNameSchema,
+    signature: signatureSchema,
+    // prêt d'argent : somme recopiée en lettres et en chiffres (art. 1376 C. civ.)
+    amountWords: z.string().trim().max(300).optional(),
+    amountFigures: z.string().trim().max(40).optional(),
+    accept: z.literal(true, { message: "Cochez la case pour signer l'accusé de réception" }),
+  }),
+  z.object({
+    action: z.literal("refuse"),
+    t: z.string().min(20).max(400),
+    reason: z.string().trim().max(500).refine(noLink, NO_LINK).optional().nullable(),
+  }),
+]);
 
 /** La date de retour ne peut pas précéder la date du prêt ; renvoie un message d'erreur ou null. */
 export function checkDates(lentAt: Date, dueAt: Date) {

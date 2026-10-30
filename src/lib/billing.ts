@@ -66,15 +66,15 @@ export async function sendOrderConfirmation(user: Pick<User, "email" | "name">, 
     subject: `Confirmation de ton abonnement ${p.name}`,
     title: `Bonjour ${user.name},`,
     paragraphs: [
-      `Nous confirmons ta souscription à l'abonnement ${LEGAL.siteName} ${p.name}, conclue le ${fmtDate(startedAt)}. Montant payé : ${eur(amountCents)} TTC (${p.priceLabel}). ${LEGAL.vatMention}.`,
-      `Ce que comprend ton offre : suivi de tes prêts d'objets et d'argent, jusqu'à ${p.maxLoans} prêts en cours, e-mails de confirmation, de rappel et de relance à tes emprunteurs, bilan et export.`,
+      `Nous confirmons ta souscription à l'abonnement ${LEGAL.siteName} ${p.name}, conclue le ${fmtDate(startedAt)}. Montant payé : ${eur(amountCents)} (${p.priceLabel}). ${LEGAL.vatMention}.`,
+      `Ce que comprend ton offre : suivi des prêts de matériel et d'argent de ta structure, jusqu'à ${p.maxLoans} prêts en cours, accusés de réception signés en ligne par tes emprunteurs, reçus de remboursement et attestations de retour signés, rappels et relances par e-mail, bilan et export.`,
       p.interval === "month"
         ? "Durée : un mois, renouvelé automatiquement chaque mois, sans engagement. Tu peux résilier à tout moment depuis la page Offre : l'abonnement s'arrête à la fin du mois en cours."
         : "Durée : un an, reconduit tacitement pour un an. Nous te préviendrons par e-mail entre trois mois et un mois avant chaque échéance. Tu peux résilier à tout moment depuis la page Offre : l'abonnement reste actif jusqu'à l'échéance.",
       `Tu as demandé que ton abonnement commence immédiatement. Tu gardes ton droit de rétractation de ${WITHDRAWAL_DAYS} jours, jusqu'au ${fmtDate(deadline)} inclus, sans avoir à te justifier : bouton « Se rétracter du contrat ici » sur la page Offre, ou formulaire ci-dessous par e-mail. Nous te rembourserons alors l'intégralité du montant payé, au plus tard 14 jours après ta demande.`,
       ...withdrawalForm(),
-      `Le service est soumis à la garantie légale de conformité des contenus et services numériques (art. L224-25-12 et suivants du Code de la consommation). En cas de litige, après une réclamation écrite à ${editor.email}, tu peux saisir gratuitement le médiateur de la consommation : ${mediator.name} (${mediator.url}).`,
-      `Vendeur : ${editor.name}, ${editor.legalForm}, ${editor.address}, SIRET ${editor.siret}, ${editor.rcs}${editor.vatNumber ? `, TVA ${editor.vatNumber}` : ""}. Contact : ${editor.email}, ${editor.phone}.`,
+      `En cas de difficulté, écris-nous à ${editor.email} : nous répondons sous 15 jours.${mediator.name ? ` Tu peux aussi saisir le médiateur ${mediator.name} (${mediator.url}).` : ""}`,
+      `Vendeur : ${[editor.name, editor.legalForm, editor.address, editor.siret && `SIRET ${editor.siret}`, editor.rcs, editor.vatNumber && `TVA ${editor.vatNumber}`].filter(Boolean).join(", ")}. Contact : ${[editor.email, editor.phone].filter(Boolean).join(", ")}.`,
       terms
         ? `Les conditions générales que tu as acceptées (version ${TERMS_VERSION}) sont jointes à cet e-mail. La facture t'est envoyée séparément.`
         : `Les conditions générales que tu as acceptées (version ${TERMS_VERSION}) sont consultables sur ${appUrl()}/cgu. La facture t'est envoyée séparément.`,
@@ -93,7 +93,7 @@ export async function sendWithdrawalReceipt(user: Pick<User, "email" | "name">, 
     title: `Bonjour ${user.name},`,
     paragraphs: [
       `Nous avons bien reçu ta rétractation du contrat d'abonnement ${LEGAL.siteName} ${PLANS[plan].name}, souscrit le ${fmtDate(startedAt)}. Demande reçue le ${fmtDateTime(at)} (heure de Paris).`,
-      "L'abonnement est arrêté immédiatement et ne sera plus jamais prélevé. Ton compte repasse à l'offre gratuite ; tes prêts sont conservés.",
+      "L'abonnement est arrêté immédiatement et ne sera plus jamais prélevé. Tes prêts et tes documents signés sont conservés et restent consultables.",
       refundedCents > 0
         ? `Remboursement : ${eur(refundedCents)}, sur le moyen de paiement utilisé lors de l'achat, au plus tard 14 jours après ta demande (en général quelques jours selon ta banque).`
         : `Le remboursement de l'intégralité du montant payé t'est dû : il sera effectué au plus tard 14 jours après ta demande, sur le moyen de paiement utilisé. Si tu ne le vois pas arriver, écris-nous à ${LEGAL.editor.email}.`,

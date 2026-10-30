@@ -13,6 +13,7 @@ export const POST = withUser<Ctx>(async (user, _req, { params }) => {
   const loan = await prisma.loan.findUnique({ where: { id: (await params).id }, include: { lender: true } });
   if (!loan || loan.lenderId !== user.id) return error("Prêt introuvable", 404);
   if (loan.status !== "ACTIVE") return error("Ce prêt est clôturé");
+  if (loan.ackStatus === "REFUSED") return error(`${loan.borrowerName} conteste ce prêt : plus aucun rappel ne lui est envoyé. Corrige le prêt ou contacte cette personne directement.`, 409);
   if (loan.dueAt.getTime() > Date.now()) return error("La relance est possible après la date de retour");
   if (loan.reminderCount >= MAIL_LIMITS.remindersPerLoan) {
     return error(`${loan.borrowerName} a déjà reçu ${MAIL_LIMITS.remindersPerLoan} rappels pour ce prêt : contacte cette personne directement.`, 429);

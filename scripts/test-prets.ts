@@ -11,6 +11,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { MAIL_LIMITS } from "../src/lib/limits";
+import { PLANS } from "../src/lib/plans";
 import { checkLegacyOptOutToken, optOutUrl } from "../src/lib/optout";
 
 const BASE = process.env.TEST_BASE_URL || "http://localhost:3001";
@@ -58,9 +59,9 @@ class Client {
 }
 
 const email = (name: string) => `${name}@${DOMAIN}`;
-async function register(name: string, plan?: "PERSO_MONTHLY" | "PRO50_MONTHLY") {
+async function register(name: string, plan?: "ENTREPRISE_YEARLY") {
   const c = new Client();
-  const r = await c.post("/api/auth/register", { name, email: email(name), password: PW, acceptTerms: true });
+  const r = await c.post("/api/auth/register", { name, organization: `Structure ${name}`, email: email(name), password: PW, acceptTerms: true });
   if (r.status !== 201) throw new Error(`Inscription ${name} impossible : ${JSON.stringify(r.data)}`);
   await prisma.user.update({
     where: { email: email(name) },
@@ -68,6 +69,8 @@ async function register(name: string, plan?: "PERSO_MONTHLY" | "PRO50_MONTHLY") 
   });
   return c;
 }
+// signature du prêteur (tracé valable) pour les reçus de remboursement et les attestations de retour
+const SIG = { signerName: "Prêteur Test", signature: { w: 600, h: 200, strokes: [[40, 120, 120, 60, 200, 140, 280, 70, 360, 130, 440, 80, 520, 120, 560, 100]] }, accept: true };
 const due = (days: number) => new Date(Date.now() + days * DAY).toISOString();
 const loanTo = (c: Client, to: string, extra: Record<string, unknown> = {}) =>
   c.post("/api/loans", { item: "Perceuse", borrowerName: "Test", borrowerEmail: to, dueAt: due(7), ...extra });
@@ -83,7 +86,7 @@ async function main() {
   await sitePaid();
 
   section("1. Les notes privées du prêteur ne sont jamais envoyées à l'emprunteur");
-  const lender = await register("preteur", "PERSO_MONTHLY");
+  const lender = await register("preteur", "ENTREPRISE_YEARLY");
   const borrower = await register("emprunteur");
   await loanTo(lender, email("emprunteur"), { notes: "NOTE-SECRETE il ne rend jamais rien" });
   let r = await borrower.get("/api/borrowed");
@@ -92,20 +95,32 @@ async function main() {
   check("…ni l'état des relances ou l'identifiant du prêteur", ["notes", "reminderCount", "lastReminderAt", "lenderId", "autoReminder"].every((k) => !(k in r.data.loans[0])), Object.keys(r.data.loans[0]));
   check("…mais avec ce qu'il doit savoir (objet, échéance, prêteur)", !!r.data.loans[0].item && !!r.data.loans[0].dueAt && !!r.data.loans[0].lender?.name);
 
-  section("2. Prêt d'argent clôturé puis rouvert");
+  section("2. Prêt d'argent soldé, puis rouvert");
   r = await loanTo(lender, email("ami1"), { kind: "MONEY", amountCents: 5000, item: "" });
   const money = r.data.loan.id;
-  await lender.patch(`/api/loans/${money}`, { action: "repay", amountCents: 2000 });
-  await lender.patch(`/api/loans/${money}`, { action: "return" });
+  r = await lender.patch(`/api/loans/${money}`, { action: "repay", amountCents: 2000 });
+  check("remboursement sans signature → refusé", r.status === 400, r.data);
+  r = await lender.patch(`/api/loans/${money}`, { action: "repay", amountCents: 2000, ...SIG });
+  check("remboursement signé → reçu créé", r.status === 200 && r.data.loan.repaidCents === 2000 && !!r.data.receipt?.number?.startsWith("RR-"), r.data);
+  r = await lender.patch(`/api/loans/${money}`, { action: "return", ...SIG });
+  check("solder = reçu signé du reste (30 €), prêt clôturé", r.status === 200 && r.data.loan.status === "RETURNED" && r.data.loan.repaidCents === 5000 && r.data.loan.repayments.every((x: { receipt: unknown }) => !!x.receipt), r.data.loan);
   r = await lender.patch(`/api/loans/${money}`, { action: "reopen" });
-  check("rouvert → le vrai reste dû revient (30 €)", r.status === 200 && r.data.loan.amountCents - r.data.loan.repaidCents === 3000, r.data.loan);
+  check("rouvrir un prêt soldé par reçus signés → refusé", r.status === 400 && /reçus sont signés/.test(r.data.error), r.data);
+  // ancien prêt d'argent clôturé sans reçu : le « solde à la clôture » ajouté automatiquement est annulé
+  const lenderId = (await prisma.user.findUniqueOrThrow({ where: { email: email("preteur") } })).id;
+  const oldMoney = await prisma.loan.create({
+    data: {
+      lenderId, kind: "MONEY", item: "Prêt d'argent", amountCents: 5000, repaidCents: 5000, borrowerName: "Ancien", borrowerEmail: email("ancien"),
+      dueAt: due(7), status: "RETURNED", returnedAt: new Date(), ackStatus: "NONE",
+      repayments: { create: [{ amountCents: 2000, createdAt: new Date(Date.now() - DAY) }, { amountCents: 3000, note: "Solde à la clôture" }] },
+    },
+  });
+  r = await lender.patch(`/api/loans/${oldMoney.id}`, { action: "reopen" });
+  check("ancien prêt rouvert → le vrai reste dû revient (30 €)", r.status === 200 && r.data.loan.amountCents - r.data.loan.repaidCents === 3000, r.data.loan);
   check("le « solde à la clôture » est annulé, le vrai remboursement reste", r.data.loan.repayments.length === 1 && r.data.loan.repayments[0].amountCents === 2000, r.data.loan.repayments);
-  await lender.patch(`/api/loans/${money}`, { action: "repay", amountCents: 3000 });
-  r = await lender.patch(`/api/loans/${money}`, { action: "reopen" });
-  check("rouvrir un prêt remboursé en entier → refusé", r.status === 400 && /entièrement remboursé/.test(r.data.error), r.data);
   r = await loanTo(lender, email("ami2"), { kind: "MONEY", amountCents: 4000, item: "" });
   const money2 = r.data.loan.id;
-  await lender.patch(`/api/loans/${money2}`, { action: "repay", amountCents: 1000 });
+  await lender.patch(`/api/loans/${money2}`, { action: "repay", amountCents: 1000, ...SIG });
   r = await lender.patch(`/api/loans/${money2}`, { amountCents: 1000 });
   check("montant ramené à ce qui est déjà remboursé → refusé (clôturer plutôt)", r.status === 400, r.data);
 
@@ -120,15 +135,17 @@ async function main() {
   section("4. Deux remboursements envoyés en même temps");
   r = await loanTo(lender, email("ami4"), { kind: "MONEY", amountCents: 1000, item: "" });
   const race = r.data.loan.id;
-  const both = await Promise.all([1, 2].map(() => lender.patch(`/api/loans/${race}`, { action: "repay", amountCents: 1000 })));
-  const after = await prisma.loan.findUniqueOrThrow({ where: { id: race }, include: { repayments: true } });
+  const both = await Promise.all([1, 2].map(() => lender.patch(`/api/loans/${race}`, { action: "repay", amountCents: 1000, ...SIG })));
+  const after = await prisma.loan.findUniqueOrThrow({ where: { id: race }, include: { repayments: true, receipts: true } });
   check("jamais plus que le montant prêté", after.repaidCents === 1000 && after.repayments.reduce((a, x) => a + x.amountCents, 0) === 1000, { repaid: after.repaidCents, n: after.repayments.length });
+  check("un seul reçu signé", after.receipts.filter((x) => x.kind === "REPAYMENT").length === 1, after.receipts.length);
   check("le second reçoit une réponse claire (ou passe après le premier)", both.every((x) => [200, 400, 409].includes(x.status)), both.map((x) => x.status));
 
   section("5. Changer l'adresse de l'emprunteur d'un prêt en cours");
-  const pro = await register("structure", "PRO50_MONTHLY");
+  const pro = await register("structure", "ENTREPRISE_YEARLY");
+  await prisma.user.update({ where: { email: email("structure") }, data: { organization: null } });
   r = await loanTo(pro, email("x0"));
-  check("offre Pro sans nom de structure → 403 ORGANIZATION_REQUIRED", r.status === 403 && r.data.code === "ORGANIZATION_REQUIRED", r.data);
+  check("compte sans nom de structure → 403 ORGANIZATION_REQUIRED", r.status === 403 && r.data.code === "ORGANIZATION_REQUIRED", r.data);
   r = await pro.patch("/api/account", { organization: "Asso www.piege.com" });
   check("nom de structure avec une adresse web → 400", r.status === 400, r.data);
   r = await pro.patch("/api/account", { organization: "Club de rando des Alpes" });
@@ -147,13 +164,14 @@ async function main() {
   check("vers une adresse qui a atteint son plafond du jour → 429", r.status === 429, r.data);
   await prisma.loan.update({ where: { id: moved }, data: { reminderCount: 3 } });
   r = await pro.patch(`/api/loans/${moved}`, { dueAt: due(-5) });
-  check("changer la date ne remet plus le compteur de rappels à zéro", r.status === 200 && (await prisma.loan.findUniqueOrThrow({ where: { id: moved } })).reminderCount === 3, r.data);
-  const free = await register("libre");
+  // la nouvelle échéance demande une nouvelle signature : cette demande compte comme un rappel
+  check("changer la date ne remet pas le compteur de rappels à zéro (la nouvelle demande de signature y est comptée)", r.status === 200 && r.data.signRequest === "sent" && (await prisma.loan.findUniqueOrThrow({ where: { id: moved } })).reminderCount === 4, r.data);
+  const free = await register("libre", "ENTREPRISE_YEARLY");
   r = await loanTo(free, email("y0"));
   const freeLoan = r.data.loan?.id;
   // le compte a déjà écrit à autant de nouveaux emprunteurs que son offre le permet sur 24 h
   const freeId = (await prisma.user.findUniqueOrThrow({ where: { email: email("libre") } })).id;
-  await prisma.emailLog.createMany({ data: Array.from({ length: 30 }, () => ({ to: email("autre"), subject: "test", kind: "loan_created", ok: true, thirdParty: true, senderId: freeId })) });
+  await prisma.emailLog.createMany({ data: Array.from({ length: PLANS.ENTREPRISE_YEARLY.maxNewLoansPerDay }, () => ({ to: email("autre"), subject: "test", kind: "loan_created", ok: true, thirdParty: true, senderId: freeId })) });
   r = await free.patch(`/api/loans/${freeLoan}`, { borrowerEmail: email("y1") });
   check("changer d'adresse compte dans le plafond de nouveaux emprunteurs par jour → 429 DAILY_LIMIT", r.status === 429 && r.data.code === "DAILY_LIMIT", r.data);
 
@@ -188,7 +206,7 @@ async function main() {
   check("les liens à l'ancien format (déjà envoyés) marchent encore", r.status === 200, r.data);
 
   section("8. Lien de confirmation utilisé deux fois en même temps");
-  const twice = await new Client().post("/api/auth/register", { name: "double", email: email("double"), password: PW, acceptTerms: true });
+  const twice = await new Client().post("/api/auth/register", { name: "double", organization: "Structure double", email: email("double"), password: PW, acceptTerms: true });
   check("(inscription)", twice.status === 201);
   const user = await prisma.user.findUniqueOrThrow({ where: { email: email("double") } });
   const token = randomBytes(32).toString("base64url");

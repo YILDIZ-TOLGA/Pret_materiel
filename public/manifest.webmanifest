@@ -1,7 +1,7 @@
 {
   "name": "Prêt Matériel",
   "short_name": "Prêts",
-  "description": "Suis tes prêts d'objets et d'argent. Les relances partent automatiquement.",
+  "description": "Prêts de matériel et d'argent pour les professionnels : accusés de réception signés, reçus PDF, rappels automatiques.",
   "start_url": "/prets",
   "display": "standalone",
   "background_color": "#f2f0ea",

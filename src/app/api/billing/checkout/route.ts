@@ -2,14 +2,14 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { stripe, demoBilling } from "@/lib/stripe";
 import { error, json, withUser, zodError } from "@/lib/api";
-import { PAID_PLANS, PLANS, isProPlan, stripePriceId } from "@/lib/plans";
+import { PAID_PLANS, PLANS, stripePriceId } from "@/lib/plans";
 import { sendOrderConfirmation } from "@/lib/billing";
 import { TERMS_VERSION } from "@/lib/legal";
 import { siteState } from "@/lib/sitemode";
 
 const schema = z.object({
   plan: z.enum(PAID_PLANS),
-  // CGV acceptées et demande expresse d'exécution immédiate (art. L221-25 du Code de la consommation)
+  // CGV et accord de sous-traitance acceptés, avec la demande d'exécution immédiate (CGV art. 13)
   acceptSalesTerms: z.literal(true, { message: "Tu dois accepter les conditions générales de vente" }),
 });
 
@@ -67,12 +67,10 @@ export const POST = withUser(async (user, req) => {
     line_items: [{ price, quantity: 1 }],
     subscription_data: { metadata: { userId: user.id, plan, salesTermsVersion: TERMS_VERSION, immediateStartRequested: "true" } },
     allow_promotion_codes: true,
-    // Offres Pro : nom, adresse et n° de TVA de la structure, pour une facture à son nom
-    ...(isProPlan(plan) && {
-      billing_address_collection: "required" as const,
-      tax_id_collection: { enabled: true },
-      customer_update: { name: "auto" as const, address: "auto" as const },
-    }),
+    // Clients professionnels : nom, adresse et n° de TVA de la structure, pour une facture à son nom
+    billing_address_collection: "required",
+    tax_id_collection: { enabled: true },
+    customer_update: { name: "auto", address: "auto" },
     success_url: `${appUrl}/abonnement?success=1`,
     cancel_url: `${appUrl}/abonnement?canceled=1`,
   });

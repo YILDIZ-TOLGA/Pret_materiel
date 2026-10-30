@@ -88,7 +88,7 @@ function Shell({ children, admin }: { children: React.ReactNode; admin: boolean 
           {me && <UserMenu me={me} logout={logout} side="bottom" align="end" compact />}
         </header>
         <main className="main">
-          <div className={`main-inner ${admin ? "wide" : ""}`}>{ready ? <>{!me.user.emailVerifiedAt && <VerifyBanner me={me} />}{me.site?.paidFrom && <PaidSwitchBanner paidFrom={me.site.paidFrom} />}{children}</> : <Boot />}</div>
+          <div className={`main-inner ${admin ? "wide" : ""}`}>{ready ? <>{!me.user.emailVerifiedAt && <VerifyBanner me={me} />}{me.termsUpToDate === false && <TermsBanner me={me} />}{me.site?.paidFrom && <PaidSwitchBanner paidFrom={me.site.paidFrom} />}{children}</> : <Boot />}</div>
         </main>
       </div>
       <TabBar me={me} path={path} />
@@ -117,6 +117,45 @@ function VerifyBanner({ me }: { me: Me }) {
       </span>
       {state !== "sent" && <button type="button" className="btn small" onClick={resend} disabled={state === "busy"}>{state === "busy" ? <><Spinner />Envoi…</> : "Renvoyer le lien"}</button>}
     </div>
+  );
+}
+
+/**
+ * Compte ouvert avant le passage au service pour les professionnels : nouvelles conditions à accepter (avec le
+ * nom de la structure) pour enregistrer de nouveaux prêts. Les prêts existants restent accessibles sans rien faire.
+ */
+function TermsBanner({ me }: { me: Me }) {
+  const { refresh } = useMe();
+  const [org, setOrg] = useState(me.user.organization ?? "");
+  const [accept, setAccept] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setErr("");
+    try { await api("/api/account/terms", { body: { acceptTerms: true, ...(org.trim() ? { organization: org.trim() } : {}) } }); await refresh(); }
+    catch (x) { setErr((x as Error).message); setBusy(false); }
+  }
+  return (
+    <form className="banner soon" role="region" aria-label="Nouvelles conditions" style={{ marginBottom: 20, flexWrap: "wrap" }} onSubmit={submit}>
+      <Icon name="info" size={16} />
+      <div className="stack" style={{ flex: "1 1 300px", gap: 10 }}>
+        <span>
+          <strong>Prêt Matériel devient un service pour les professionnels.</strong> L&apos;emprunteur signe un accusé de réception en ligne, chaque remboursement ou retour donne un reçu signé à imprimer, et l&apos;offre devient unique. Lis les <Link href="/cgu" target="_blank">nouvelles conditions</Link> : tes prêts sont conservés, mais pour en enregistrer de nouveaux il faut les accepter.
+        </span>
+        {!me.user.organization && (
+          <label className="field">Nom de ta structure <span className="opt">— entreprise, association…</span>
+            <input value={org} onChange={(e) => setOrg(e.target.value)} required maxLength={120} autoComplete="organization" />
+          </label>
+        )}
+        <label className="check">
+          <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} />
+          <span>J&apos;utilise ce compte pour une entreprise, une association ou un autre organisme, dans le cadre de son activité, et j&apos;accepte les nouvelles conditions générales.</span>
+        </label>
+        {err && <span className="small late-text" role="alert">{err}</span>}
+      </div>
+      <button className="btn small" disabled={busy || !accept || (!me.user.organization && !org.trim())}>{busy ? <><Spinner />Un instant…</> : "Accepter"}</button>
+    </form>
   );
 }
 
@@ -178,9 +217,12 @@ function Sidebar({ me, path, onSearch, logout }: { me: Me | null; path: string; 
       {me && (
         <div className="sb-foot">
           <Link href="/abonnement" className="sb-plan">
-            <div className="sb-plan-top"><span>{me.site?.mode === "BETA" && me.plan.id === "FREE" ? "Phase de test gratuite" : `Offre ${me.plan.name}`}</span><span className="mono">{me.activeLoans}/{me.plan.maxLoans}</span></div>
-            <Meter value={me.activeLoans / Math.max(1, me.plan.maxLoans)} tone={me.activeLoans >= me.plan.maxLoans ? "full" : undefined} />
-            {me.plan.id === "FREE" && me.site?.mode !== "BETA" && <span className="sb-plan-cta">Passer à 10 prêts<Icon name="arrowRight" size={13} /></span>}
+            <div className="sb-plan-top">
+              <span>{me.site?.mode === "BETA" && me.plan.id === "FREE" ? "Phase de test gratuite" : me.plan.id === "FREE" ? "Sans abonnement" : `Offre ${me.plan.name}`}</span>
+              {me.plan.maxLoans > 0 && <span className="mono">{me.activeLoans}/{me.plan.maxLoans}</span>}
+            </div>
+            {me.plan.maxLoans > 0 && <Meter value={me.activeLoans / me.plan.maxLoans} tone={me.activeLoans >= me.plan.maxLoans ? "full" : undefined} />}
+            {me.plan.id === "FREE" && me.site?.mode !== "BETA" && <span className="sb-plan-cta">S&apos;abonner pour enregistrer des prêts<Icon name="arrowRight" size={13} /></span>}
           </Link>
           <UserMenu me={me} logout={logout} side="top" align="start" />
         </div>

@@ -1,6 +1,6 @@
 # Prêt Matériel
 
-Appli de rappel de prêts d'objets **et d'argent** : tu notes à qui tu as prêté quoi, l'appli prévient la personne par e-mail, la relance en cas de retard, et tu clôtures le prêt quand l'objet revient (ou quand tout est remboursé).
+Appli de suivi des prêts de matériel **et d'argent**, réservée aux professionnels (entreprises, associations, collectivités) : la structure enregistre le prêt, l'emprunteur signe en ligne un **accusé de réception** (sans créer de compte), le prêteur reçoit le document signé en PDF à imprimer. Chaque remboursement ou retour donne un **reçu signé par le prêteur**, envoyé à l'emprunteur. Rappels et relances partent automatiquement.
 
 - **Stack** : Next.js 15 (site + API REST) · PostgreSQL · Prisma · Stripe · Nodemailer
 - **Mobile** : interface mobile-first, installable (PWA), API utilisable telle quelle par une appli iOS / Android
@@ -10,14 +10,16 @@ Appli de rappel de prêts d'objets **et d'argent** : tu notes à qui tu as prêt
 | | |
 |---|---|
 | Comptes | Inscription / connexion (e-mail + mot de passe, sessions JWT : cookie sur le web, `Bearer` sur mobile) |
-| Prêts d'objets | Objet, détails, emprunteur (nom, e-mail, tél.), date de prêt, date de retour, note perso. Modifier, clôturer, rouvrir, supprimer |
-| Prêts d'argent | Montant + motif (resto, billet de train…). Remboursements partiels avec historique, reste dû calculé, clôture automatique quand tout est remboursé. Les e-mails parlent de montants (« les 30 € restants sur 50 € ») |
+| Prêts de matériel | Désignation, détails, emprunteur (nom, e-mail, tél.), date de prêt, date de retour, note privée. Modifier, clôturer, rouvrir, supprimer |
+| Prêts d'argent | Montant + motif (avance sur frais, acompte…). Remboursements partiels avec historique, reste dû calculé, clôture automatique quand tout est remboursé. Les e-mails parlent de montants (« les 30 € restants sur 50 € ») |
+| Accusé de réception | À la création, l'emprunteur reçoit un lien personnel (chiffré, sans compte) : récapitulatif complet, signature au doigt ou à la souris (ou au clavier), ou contestation. Pour un prêt d'argent, il écrit la somme en lettres et en chiffres (art. 1376 C. civ.). Relance automatique à 48 h, renvoi manuel. Modifier le prêt demande une nouvelle signature |
+| Documents signés | Accusé de réception (emprunteur), reçu de remboursement et attestation de restitution (prêteur) : contenu figé, tracé, date, IP, navigateur, empreinte SHA-256. PDF (police embarquée) envoyé aux deux parties et téléchargeable ; le prêteur doit l'imprimer, Prêt Matériel n'archive pas (CGU art. 3 bis) |
 | Bilan | Tableau de bord de tout ce que tu as prêté : combien on te doit (dont en retard), objets chez les autres, taux de retour à l'heure, durée moyenne, prêts par mois, et **par personne** : ce qu'elle a, ce qu'elle doit, sa fiabilité, son historique. Export CSV (Excel) |
 | Options de rappel | Rappel la veille de l'échéance · relance automatique tous les 3 jours en cas de retard · relance manuelle en 1 clic (max 1/h) |
-| E-mails | À la création du prêt, la veille, en cas de retard. Tous journalisés (visibles dans l'admin) |
+| E-mails | Demande de signature à la création, copies des documents signés, rappel la veille, relances en cas de retard (jamais pour un prêt contesté). Tous journalisés (visibles dans l'admin) |
 | Entre membres | Si l'e-mail de l'emprunteur a un compte : notifications dans l'appli + onglet « Emprunts ». Un compte créé plus tard récupère automatiquement ses emprunts |
 | Alertes | Bandeau « en retard » + notification au prêteur dès qu'une échéance est dépassée |
-| Offres | Gratuit : 3 prêts en cours · Perso 3 €/mois ou 30 €/an : 10 · Pro 50 12 €/mois ou 120 €/an : 50 · Pro 200 24 €/mois ou 240 €/an : 200. L'annuel coûte 10 mois (2 mois offerts). Nouveaux prêts plafonnés par 24 h (30, 50 en Pro 50, 200 en Pro 200) contre les envois abusifs. Tout se règle dans `src/lib/plans.ts` |
+| Offre | Une seule offre, **Entreprise : 299 € HT par an**, 1 000 prêts en cours et 200 nouveaux par 24 h. Sans abonnement (hors phase de test), les prêts restent consultables mais on ne peut plus en créer. Tout se règle dans `src/lib/plans.ts` |
 | Paiement | Stripe Checkout (carte, PayPal, Apple Pay, Google Pay, SEPA…) + portail client pour changer d'offre ou résilier |
 | Admin | Encaissé du mois / mois précédent / total, MRR, ARR, abonnés par offre, conversion, revenu moyen par utilisateur, revenus par mois et par jour, derniers paiements · visiteurs uniques, pages vues, pages/visiteur, taux visiteur→inscrit, top pages, sources, appareils, navigateurs, pays · prêts en cours/en retard/rendus, durée moyenne, taux de retour en retard, e-mails envoyés/échoués · gestion des utilisateurs (recherche, offrir un abonnement, désactiver, nommer admin, supprimer). Comparaison avec la période précédente, filtre 7 j / 30 j / 90 j / 12 mois |
 | Analytics | Maison, sans service tiers ni cookie publicitaire (table `PageView`) |
@@ -81,14 +83,11 @@ Sans SMTP, les e-mails sont affichés dans la console.
    `curl -H "Authorization: Bearer $CRON_SECRET" https://ton-site/api/cron/reminders`
    (cron du serveur, Vercel Cron, cron-job.org…) ou `npm run cron`.
 5. **Stripe** :
-   - crée 3 produits (Perso, Pro 50, Pro 200), chacun avec un prix mensuel et un prix annuel :
-     3 €/mois et 30 €/an → `STRIPE_PRICE_PERSO_MONTHLY`, `STRIPE_PRICE_PERSO_YEARLY` ;
-     12 €/mois et 120 €/an → `STRIPE_PRICE_PRO50_MONTHLY`, `STRIPE_PRICE_PRO50_YEARLY` ;
-     24 €/mois et 240 €/an → `STRIPE_PRICE_PRO200_MONTHLY`, `STRIPE_PRICE_PRO200_YEARLY` ;
+   - crée un produit « Prêt Matériel Entreprise » avec un prix récurrent annuel de 299 € (hors taxes) → `STRIPE_PRICE_ENTREPRISE_YEARLY` ;
    - active les moyens de paiement voulus dans *Paramètres → Moyens de paiement* (PayPal, Apple Pay, Google Pay…) : ils apparaissent automatiquement, sans toucher au code ;
    - webhook vers `https://ton-site/api/billing/webhook` avec les événements `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed` → `STRIPE_WEBHOOK_SECRET` ;
-   - active le portail client (*Paramètres → Billing → Customer portal*) et autorise le changement entre les 6 prix ;
-   - pour les offres Pro, la page de paiement demande le nom, l'adresse et le n° de TVA de la structure (facture à son nom) ;
+   - active le portail client (*Paramètres → Billing → Customer portal*) pour les factures et le moyen de paiement ;
+   - la page de paiement demande le nom, l'adresse et le n° de TVA de la structure (facture à son nom) ;
    - la clé API doit pouvoir lire les paiements (*charges*) et créer des remboursements (*refunds*) : la rétractation rembourse automatiquement ;
    - limite chaque client à un seul abonnement (*Paramètres → Billing → Subscriptions*).
 6. **Référencement** : `robots.txt`, `sitemap.xml` et l'image d'aperçu des liens sont générés avec `APP_URL`, passé au build Docker : reconstruis l'image (`--build`) après avoir changé de domaine.
@@ -122,7 +121,7 @@ Oui c'est faisable, mais il ne faut pas coder soi-même un « wrapper » qui re�
 
 Dans l'admin, page **Mode du site** :
 - **Site testeur** (au départ) : tout est gratuit, jusqu'à 200 prêts en cours par compte, aucune offre n'est vendue. Idéal pour fidéliser les premiers utilisateurs.
-- **Passer en site payant** : choisis une date au moins 30 jours plus tard. Tous les utilisateurs sont prévenus par e-mail et dans l'appli ; à la date, les offres s'ouvrent. Rien n'est supprimé : au-delà de l'offre gratuite, il faut une offre (ou clôturer des prêts) pour en créer de nouveaux.
+- **Passer en site payant** : choisis une date au moins 30 jours plus tard. Tous les utilisateurs sont prévenus par e-mail et dans l'appli ; à la date, l'offre Entreprise s'ouvre à la vente. Rien n'est supprimé : sans abonnement, les prêts existants continuent (rappels, signatures, reçus), mais il faut s'abonner pour en créer de nouveaux.
 - **Repasser en site testeur** : immédiat. Les abonnements Stripe déjà en cours ne sont pas arrêtés automatiquement.
 - Le paiement (Stripe, ou le paiement de démo en local) doit être configuré pour programmer le passage au payant.
 
@@ -148,14 +147,18 @@ DATABASE_URL=… TEST_BASE_URL=http://localhost:3000 npm run test:anti-abus
 DATABASE_URL=… JWT_SECRET=… TEST_BASE_URL=http://localhost:3000 npm run test:prets
 DATABASE_URL=… TEST_BASE_URL=http://localhost:3000 npm run test:vente
 DATABASE_URL=… TEST_BASE_URL=http://localhost:3000 npm run test:mode-site
+DATABASE_URL=… JWT_SECRET=… TEST_BASE_URL=http://localhost:3000 npm run test:signatures
 ```
 
 ## Structure
 
 ```
-prisma/schema.prisma        modèle de données (User, Loan, Notification, Payment, PageView, EmailLog)
-src/lib/plans.ts            offres et limites
-src/lib/loans.ts            e-mails, notifications, tâche de rappels
+prisma/schema.prisma        modèle de données (User, Loan, Receipt, Notification, Payment, PageView, EmailLog)
+src/lib/plans.ts            offre et limites
+src/lib/loans.ts            e-mails, notifications, tâche de rappels (dont la relance de signature)
+src/lib/receipts.ts         documents signés : accusé de réception, reçus, attestations (empreinte, envoi)
+src/lib/pdf.ts              PDF des documents signés (pdf-lib, police dans assets/fonts)
+src/lib/signlink.ts         lien personnel et chiffré de l'emprunteur (page /signer)
 src/app/api/…               API REST (utilisée par le web et le mobile)
 src/app/prets, bilan, emprunts, notifications, abonnement   pages utilisateur
 src/app/admin/…             tableau de bord et gestion des utilisateurs

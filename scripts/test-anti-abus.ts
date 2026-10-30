@@ -56,9 +56,9 @@ class Client {
 }
 
 const email = (name: string) => `${name}@${DOMAIN}`;
-async function register(name: string, plan?: "PERSO_MONTHLY") {
+async function register(name: string, plan?: "ENTREPRISE_YEARLY") {
   const c = new Client();
-  const r = await c.post("/api/auth/register", { name, email: email(name), password: PW, acceptTerms: true });
+  const r = await c.post("/api/auth/register", { name, organization: `Structure ${name}`, email: email(name), password: PW, acceptTerms: true });
   if (r.status !== 201) throw new Error(`Inscription ${name} impossible : ${JSON.stringify(r.data)}`);
   await prisma.user.update({
     where: { email: email(name) },
@@ -66,6 +66,8 @@ async function register(name: string, plan?: "PERSO_MONTHLY") {
   });
   return c;
 }
+// signature du prêteur (tracé valable) pour les reçus de remboursement et les attestations de retour
+const SIG = { signerName: "Prêteur Test", signature: { w: 600, h: 200, strokes: [[40, 120, 120, 60, 200, 140, 280, 70, 360, 130, 440, 80, 520, 120, 560, 100]] }, accept: true };
 const loanTo = (c: Client, to: string, item = "Perceuse") =>
   c.post("/api/loans", { item, borrowerName: "Test", borrowerEmail: to, dueAt: new Date(Date.now() + 7 * DAY).toISOString() });
 
@@ -78,46 +80,57 @@ async function main() {
   await cleanup();
   await sitePaid();
 
-  section("1. Limite de l'offre à la réouverture d'un prêt");
-  const free = await register("gratuit");
-  const max = PLANS.FREE.maxLoans;
-  const ids: string[] = [];
+  section("1. Limite de l'offre, à la création et à la réouverture d'un prêt");
   let r: Res = { status: 0, data: null, headers: new Headers() };
-  for (let i = 0; i < max; i++) {
-    r = await loanTo(free, email(`ami${i}`));
-    if (r.status === 201) ids.push(r.data.loan.id);
-  }
-  check(`${max} prêts en cours (limite de l'offre gratuite) → 201`, ids.length === max, r.data);
-  const first = ids[0];
-  r = await free.patch(`/api/loans/${first}`, { action: "return" });
-  check("clôture du 1er → 200", r.status === 200);
-  r = await loanTo(free, email("ami-bis"));
+  const free = await register("gratuit");
+  r = await loanTo(free, email("ami0"));
+  check("sans abonnement (site payant) → 402 avec un message clair", r.status === 402 && r.data.code === "LIMIT_REACHED" && /abonnement/.test(r.data.error), r.data);
+  const full = await register("limite", "ENTREPRISE_YEARLY");
+  const fullId = (await prisma.user.findUniqueOrThrow({ where: { email: email("limite") } })).id;
+  const max = PLANS.ENTREPRISE_YEARLY.maxLoans;
+  // prêts en cours ajoutés directement en base, jusqu'à un de moins que la limite
+  await prisma.loan.createMany({ data: Array.from({ length: max - 1 }, (_, i) => ({ lenderId: fullId, item: `Lot ${i}`, borrowerName: "Lot", borrowerEmail: email(`lot${i}`), dueAt: new Date(Date.now() + 7 * DAY), ackStatus: "NONE" as const })) });
+  r = await loanTo(full, email("ami1"));
+  check(`${max}e prêt en cours (limite de l'offre) → 201`, r.status === 201, r.data);
+  const first = r.data.loan.id;
+  r = await loanTo(full, email("ami2"));
+  check("au-delà de la limite → 402 LIMIT_REACHED", r.status === 402 && r.data.code === "LIMIT_REACHED", r.data);
+  r = await full.patch(`/api/loans/${first}`, { action: "return", ...SIG });
+  check("clôture avec attestation signée → 200", r.status === 200 && r.data.loan.status === "RETURNED", r.data);
+  r = await loanTo(full, email("ami-bis"));
   check("nouveau prêt une fois le 1er clôturé → 201", r.status === 201, r.data);
   const second = r.data.loan.id;
-  r = await free.patch(`/api/loans/${first}`, { action: "reopen" });
-  check("rouvrir le 1er alors que la limite est atteinte → 402 LIMIT_REACHED", r.status === 402 && r.data.code === "LIMIT_REACHED", r.data);
-  check("le prêt reste clôturé", (await prisma.loan.findUnique({ where: { id: first } }))?.status === "RETURNED");
-  await free.patch(`/api/loans/${second}`, { action: "return" });
-  r = await free.patch(`/api/loans/${first}`, { action: "reopen" });
+  // ancien prêt clôturé sans document signé : il peut être rouvert, dans la limite de l'offre
+  const old = await prisma.loan.create({ data: { lenderId: fullId, item: "Ancien", borrowerName: "Ancien", borrowerEmail: email("ancien"), dueAt: new Date(Date.now() + 7 * DAY), status: "RETURNED", returnedAt: new Date(), ackStatus: "NONE" } });
+  r = await full.patch(`/api/loans/${old.id}`, { action: "reopen" });
+  check("rouvrir alors que la limite est atteinte → 402 LIMIT_REACHED", r.status === 402 && r.data.code === "LIMIT_REACHED", r.data);
+  check("le prêt reste clôturé", (await prisma.loan.findUnique({ where: { id: old.id } }))?.status === "RETURNED");
+  await prisma.loan.update({ where: { id: second }, data: { status: "RETURNED", returnedAt: new Date() } });
+  r = await full.patch(`/api/loans/${old.id}`, { action: "reopen" });
   check("rouvrir une fois de la place libérée → 200", r.status === 200 && r.data.loan.status === "ACTIVE", r.data);
+  r = await full.patch(`/api/loans/${first}`, { action: "reopen" });
+  check("rouvrir un prêt dont le retour est attesté par un document signé → 409", r.status === 409, r.data);
 
   section("2. Supprimer puis recréer un prêt ne permet pas d'envoyer des e-mails sans limite");
-  const spammer = await register("boucle");
+  const spammer = await register("boucle", "ENTREPRISE_YEARLY");
+  const spammerId = (await prisma.user.findUniqueOrThrow({ where: { email: email("boucle") } })).id;
+  const perDay = PLANS.ENTREPRISE_YEARLY.maxNewLoansPerDay;
+  // le compte a déjà écrit à presque autant de nouveaux emprunteurs que son offre le permet sur 24 h
+  await prisma.emailLog.createMany({ data: Array.from({ length: perDay - 2 }, () => ({ to: email("deja"), subject: "test", kind: "loan_created", ok: true, thirdParty: true, senderId: spammerId })) });
   let created = 0;
-  const perDay = PLANS.FREE.maxNewLoansPerDay;
-  for (let i = 0; i < perDay + 2; i++) {
+  for (let i = 0; i < 4; i++) {
     r = await loanTo(spammer, email(`cible${i}`));
     if (r.status !== 201) break;
     created++;
     await spammer.del(`/api/loans/${r.data.loan.id}`);
   }
-  check(`${perDay} créations sur 24 h (offre gratuite), puis refus`, created === perDay, created);
+  check(`${perDay} nouveaux emprunteurs sur 24 h, puis refus (supprimer et recréer ne remet rien à zéro)`, created === 2, created);
   check("le refus est un 429 DAILY_LIMIT avec un message clair", r.status === 429 && r.data.code === "DAILY_LIMIT" && /demain/i.test(r.data.error), r.data);
   const log = await prisma.emailLog.findFirst({ where: { to: email("cible0") } });
   check("l'e-mail au tiers est journalisé avec son expéditeur", log?.thirdParty === true && !!log.senderId, log);
 
   section("3. Plafond d'e-mails par destinataire, tous prêteurs confondus");
-  const pro = await register("abonne", "PERSO_MONTHLY");
+  const pro = await register("abonne", "ENTREPRISE_YEARLY");
   const victim = email("victime");
   let sent = 0;
   for (let i = 0; i < MAIL_LIMITS.perRecipientPerDay + 1; i++) {
@@ -127,7 +140,7 @@ async function main() {
   }
   check(`${MAIL_LIMITS.perRecipientPerDay} e-mails vers la même adresse, puis refus`, sent === MAIL_LIMITS.perRecipientPerDay, sent);
   check("refus → 429 qui nomme l'emprunteur", r.status === 429 && /Test/.test(r.data.error), r.data);
-  const other = await register("autre");
+  const other = await register("autre", "ENTREPRISE_YEARLY");
   r = await loanTo(other, victim);
   check("un autre prêteur est aussi bloqué vers cette adresse", r.status === 429, r.data);
   r = await loanTo(other, email("quelquun"));
@@ -163,13 +176,17 @@ async function main() {
   }
 
   section("5. Pas de lien internet dans les textes repris dans les e-mails");
-  const fresh = await register("liens", "PERSO_MONTHLY");
+  const fresh = await register("liens", "ENTREPRISE_YEARLY");
   r = await loanTo(fresh, email("ami3"), "Ta banque : www.faux-site.com");
   check("objet avec une adresse web → 400", r.status === 400 && /site internet/.test(r.data.error), r.data);
   r = await fresh.post("/api/loans", { item: "Livre", borrowerName: "http://piege.example", borrowerEmail: email("ami3"), dueAt: new Date(Date.now() + 7 * DAY).toISOString() });
   check("nom d'emprunteur avec un lien → 400", r.status === 400, r.data);
-  r = await new Client().post("/api/auth/register", { name: "promo-impots.fr", email: email("pirate"), password: PW, acceptTerms: true });
-  check("prénom avec une adresse web à l'inscription → 400", r.status === 400, r.data);
+  r = await new Client().post("/api/auth/register", { name: "promo-impots.fr", organization: "Structure", email: email("pirate"), password: PW, acceptTerms: true });
+  check("nom avec une adresse web à l'inscription → 400", r.status === 400, r.data);
+  r = await new Client().post("/api/auth/register", { name: "Pirate", organization: "Votre banque www.faux.com", email: email("pirate2"), password: PW, acceptTerms: true });
+  check("structure avec une adresse web à l'inscription → 400", r.status === 400, r.data);
+  r = await new Client().post("/api/auth/register", { name: "Sans structure", email: email("sansstructure"), password: PW, acceptTerms: true });
+  check("inscription sans nom de structure → 400 (service réservé aux professionnels)", r.status === 400, r.data);
   r = await fresh.patch("/api/account", { name: "Va sur bit.ly" });
   check("prénom avec un lien dans Mon compte → 400", r.status === 400, r.data);
   r = await loanTo(fresh, email("ami3"), "Objectif 50mm f/1.8");

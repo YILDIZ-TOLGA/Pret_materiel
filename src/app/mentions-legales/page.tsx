@@ -40,10 +40,10 @@ export default function Page() {
       <h2>Signaler un contenu</h2>
       <p>Pour signaler un contenu illicite ou un abus (par exemple des e-mails de rappel envoyés à tort), écrivez à {editor.email} en précisant l&apos;adresse e-mail concernée et la nature du problème.</p>
 
-      <h2>Médiation de la consommation</h2>
+      <h2>Médiation</h2>
       {LEGAL.mediator.name
-        ? <p>En cas de litige non résolu avec le service client, le consommateur peut recourir gratuitement au médiateur de la consommation : {LEGAL.mediator.name} ({LEGAL.mediator.url}). Les conditions sont détaillées dans les <Link href="/cgu#litiges">conditions générales</Link>.</p>
-        : <p>Pendant la phase de test, le service est entièrement gratuit et rien n&apos;est vendu : aucun médiateur de la consommation n&apos;est désigné. Un médiateur sera indiqué ici avant l&apos;ouverture de toute offre payante.</p>}
+        ? <p>En cas de litige non résolu avec le service client, vous pouvez recourir au médiateur {LEGAL.mediator.name} ({LEGAL.mediator.url}). Les conditions sont détaillées dans les <Link href="/cgu#litiges">conditions générales</Link>.</p>
+        : <p>Le service est réservé aux professionnels (entreprises, associations, collectivités…) : la médiation de la consommation ne s&apos;applique pas. En cas de difficulté, écrivez à {editor.email} ; les règles applicables aux litiges figurent dans les <Link href="/cgu#litiges">conditions générales</Link>.</p>}
     </LegalPage>
   );
 }

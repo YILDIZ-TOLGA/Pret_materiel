@@ -10,7 +10,7 @@ import { LEGAL } from "@/lib/legal";
 
 const sans = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
-const description = "Suis tes prêts d'objets et d'argent. Les relances partent automatiquement.";
+const description = "Prêts de matériel et d'argent pour les entreprises et les associations : accusé de réception signé en ligne, reçus PDF, rappels automatiques.";
 
 export const metadata: Metadata = {
   // adresse publique du site (APP_URL, fixée au build) : sert aux liens absolus des aperçus de partage

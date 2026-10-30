@@ -54,7 +54,7 @@ class Client {
 const email = (name: string) => `${name}@${DOMAIN}`;
 async function register(name: string) {
   const c = new Client();
-  const r = await c.post("/api/auth/register", { name, email: email(name), password: PW, acceptTerms: true });
+  const r = await c.post("/api/auth/register", { name, organization: `Structure ${name}`, email: email(name), password: PW, acceptTerms: true });
   if (r.status !== 201) throw new Error(`Inscription ${name} impossible : ${JSON.stringify(r.data)}`);
   await prisma.user.update({ where: { email: email(name) }, data: { emailVerifiedAt: new Date() } });
   return c;
@@ -74,12 +74,12 @@ async function main() {
 
   section("1. Souscription et confirmation de commande");
   const client = await register("client");
-  let r = await client.post("/api/billing/checkout", { plan: "PERSO_MONTHLY" });
+  let r = await client.post("/api/billing/checkout", { plan: "ENTREPRISE_YEARLY" });
   check("sans accepter les CGV → 400", r.status === 400, r.data);
-  r = await client.post("/api/billing/checkout", { plan: "PERSO_MONTHLY", acceptSalesTerms: true });
+  r = await client.post("/api/billing/checkout", { plan: "ENTREPRISE_YEARLY", acceptSalesTerms: true });
   check("souscription (paiement de démo) → 200", r.status === 200 && /abonnement\?success=1/.test(r.data.url), r.data);
   let user = await prisma.user.findUniqueOrThrow({ where: { email: email("client") } });
-  check("offre activée et date de souscription enregistrée", user.plan === "PERSO_MONTHLY" && !!user.subscriptionStartedAt, { plan: user.plan, start: user.subscriptionStartedAt });
+  check("offre activée et date de souscription enregistrée", user.plan === "ENTREPRISE_YEARLY" && !!user.subscriptionStartedAt, { plan: user.plan, start: user.subscriptionStartedAt });
   check("e-mail de confirmation de commande envoyé", (await mails(email("client"), "order_confirmation")) === 1);
   r = await client.get("/api/auth/me");
   check("la page Offre reçoit la date limite de rétractation (dans 14 jours)", !!r.data.withdrawalUntil && Math.abs(new Date(r.data.withdrawalUntil).getTime() - Date.now() - 14 * DAY) < 60000, r.data.withdrawalUntil);
@@ -87,11 +87,11 @@ async function main() {
   section("2. Rétractation en ligne");
   r = await client.post("/api/billing/withdraw");
   check("rétractation → 200", r.status === 200 && r.data.ok, r.data);
-  check("montant payé remboursé en entier", r.data.refundedCents === 300, r.data);
+  check("montant payé remboursé en entier", r.data.refundedCents === 29900, r.data);
   user = await prisma.user.findUniqueOrThrow({ where: { email: email("client") } });
-  check("retour immédiat à l'offre gratuite", user.plan === "FREE" && !user.planExpiresAt && !user.subscriptionStartedAt, user.plan);
+  check("abonnement arrêté immédiatement", user.plan === "FREE" && !user.planExpiresAt && !user.subscriptionStartedAt, user.plan);
   const pays = await prisma.payment.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } });
-  check("remboursement enregistré en négatif (revenus de l'admin justes)", pays.reduce((a, p) => a + p.amountCents, 0) === 0 && pays.some((p) => p.amountCents === -300), pays.map((p) => p.amountCents));
+  check("remboursement enregistré en négatif (revenus de l'admin justes)", pays.reduce((a, p) => a + p.amountCents, 0) === 0 && pays.some((p) => p.amountCents === -29900), pays.map((p) => p.amountCents));
   check("accusé de réception envoyé par e-mail", (await mails(email("client"), "withdrawal_receipt")) === 1);
   r = await client.post("/api/billing/withdraw");
   check("deuxième demande → refusée", r.status === 400, r.data);
@@ -100,7 +100,7 @@ async function main() {
 
   section("3. Délai de 14 jours");
   const late = await register("tardif");
-  await late.post("/api/billing/checkout", { plan: "PERSO_YEARLY", acceptSalesTerms: true });
+  await late.post("/api/billing/checkout", { plan: "ENTREPRISE_YEARLY", acceptSalesTerms: true });
   await prisma.user.update({ where: { email: email("tardif") }, data: { subscriptionStartedAt: new Date(Date.now() - 13 * DAY) } });
   r = await late.get("/api/auth/me");
   check("13 jours après : rétractation encore possible", !!r.data.withdrawalUntil, r.data.withdrawalUntil);
@@ -108,14 +108,14 @@ async function main() {
   r = await late.get("/api/auth/me");
   check("16 jours après : plus de bouton", r.data.withdrawalUntil === null, r.data.withdrawalUntil);
   r = await late.post("/api/billing/withdraw");
-  check("16 jours après : rétractation refusée, l'abonnement continue", r.status === 400 && (await prisma.user.findUniqueOrThrow({ where: { email: email("tardif") } })).plan === "PERSO_YEARLY", r.data);
+  check("16 jours après : rétractation refusée, l'abonnement continue", r.status === 400 && (await prisma.user.findUniqueOrThrow({ where: { email: email("tardif") } })).plan === "ENTREPRISE_YEARLY", r.data);
   const anon = new Client();
   r = await anon.post("/api/billing/withdraw");
   check("sans être connecté → 401", r.status === 401);
 
   section("4. Deux clics simultanés sur « Confirmer la rétractation »");
   const fast = await register("presse");
-  await fast.post("/api/billing/checkout", { plan: "PRO50_MONTHLY", acceptSalesTerms: true });
+  await fast.post("/api/billing/checkout", { plan: "ENTREPRISE_YEARLY", acceptSalesTerms: true });
   const both = await Promise.all([1, 2].map(() => fast.post("/api/billing/withdraw")));
   const fastUser = await prisma.user.findUniqueOrThrow({ where: { email: email("presse") } });
   const refunds = await prisma.payment.count({ where: { userId: fastUser.id, amountCents: { lt: 0 } } });

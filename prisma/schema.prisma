@@ -14,13 +14,8 @@ enum Role {
 
 // Prix et limites : voir src/lib/plans.ts
 enum Plan {
-  FREE // 3 prêts
-  PERSO_MONTHLY // 3 €/mois, sans engagement, 10 prêts
-  PERSO_YEARLY // 30 €/an, 10 prêts
-  PRO50_MONTHLY // 12 €/mois, sans engagement, 50 prêts
-  PRO50_YEARLY // 120 €/an, 50 prêts
-  PRO200_MONTHLY // 24 €/mois, sans engagement, 200 prêts
-  PRO200_YEARLY // 240 €/an, 200 prêts
+  FREE // sans abonnement : les prêts restent consultables, pas de nouveau prêt (sauf en phase de test)
+  ENTREPRISE_YEARLY // offre Entreprise, 299 € HT par an
 }
 
 enum LoanKind {
@@ -33,39 +28,56 @@ enum LoanStatus {
   RETURNED
 }
 
+/**
+ * Accusé de réception du prêt, signé par l'emprunteur (src/lib/receipts.ts).
+ */
+enum AckStatus {
+  NONE // prêt enregistré avant les accusés de réception : aucune signature demandée
+  PENDING // demande envoyée à l'emprunteur, en attente de sa signature
+  SIGNED // accusé de réception signé
+  REFUSED // l'emprunteur conteste le prêt : plus aucun rappel ne lui est envoyé
+}
+
+enum ReceiptKind {
+  LOAN // accusé de réception du prêt, signé par l'emprunteur
+  REPAYMENT // reçu d'un remboursement, signé par le prêteur
+  RETURN // attestation de restitution de l'objet, signée par le prêteur
+}
+
 model User {
-  id                   String    @id @default(cuid())
-  email                String    @unique
-  name                 String
-  // offres Pro : structure responsable du traitement des données de ses emprunteurs, nommée dans les e-mails
-  organization         String?
-  passwordHash         String
-  role                 Role      @default(USER)
-  disabled             Boolean   @default(false)
-  plan                 Plan      @default(FREE)
-  planExpiresAt        DateTime?
-  stripeCustomerId     String?   @unique
-  stripeSubscriptionId String?   @unique
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  name                  String
+  // structure cliente (entreprise, association…) : responsable du traitement des données de ses emprunteurs,
+  // nommée dans les e-mails et les documents signés. Obligatoire avant le premier prêt.
+  organization          String?
+  passwordHash          String
+  role                  Role      @default(USER)
+  disabled              Boolean   @default(false)
+  plan                  Plan      @default(FREE)
+  planExpiresAt         DateTime?
+  stripeCustomerId      String?   @unique
+  stripeSubscriptionId  String?   @unique
   // abonnement résilié : reste actif jusqu'à planExpiresAt puis n'est pas renouvelé
-  cancelAtPeriodEnd    Boolean   @default(false)
+  cancelAtPeriodEnd     Boolean   @default(false)
   // conclusion de l'abonnement en cours : point de départ du délai de rétractation de 14 jours
   subscriptionStartedAt DateTime?
   // passage du site au mode payant : date annoncée à cet utilisateur par e-mail (un seul e-mail par date)
-  paidModeNoticeFor    DateTime?
-  createdAt            DateTime  @default(now())
+  paidModeNoticeFor     DateTime?
+  createdAt             DateTime  @default(now())
   // dernière activité (connexion ou ouverture de l'appli) : sert à la purge des comptes inactifs
-  lastLoginAt          DateTime?
+  lastLoginAt           DateTime?
   // RGPD / consommation : preuve d'acceptation des CGU et des CGV
-  termsAcceptedAt      DateTime?
-  termsVersion         String?
-  salesTermsAcceptedAt DateTime?
+  termsAcceptedAt       DateTime?
+  termsVersion          String?
+  salesTermsAcceptedAt  DateTime?
   // préavis envoyés (reconduction d'un abonnement annuel, suppression pour inactivité)
-  renewalNoticeAt      DateTime?
-  inactivityNoticeAt   DateTime?
+  renewalNoticeAt       DateTime?
+  inactivityNoticeAt    DateTime?
   // adresse e-mail confirmée par un lien : sans ça, pas de rattachement des emprunts ni d'envoi aux emprunteurs
-  emailVerifiedAt      DateTime?
+  emailVerifiedAt       DateTime?
   // nouvelle adresse demandée, en attente de confirmation par un lien envoyé à cette adresse
-  pendingEmail         String?
+  pendingEmail          String?
 
   loansGiven    Loan[]         @relation("lender")
   loansReceived Loan[]         @relation("borrower")
@@ -76,7 +88,9 @@ model User {
   authTokens    AuthToken[]
 }
 
-/** Session de connexion (une par appareil) : la supprimer déconnecte l'appareil, même avec un jeton encore valide. */
+/**
+ * Session de connexion (une par appareil) : la supprimer déconnecte l'appareil, même avec un jeton encore valide.
+ */
 model Session {
   id        String   @id @default(cuid())
   userId    String
@@ -93,7 +107,9 @@ enum AuthTokenKind {
   RESET_PASSWORD
 }
 
-/** Lien à usage unique envoyé par e-mail. Seule l'empreinte SHA-256 du jeton est stockée. */
+/**
+ * Lien à usage unique envoyé par e-mail. Seule l'empreinte SHA-256 du jeton est stockée.
+ */
 model AuthToken {
   id        String        @id @default(cuid())
   kind      AuthTokenKind
@@ -135,6 +151,18 @@ model Loan {
   notes          String?
   createdAt      DateTime   @default(now())
 
+  // Accusé de réception signé par l'emprunteur. Les prêts antérieurs à cette fonction sont à NONE.
+  ackStatus        AckStatus @default(PENDING)
+  // version de la demande : augmente quand le prêt est modifié, ce qui rend caducs les liens de signature déjà envoyés
+  ackVersion       Int       @default(1)
+  ackRequestedAt   DateTime?
+  // relance automatique de la demande de signature (une seule par version)
+  ackRemindedAt    DateTime?
+  // date de la signature ou de la contestation
+  ackAt            DateTime?
+  // motif donné par l'emprunteur qui conteste le prêt
+  ackRefusalReason String?
+
   lenderId   String
   lender     User    @relation("lender", fields: [lenderId], references: [id], onDelete: Cascade)
   // renseigné si l'e-mail de l'emprunteur correspond à un compte
@@ -142,13 +170,16 @@ model Loan {
   borrower   User?   @relation("borrower", fields: [borrowerId], references: [id], onDelete: SetNull)
 
   repayments Repayment[]
+  receipts   Receipt[]
 
   @@index([lenderId, status])
   @@index([borrowerEmail])
   @@index([status, dueAt])
 }
 
-/** Remboursement (partiel ou total) d'un prêt d'argent. */
+/**
+ * Remboursement (partiel ou total) d'un prêt d'argent.
+ */
 model Repayment {
   id          String   @id @default(cuid())
   loanId      String
@@ -156,6 +187,40 @@ model Repayment {
   amountCents Int
   note        String?
   createdAt   DateTime @default(now())
+  // reçu signé par le prêteur (absent pour les remboursements enregistrés avant les reçus)
+  receipt     Receipt?
+
+  @@index([loanId])
+}
+
+/**
+ * Document signé électroniquement : accusé de réception, reçu de remboursement ou attestation de retour.
+ * Figé à la signature : contenu lu par le signataire, tracé de la signature, éléments de preuve et empreinte
+ * SHA-256 de l'ensemble (art. 1366 C. civ.). Le PDF est recalculé à l'identique depuis ces données.
+ * Supprimé avec le prêt : le prêteur garde sa copie imprimée (CGU), Prêt Matériel n'archive pas.
+ */
+model Receipt {
+  id           String      @id @default(cuid())
+  // numéro imprimé sur le document (AR-…, RR-…, AT-…)
+  number       String      @unique
+  kind         ReceiptKind
+  loanId       String
+  loan         Loan        @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  repaymentId  String?     @unique
+  repayment    Repayment?  @relation(fields: [repaymentId], references: [id], onDelete: Cascade)
+  // ce que le signataire a lu et signé : parties, objet ou somme, dates, déclaration
+  content      Json
+  // tracé de la signature (points, pas d'image) ou signature au clavier
+  signature    Json
+  signerName   String
+  signerEmail  String
+  signedAt     DateTime    @default(now())
+  // éléments de preuve
+  ip           String?
+  userAgent    String?
+  hash         String
+  // premier téléchargement par le prêteur : tant qu'il est vide, l'appli lui rappelle d'imprimer le document
+  downloadedAt DateTime?
 
   @@index([loanId])
 }
@@ -174,15 +239,15 @@ model Notification {
 }
 
 model Payment {
-  id            String   @id @default(cuid())
-  userId        String?
-  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  amountCents   Int
-  currency      String   @default("eur")
-  plan          Plan
-  provider      String   @default("stripe")
-  providerRef   String   @unique
-  createdAt     DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  amountCents Int
+  currency    String   @default("eur")
+  plan        Plan
+  provider    String   @default("stripe")
+  providerRef String   @unique
+  createdAt   DateTime @default(now())
 
   @@index([createdAt])
 }
@@ -224,7 +289,9 @@ enum SiteMode {
   PAID // offres payantes (src/lib/plans.ts)
 }
 
-/** Réglages du site, une seule ligne (id = 1), modifiés depuis l'admin. Voir src/lib/sitemode.ts. */
+/**
+ * Réglages du site, une seule ligne (id = 1), modifiés depuis l'admin. Voir src/lib/sitemode.ts.
+ */
 model SiteSetting {
   id          Int       @id @default(1)
   mode        SiteMode  @default(BETA)
@@ -237,7 +304,9 @@ model SiteSetting {
   updatedById String?
 }
 
-/** Adresses qui ne veulent plus recevoir d'e-mails de rappel (droit d'opposition, art. 21 RGPD). */
+/**
+ * Adresses qui ne veulent plus recevoir d'e-mails de rappel (droit d'opposition, art. 21 RGPD).
+ */
 model EmailOptOut {
   email     String   @id
   createdAt DateTime @default(now())

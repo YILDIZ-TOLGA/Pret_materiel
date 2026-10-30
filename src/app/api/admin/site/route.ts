@@ -18,7 +18,7 @@ async function state() {
     settings.updatedById ? prisma.user.findUnique({ where: { id: settings.updatedById }, select: { name: true, email: true } }) : Promise.resolve(null),
     lendersOverFreeCap(),
   ]);
-  // Paiement prêt : clés Stripe et les 6 prix, ou paiement de démo (local uniquement)
+  // Paiement prêt : clés Stripe et le prix de l'offre Entreprise, ou paiement de démo (local uniquement)
   const paymentReady = demoBilling || (!!stripe && PAID_PLANS.every((p) => !!stripePriceId(p)));
   return {
     mode, paidFrom, paidSince: settings.paidSince, updatedAt: settings.updatedAt, updatedBy,
@@ -55,8 +55,8 @@ export const POST = withAdmin(async (admin, req) => {
     }
     const s = await state();
     // Vendre est une activité professionnelle : pas de site payant sans éditeur identifié (SIRET dans src/lib/legal.ts)
-    if (!s.sellerReady) return error("Pas de passage au payant sans activité déclarée : renseigne le SIRET, l'adresse, le téléphone, la TVA et le médiateur de l'éditeur (src/lib/legal.ts).", 409);
-    if (!s.paymentReady) return error("Le paiement n'est pas configuré (clés Stripe et prix des 6 offres) : les utilisateurs ne pourraient pas s'abonner.", 409);
+    if (!s.sellerReady) return error("Pas de passage au payant sans activité déclarée : renseigne le SIRET, l'adresse, le téléphone et la TVA de l'éditeur (src/lib/legal.ts).", 409);
+    if (!s.paymentReady) return error("Le paiement n'est pas configuré (clés Stripe et prix de l'offre Entreprise) : les utilisateurs ne pourraient pas s'abonner.", 409);
     await prisma.siteSetting.update({ where: { id: 1 }, data: { paidFrom: parisMidnight(body.day), updatedById: admin.id } });
   } else if (body.action === "cancel") {
     if (current.mode === "PAID") return error("Le site est déjà en mode payant : utilise « Repasser en site testeur ».");

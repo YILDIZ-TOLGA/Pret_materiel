@@ -135,6 +135,8 @@ export default function AdminPage() {
               <Kpi label="Rendus en retard" value={k.lateReturnRate == null ? "—" : pct(k.lateReturnRate)} />
               <Kpi label="Prêts d'argent" value={nb(k.moneyLoans)} hint={`${euros(k.moneyLentCents)} prêtés · ${euros(k.moneyRepaidCents)} remboursés`} />
               <Kpi label={`E-mails envoyés (${days} j)`} value={nb(k.emailsOk)} hint={k.emailsFail ? `${nb(k.emailsFail)} échec${k.emailsFail > 1 ? "s" : ""}` : "Aucun échec"} />
+              <Kpi label="Accusés signés (en cours)" value={nb(k.ackSigned)} hint={`${nb(k.ackPending)} en attente · ${nb(k.ackRefused)} contesté${k.ackRefused > 1 ? "s" : ""}`} />
+              <Kpi label="Documents signés" value={nb(k.receipts)} hint="accusés, reçus et attestations" />
             </section>
             <ChartCard title="Prêts créés par jour"><TimeChart data={s.daily} x="day" xLabel={dayLabel} series={[{ key: "loans", label: "Prêts", color: "var(--series-1)" }]} /></ChartCard>
             <section className="card flush">

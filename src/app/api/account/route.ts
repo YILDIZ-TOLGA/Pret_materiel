@@ -6,9 +6,9 @@ import { stripe } from "@/lib/stripe";
 import { NO_LINK, noLink } from "@/lib/validation";
 
 const patchSchema = z.object({
-  name: z.string().trim().min(1, "Prénom requis").max(80).refine(noLink, NO_LINK).optional(),
-  // offres Pro : nom de la structure (vide = aucune)
-  organization: z.string().trim().max(120).refine(noLink, NO_LINK).nullable().optional(),
+  name: z.string().trim().min(1, "Nom requis").max(80).refine(noLink, NO_LINK).optional(),
+  // structure cliente, nommée dans les e-mails et les documents envoyés aux emprunteurs
+  organization: z.string().trim().min(1, "Nom de la structure requis").max(120).refine(noLink, NO_LINK).optional(),
 });
 
 /** Droit de rectification (art. 16 RGPD). */
@@ -18,7 +18,7 @@ export const PATCH = withUser(async (user, req) => {
   const { name, organization } = parsed.data;
   const updated = await prisma.user.update({
     where: { id: user.id },
-    data: { ...(name !== undefined ? { name } : {}), ...(organization !== undefined ? { organization: organization || null } : {}) },
+    data: { ...(name !== undefined ? { name } : {}), ...(organization !== undefined ? { organization } : {}) },
   });
   return json({ user: publicUser(updated) });
 });
