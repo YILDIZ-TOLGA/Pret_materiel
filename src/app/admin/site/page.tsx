@@ -7,7 +7,7 @@ import { useMe } from "@/components/Providers";
 import { useToast } from "@/components/Toast";
 import { SkeletonRows, Spinner } from "@/components/ui";
 import { api, dateFr } from "@/lib/client";
-import { PLANS } from "@/lib/plans";
+import { MAIN_PLAN } from "@/lib/plans";
 
 type State = {
   mode: "BETA" | "PAID"; paidFrom: string | null; paidSince: string | null; updatedAt: string;
@@ -41,7 +41,7 @@ export default function SiteModePage() {
   async function schedule() {
     const ok = await confirm({
       title: `Passer en site payant le ${dateFr(day)} ?`,
-      body: <>Les {s!.stats.verified} utilisateurs dont l&apos;adresse est confirmée seront prévenus par e-mail et dans l&apos;appli. Rien ne sera supprimé ; à cette date, {s!.stats.overFreeCap} compte{s!.stats.overFreeCap > 1 ? "s" : ""} dépassant l&apos;offre gratuite ne pourra plus créer de prêt sans offre.</>,
+      body: <>Les {s!.stats.verified} utilisateurs dont l&apos;adresse est confirmée seront prévenus par e-mail et dans l&apos;appli. Rien ne sera supprimé ; à cette date, les comptes sans abonnement ne pourront plus créer de prêt ({s!.stats.overFreeCap} ont aujourd&apos;hui des prêts en cours).</>,
       confirmLabel: "Programmer et prévenir",
       icon: "card",
     });
@@ -71,11 +71,11 @@ export default function SiteModePage() {
           <p className="small" style={{ margin: 0, color: "var(--ink-2)" }}>
             {beta
               ? <>Chaque compte a jusqu&apos;à {s.betaLimits.maxLoans} prêts en cours et {s.betaLimits.maxNewLoansPerDay} nouveaux prêts par jour, sans payer. Aucune offre n&apos;est vendue. Les garde-fous anti-abus restent actifs.</>
-              : <>Offres et limites normales : l&apos;offre gratuite permet {PLANS.FREE.maxLoans} prêts en cours ; au-delà, il faut une offre pour en créer de nouveaux. Rien n&apos;est jamais supprimé.{s.paidSince && <> Payant depuis le {dateFr(s.paidSince)}.</>}</>}
+              : <>L&apos;offre {MAIN_PLAN.name} ({MAIN_PLAN.priceLabel}) est nécessaire pour créer des prêts. Sans abonnement, les prêts existants restent consultables et continuent (rappels, signatures, reçus). Rien n&apos;est jamais supprimé.{s.paidSince && <> Payant depuis le {dateFr(s.paidSince)}.</>}</>}
           </p>
           <table className="tbl kv"><tbody>
             <tr><td>Utilisateurs</td><td className="mono">{s.stats.users} (dont {s.stats.verified} avec adresse confirmée)</td></tr>
-            <tr><td>Au-delà de l&apos;offre gratuite</td><td className="mono">{s.stats.overFreeCap} compte{s.stats.overFreeCap > 1 ? "s" : ""} avec plus de {PLANS.FREE.maxLoans} prêts en cours</td></tr>
+            <tr><td>Sans abonnement</td><td className="mono">{s.stats.overFreeCap} compte{s.stats.overFreeCap > 1 ? "s" : ""} avec des prêts en cours</td></tr>
             <tr><td>Abonnés payants</td><td className="mono">{s.stats.paying}{s.stats.stripeSubscriptions ? ` (dont ${s.stats.stripeSubscriptions} prélevés par Stripe)` : ""}</td></tr>
             <tr><td>Dernier changement</td><td>{dateFr(s.updatedAt)}{s.updatedBy && ` par ${s.updatedBy.name}`}</td></tr>
           </tbody></table>
@@ -85,10 +85,10 @@ export default function SiteModePage() {
           <section className="card stack" aria-labelledby="paid-title">
             <h2 id="paid-title">Passer en site payant</h2>
             <p className="small" style={{ margin: 0, color: "var(--ink-2)" }}>
-              Le changement est annoncé à tous les utilisateurs par e-mail et dans l&apos;appli, au moins {s.noticeDays} jours avant (CGU, article 10). À la date choisie, les offres payantes s&apos;ouvrent : chacun garde tous ses prêts, mais au-delà de {PLANS.FREE.maxLoans} prêts en cours il faudra une offre pour en créer de nouveaux.
+              Le changement est annoncé à tous les utilisateurs par e-mail et dans l&apos;appli, au moins {s.noticeDays} jours avant (CGU, article 10). À la date choisie, l&apos;offre {MAIN_PLAN.name} s&apos;ouvre à la vente : chacun garde tous ses prêts et ses documents, mais il faudra un abonnement pour en créer de nouveaux.
             </p>
-            {!s.sellerReady && <div className="banner late"><Icon name="alert" size={16} />Vendre demande une activité déclarée (micro-entreprise ou société) : il faut d&apos;abord renseigner le SIRET, l&apos;adresse, le téléphone, la TVA et le médiateur dans les mentions légales.</div>}
-            {!s.paymentReady && <div className="banner late"><Icon name="alert" size={16} />Le paiement n&apos;est pas configuré (clés Stripe et prix des 6 offres) : impossible de programmer le passage au payant pour l&apos;instant.</div>}
+            {!s.sellerReady && <div className="banner late"><Icon name="alert" size={16} />Vendre demande une activité déclarée (micro-entreprise ou société) : il faut d&apos;abord renseigner le SIRET, l&apos;adresse, le téléphone et la TVA de l&apos;éditeur (src/lib/legal.ts).</div>}
+            {!s.paymentReady && <div className="banner late"><Icon name="alert" size={16} />Le paiement n&apos;est pas configuré (clés Stripe et prix de l&apos;offre {MAIN_PLAN.name}) : impossible de programmer le passage au payant pour l&apos;instant.</div>}
             <div className="row" style={{ gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
               <label className="field" style={{ minWidth: 220 }}>Date du passage au payant
                 <input type="date" value={day} min={s.earliestPaidDay} onChange={(e) => setDay(e.target.value)} />

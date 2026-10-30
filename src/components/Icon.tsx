@@ -48,6 +48,9 @@ const PATHS = {
   external: "M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6",
   menu: "M4 6h16M4 12h16M4 18h16",
   command: "M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3",
+  file: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6ZM14 3v6h6M8 13h8M8 17h5",
+  signature: "M3 16c2.5-.5 3.5-8 6-8 1.8 0 .6 7 2.6 7 1.6 0 2-3.5 3.6-3.5 1.4 0 1.6 2.5 5.8 2.5M3 20h18",
+  printer: "M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6v-7Z",
 } as const;
 
 export type IconName = keyof typeof PATHS;

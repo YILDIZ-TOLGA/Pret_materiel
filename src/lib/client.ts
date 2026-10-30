@@ -49,6 +49,22 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
   return data as T;
 }
 
+/**
+ * Télécharge un fichier de l'API (PDF d'un document signé, export) : cookie sur le site, jeton Bearer dans
+ * l'appli native. Le fichier est enregistré sur l'appareil, prêt à être imprimé.
+ */
+export async function downloadFile(path: string, filename: string) {
+  const t = authToken();
+  const res = await fetch(API_BASE + path, { credentials: "include", headers: t ? { Authorization: `Bearer ${t}` } : {} });
+  if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).error || "Téléchargement impossible, réessaie", res.status);
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement("a"), { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export const DAY = 86400000;
 export const euros = (cents: number) => (cents / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: cents % 100 ? 2 : 0 });
 export const dateFr = (d: string | Date) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });

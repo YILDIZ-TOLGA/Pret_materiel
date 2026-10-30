@@ -10,7 +10,7 @@ type Item = { id: string; group: string; label: string; sub?: string; icon: Icon
 
 const PAGES: Item[] = [
   { id: "new", group: "Actions", label: "Nouveau prêt", icon: "plus", href: "/prets/nouveau", keywords: "ajouter creer enregistrer preter noter", right: <kbd>N</kbd> },
-  { id: "p-prets", group: "Aller à", label: "Prêts", icon: "ticket", href: "/prets", keywords: "liste en cours carnet" },
+  { id: "p-prets", group: "Aller à", label: "Prêts", icon: "ticket", href: "/prets", keywords: "liste en cours registre carnet" },
   { id: "p-late", group: "Aller à", label: "Prêts en retard", icon: "alert", href: "/prets?vue=retard", keywords: "retard relancer relance" },
   { id: "p-bilan", group: "Aller à", label: "Bilan", icon: "chart", href: "/bilan", keywords: "statistiques tableau de bord export csv personnes" },
   { id: "p-emprunts", group: "Aller à", label: "Emprunts", icon: "inbox", href: "/emprunts", keywords: "on m'a prete" },

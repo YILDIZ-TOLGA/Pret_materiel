@@ -36,26 +36,27 @@ export const LEGAL = {
 
   // Sous-traitants (RGPD, art. 28) : à ajuster selon les services réellement utilisés.
   processors: [
-    { name: "Railway Corporation (États-Unis)", role: "Hébergement du site et de la base de données, sauvegardes quotidiennes de la base", location: "Données hébergées dans l'Union européenne (région EU West, Pays-Bas ; sauvegardes dans un stockage Railway à Amsterdam) ; société américaine : transferts éventuels encadrés par l'accord de traitement des données (DPA) de Railway et les clauses contractuelles types de la Commission européenne" },
+    { name: "Railway Corporation (États-Unis)", role: "Hébergement du site et de la base de données (prêts et documents signés), sauvegardes quotidiennes de la base", location: "Données hébergées dans l'Union européenne (région EU West, Pays-Bas ; sauvegardes dans un stockage Railway à Amsterdam) ; société américaine : transferts éventuels encadrés par l'accord de traitement des données (DPA) de Railway et les clauses contractuelles types de la Commission européenne" },
     { name: "Stripe Payments Europe Ltd.", role: "Paiement des abonnements", location: "Irlande ; transferts possibles vers les États-Unis encadrés par le Data Privacy Framework et des clauses contractuelles types" },
-    { name: "Brevo (Sendinblue SAS, France)", role: "Envoi des e-mails de rappel et de service", location: "Union européenne (à confirmer dans l'accord de traitement des données de Brevo)" },
+    { name: "Brevo (Sendinblue SAS, France)", role: "Envoi des e-mails : demandes de signature, documents signés en pièce jointe (PDF), rappels et e-mails de service", location: "Union européenne (à confirmer dans l'accord de traitement des données de Brevo)" },
   ],
 
-  // Médiateur de la consommation (Code de la consommation, art. L612-1) : obligatoire pour vendre
-  // à des particuliers. Adhésion à faire auprès d'un médiateur agréé (liste : economie.gouv.fr/mediation-conso).
-  // Vide tant que rien n'est vendu (phase de test gratuite) : les pages l'indiquent.
+  // Médiateur de la consommation (Code de la consommation, art. L612-1) : obligatoire pour vendre à des
+  // consommateurs. Le service est réservé aux professionnels (CGU art. 2) : pas de médiateur obligatoire.
+  // À renseigner seulement si l'éditeur adhère quand même à un médiateur (les pages l'affichent alors).
   mediator: {
     name: "",
     url: "",
   },
 
-  // Mention de TVA à côté des prix, selon le régime de la société (à demander à son comptable) :
+  // Mention de TVA à côté des prix, selon le régime de l'éditeur (à demander à son comptable) :
   //  - franchise en base de TVA : « TVA non applicable, art. 293 B du CGI » (et vatNumber vide) ;
-  //  - assujettie : « TVA 20 % incluse » (et vatNumber renseigné). Les prix de plans.ts sont des prix TTC.
+  //  - assujetti : « TVA 20 % en sus » (et vatNumber renseigné). Les prix de plans.ts sont des prix hors taxes.
   vatMention: "Mention de TVA précisée à l'ouverture des offres payantes",
 
-  // Âge minimum pour créer un compte (consentement numérique en France : 15 ans).
-  minAge: 15,
+  // Âge minimum pour créer un compte : le service est réservé aux professionnels, le titulaire du compte agit
+  // pour le compte d'une structure (CGU art. 2).
+  minAge: 18,
 };
 
 /**
@@ -64,13 +65,20 @@ export const LEGAL = {
  */
 export const sellerReady = () => !!LEGAL.editor.siret || process.env.NODE_ENV !== "production";
 
-export const TERMS_VERSION = "2026-10-28";
-export const LEGAL_UPDATED_AT = "28 octobre 2026";
+export const TERMS_VERSION = "2026-10-30";
+export const LEGAL_UPDATED_AT = "30 octobre 2026";
+/**
+ * Version des conditions qu'un compte doit avoir acceptée pour enregistrer de nouveaux prêts. À avancer seulement
+ * pour un changement qui demande un nouvel accord (ici : service réservé aux professionnels, accusés de réception
+ * signés). Une simple mise à jour des textes change TERMS_VERSION seulement.
+ */
+export const REQUIRED_TERMS_VERSION = "2026-10-30";
+export const termsUpToDate = (u: { termsVersion: string | null }) => !!u.termsVersion && u.termsVersion >= REQUIRED_TERMS_VERSION;
 
 /** Durées de conservation (appliquées par la purge automatique, voir src/lib/retention.ts). */
 export const RETENTION = {
   inactiveAccountYears: 3, // compte sans activité supprimé (après un e-mail de préavis de 30 jours)
-  returnedLoanYears: 5, // prêt clôturé : prescription civile de droit commun (art. 2224 C. civ.)
+  returnedLoanYears: 5, // prêt clôturé, avec ses documents signés : prescription civile de droit commun (art. 2224 C. civ.)
   pageViewMonths: 25, // statistiques de fréquentation (recommandation CNIL : 25 mois max)
   visitorIdMonths: 13, // identifiant de mesure d'audience (recommandation CNIL : 13 mois max)
   emailLogMonths: 12, // journal technique des e-mails envoyés

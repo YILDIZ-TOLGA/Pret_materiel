@@ -24,7 +24,10 @@ export function parseFrom(from: string) {
   return m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { email: from.trim() };
 }
 
-async function sendWithBrevoApi(msg: { to: string; subject: string; html: string; text: string; headers?: Record<string, string>; attachments?: { filename: string; content: string }[] }) {
+type Attachment = { filename: string; content: string | Uint8Array; contentType: string };
+const base64 = (c: string | Uint8Array) => (typeof c === "string" ? Buffer.from(c, "utf8") : Buffer.from(c)).toString("base64");
+
+async function sendWithBrevoApi(msg: { to: string; subject: string; html: string; text: string; headers?: Record<string, string>; attachments?: Attachment[] }) {
   const res = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: { "api-key": brevoKey()!, "content-type": "application/json", accept: "application/json" },
@@ -36,7 +39,7 @@ async function sendWithBrevoApi(msg: { to: string; subject: string; html: string
       textContent: msg.text,
       ...(msg.headers ? { headers: msg.headers } : {}),
       ...(msg.attachments?.length
-        ? { attachment: msg.attachments.map((a) => ({ name: a.filename, content: Buffer.from(a.content, "utf8").toString("base64") })) }
+        ? { attachment: msg.attachments.map((a) => ({ name: a.filename, content: base64(a.content) })) }
         : {}),
     }),
     signal: AbortSignal.timeout(15000),
@@ -79,7 +82,7 @@ ${links ? `<p style="margin:0">${links}</p>` : ""}
  * de désinscription en 1 clic.
  */
 export async function sendMail(opts: { to: string; subject: string; kind: string; title: string; paragraphs: string[]; cta?: { label: string; url: string }; thirdParty?: { lenderName: string; lenderId: string; organization?: string | null };
-  attachments?: { filename: string; content: string; contentType: string }[] }) {
+  attachments?: Attachment[] }) {
   const to = opts.to.toLowerCase();
   const log = (ok: boolean, error?: string) => prisma.emailLog.create({
     data: { to, subject: opts.subject, kind: opts.kind, ok, error, thirdParty: !!opts.thirdParty, senderId: opts.thirdParty?.lenderId },
@@ -95,10 +98,10 @@ export async function sendMail(opts: { to: string; subject: string; kind: string
 
   const footer: Footer | undefined = opts.thirdParty
     ? {
-        // Information de l'emprunteur (art. 14 RGPD). Offre Pro : la structure est responsable du traitement.
+        // Information de l'emprunteur (art. 14 RGPD) : la structure cliente est responsable du traitement.
         text: opts.thirdParty.organization
-          ? `Vous recevez cet e-mail car ${opts.thirdParty.organization} (${opts.thirdParty.lenderName}) a enregistré sur Prêt Matériel un prêt à votre nom, avec votre nom et votre adresse e-mail. ${opts.thirdParty.organization} est responsable du traitement de ces données, que Prêt Matériel traite pour son compte uniquement pour vous envoyer les rappels liés à ce prêt. Pour exercer vos droits, adressez-vous à ${opts.thirdParty.organization} ou écrivez-nous.`
-          : `Vous recevez cet e-mail car ${opts.thirdParty.lenderName} a enregistré sur Prêt Matériel un prêt à votre nom, avec votre nom et votre adresse e-mail. Ces données servent uniquement à vous envoyer les rappels liés à ce prêt.`,
+          ? `Vous recevez cet e-mail car ${opts.thirdParty.organization} (${opts.thirdParty.lenderName}) a enregistré sur Prêt Matériel un prêt à votre nom, avec votre nom et votre adresse e-mail. ${opts.thirdParty.organization} est responsable du traitement de ces données, que Prêt Matériel traite pour son compte uniquement pour l'accusé de réception à signer, les reçus et les rappels liés à ce prêt. Pour exercer vos droits, adressez-vous à ${opts.thirdParty.organization} ou écrivez-nous.`
+          : `Vous recevez cet e-mail car ${opts.thirdParty.lenderName} a enregistré sur Prêt Matériel un prêt à votre nom, avec votre nom et votre adresse e-mail. Ces données servent uniquement à l'accusé de réception à signer, aux reçus et aux rappels liés à ce prêt.`,
         links: [
           { label: "Ne plus recevoir ces e-mails", url: optOutUrl(to) },
           { label: "Politique de confidentialité", url: `${appUrl()}/confidentialite` },
@@ -122,7 +125,10 @@ export async function sendMail(opts: { to: string; subject: string; kind: string
     if (brevoKey()) {
       await sendWithBrevoApi({ to, subject: opts.subject, html, text, headers, attachments: opts.attachments });
     } else if (transporter) {
-      await transporter.sendMail({ from: process.env.MAIL_FROM, to, subject: opts.subject, html, text, headers, attachments: opts.attachments });
+      await transporter.sendMail({
+        from: process.env.MAIL_FROM, to, subject: opts.subject, html, text, headers,
+        attachments: opts.attachments?.map((a) => ({ ...a, content: typeof a.content === "string" ? a.content : Buffer.from(a.content) })),
+      });
     } else {
       const joined = opts.attachments?.length ? `\nPièces jointes : ${opts.attachments.map((a) => a.filename).join(", ")}` : "";
       console.log(`\n[mail non configuré] À: ${to}\nSujet: ${opts.subject}\n${text}${joined}\n`);

@@ -5,11 +5,13 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useConfirm } from "@/components/Dialog";
 import { Icon } from "@/components/Icon";
 import { LoanForm, toPayload } from "@/components/LoanForm";
-import type { LoanDTO } from "@/components/LoanList";
+import { AckTag, type LoanDTO, type ReceiptDTO } from "@/components/LoanList";
 import { useMe } from "@/components/Providers";
+import { SignDialog, type SignRequest, type SignResult } from "@/components/SignDialog";
 import { useToast } from "@/components/Toast";
 import { Avatar, CountUp, DueChip, EmptyState, Menu, Meter, PageHeader, Spinner, Stamp, Switch } from "@/components/ui";
-import { api, dateFr, dateShort, dayDiff, dueInfo, euros, isMoney, loanTitle, moneyReason, relTime, remainingCents } from "@/lib/client";
+import { api, dateFr, dateShort, dayDiff, downloadFile, dueInfo, euros, isMoney, loanTitle, moneyReason, relTime, remainingCents } from "@/lib/client";
+import { DOC_TITLES } from "@/lib/receipt-text";
 
 const HOUR = 3600000;
 /** Montant animé : arrondi à l'euro pendant le défilement, exact à l'arrivée. */
@@ -33,13 +35,21 @@ function LoanDetail() {
   const [repay, setRepay] = useState("");
   const [stamp, setStamp] = useState<"in" | "out" | null>(null);
   const [thump, setThump] = useState(false);
+  const [signing, setSigning] = useState<SignRequest | null>(null);
+  const [optedOut, setOptedOut] = useState(false);
   const welcomed = useRef(false);
 
-  useEffect(() => { api(`/api/loans/${id}`).then((r) => setLoan(r.loan)).catch(() => setNotFound(true)); }, [id]);
+  useEffect(() => {
+    api<{ loan: LoanDTO; borrowerOptedOut: boolean }>(`/api/loans/${id}`)
+      .then((r) => { setLoan(r.loan); setOptedOut(r.borrowerOptedOut); })
+      .catch(() => setNotFound(true));
+  }, [id]);
   useEffect(() => {
     if (!created || welcomed.current) return;
     welcomed.current = true;
-    toast.show({ text: "Prêt enregistré. L'emprunteur a été prévenu par e-mail." });
+    toast.show(created === "nomail"
+      ? { tone: "error", text: "Prêt enregistré, mais la demande de signature n'a pas pu être envoyée : renvoie-la depuis la fiche." }
+      : { text: "Prêt enregistré. La demande de signature de l'accusé de réception est partie par e-mail." });
     router.replace(`/prets/${id}`, { scroll: false });
   }, [created, id, router, toast]);
 
@@ -65,20 +75,38 @@ function LoanDetail() {
     setTimeout(() => setThump(false), 800);
   }
 
+  /** Retour de l'objet ou solde : le prêteur signe l'attestation ou le reçu, envoyé à l'emprunteur. */
   function markReturned() {
-    const prev = loan!;
-    setLoan({ ...prev, status: "RETURNED", returnedAt: new Date().toISOString(), repaidCents: money ? prev.amountCents! : prev.repaidCents });
-    slam();
-    toast.defer({
-      text: money ? "Prêt soldé" : "Prêt clôturé : l'objet est rendu",
-      run: async () => {
-        const r = await api(`/api/loans/${prev.id}`, { method: "PATCH", body: { action: "return" } });
-        setLoan(r.loan);
-        await refresh();
-      },
-      onUndo: () => { setStamp("out"); setTimeout(() => { setStamp(null); setLoan(prev); }, 280); },
-      onError: () => { setStamp(null); setLoan(prev); },
+    setSigning(money ? { kind: "REPAYMENT", amountCents: rest } : { kind: "RETURN" });
+  }
+
+  async function signed(r: SignResult) {
+    setSigning(null);
+    setLoan(r.loan);
+    if (r.loan.status === "RETURNED") slam();
+    await refresh();
+    toast.show({
+      text: `${r.loan.status === "RETURNED" ? (money ? "Prêt soldé" : "Retour attesté") : "Remboursement enregistré"} : document signé envoyé à ${r.loan.borrowerName}`,
+      action: { label: "Télécharger", onClick: () => download(r.receipt) },
+      duration: 9000,
     });
+  }
+
+  async function download(d: { id: string; number: string }) {
+    try {
+      await downloadFile(`/api/receipts/${d.id}`, `${d.number}.pdf`);
+      setLoan((l) => l && { ...l, receipts: l.receipts?.map((x) => (x.id === d.id ? { ...x, downloadedAt: x.downloadedAt ?? new Date().toISOString() } : x)) });
+    } catch (x) { toast.show({ tone: "error", text: (x as Error).message }); }
+  }
+
+  async function requestSignature() {
+    setBusy(true);
+    try {
+      const r = await api<{ ackRequestedAt: string }>(`/api/loans/${loan!.id}/sign-request`, { method: "POST" });
+      setLoan((l) => l && { ...l, ackStatus: "PENDING", ackRequestedAt: r.ackRequestedAt, reminderCount: l.reminderCount + 1 });
+      toast.show({ text: `Demande de signature envoyée à ${loan!.borrowerName}` });
+    } catch (x) { toast.show({ tone: "error", text: (x as Error).message }); }
+    setBusy(false);
   }
 
   function remind() {
@@ -94,24 +122,12 @@ function LoanDetail() {
     });
   }
 
-  async function addRepayment(e: React.FormEvent) {
+  /** Remboursement reçu : le prêteur signe le reçu, envoyé à l'emprunteur. */
+  function addRepayment(e: React.FormEvent) {
     e.preventDefault();
     const cents = Math.round(Number(repay.replace(",", ".").replace(/\s/g, "")) * 100);
     if (!cents || cents <= 0) { toast.show({ tone: "error", text: "Montant invalide" }); return; }
-    setBusy(true);
-    try {
-      const r = await api(`/api/loans/${loan!.id}`, { method: "PATCH", body: { action: "repay", amountCents: cents } });
-      setLoan(r.loan);
-      setRepay("");
-      if (r.loan.status === "RETURNED") {
-        slam();
-        await refresh();
-        toast.show({ text: "Tout est remboursé : prêt soldé" });
-      } else {
-        toast.show({ text: `Remboursement de ${euros(Math.min(cents, rest))} enregistré` });
-      }
-    } catch (x) { toast.show({ tone: "error", text: (x as Error).message }); }
-    setBusy(false);
+    setSigning({ kind: "REPAYMENT", amountCents: Math.min(cents, rest) });
   }
 
   async function toggle(key: "remindBefore" | "autoReminder", value: boolean) {
@@ -134,9 +150,11 @@ function LoanDetail() {
   }
 
   async function remove() {
+    const docs = loan!.receipts?.length ?? 0;
     const ok = await confirm({
       title: "Supprimer ce prêt ?", icon: "trash", danger: true, confirmLabel: "Supprimer",
-      body: <>La fiche « {loanTitle(loan!)} » et son historique seront effacés définitivement. Aucun rappel ne partira plus.</>,
+      body: <>La fiche « {loanTitle(loan!)} » et son historique seront effacés définitivement. Aucun rappel ne partira plus.
+        {docs > 0 && <> <strong>{docs > 1 ? `Les ${docs} documents signés seront aussi supprimés` : "Le document signé sera aussi supprimé"} de Prêt Matériel</strong> : vérifie que tu en as une copie imprimée.</>}</>,
     });
     if (!ok) return;
     try {
@@ -148,15 +166,28 @@ function LoanDetail() {
   }
 
   if (edit) {
+    const frozen = loan.status === "RETURNED" && !!loan.receipts?.length;
     return (
       <>
         <button type="button" className="crumb" onClick={() => setEdit(false)}><Icon name="arrowLeft" size={14} />Retour à la fiche</button>
         <PageHeader title="Modifier le prêt" sub={loanTitle(loan)} />
+        {loan.status === "ACTIVE" && loan.ackStatus !== "NONE" && (
+          <div className="banner soon" style={{ marginBottom: 20 }}><Icon name="signature" size={16} />
+            <span>Modifier ce qui a été prêté, le montant, les dates ou l&apos;emprunteur envoie à {loan.borrowerName} un nouvel accusé de réception à signer. Les documents déjà signés restent dans l&apos;historique.</span>
+          </div>
+        )}
+        {frozen && (
+          <div className="banner late" style={{ marginBottom: 20 }}><Icon name="lock" size={16} />
+            <span>Ce prêt est clôturé et ses documents sont signés : seule la note privée peut encore être modifiée.</span>
+          </div>
+        )}
         <LoanForm initial={loan} submitLabel="Enregistrer les modifications" onCancel={() => setEdit(false)} onSubmit={async (v) => {
-          const r = await api(`/api/loans/${loan.id}`, { method: "PATCH", body: toPayload(v) });
+          const r = await api<{ loan: LoanDTO; signRequest: "sent" | "not_sent" | null }>(`/api/loans/${loan.id}`, { method: "PATCH", body: toPayload(v) });
           setLoan(r.loan);
           setEdit(false);
-          toast.show({ text: "Modifications enregistrées" });
+          toast.show(r.signRequest === "not_sent"
+            ? { tone: "error", text: "Modifications enregistrées, mais la nouvelle demande de signature n'a pas pu être envoyée." }
+            : { text: r.signRequest === "sent" ? `Modifications enregistrées : nouvel accusé de réception envoyé à ${r.loan.borrowerName}` : "Modifications enregistrées" });
         }} />
       </>
     );
@@ -165,7 +196,8 @@ function LoanDetail() {
   const stampLabel = !active ? (money ? "Soldé" : "Rendu") : d.tone === "late" ? "En retard" : null;
   const stateText = active ? d.long : `${money ? "Soldé" : "Rendu"} le ${dateFr(loan.returnedAt ?? loan.dueAt)}`;
   let remindNote = "";
-  if (active && d.tone !== "late") remindNote = loan.remindBefore ? "Un rappel automatique part la veille de l'échéance. La relance manuelle devient possible après la date de retour." : "La relance manuelle devient possible après la date de retour.";
+  if (active && loan.ackStatus === "REFUSED") remindNote = "Prêt contesté : plus aucun rappel n'est envoyé à l'emprunteur.";
+  else if (active && d.tone !== "late") remindNote = loan.remindBefore ? "Un rappel automatique part la veille de l'échéance. La relance manuelle devient possible après la date de retour." : "La relance manuelle devient possible après la date de retour.";
   else if (active && recentlyReminded) remindNote = `Relance envoyée ${relTime(loan.lastReminderAt!)}. Prochaine relance possible dans ${Math.max(1, Math.ceil((HOUR - (Date.now() - new Date(loan.lastReminderAt!).getTime())) / 60000))} min.`;
   else if (active && loan.autoReminder) remindNote = "Une relance automatique part aussi tous les 3 jours.";
   const repayments = loan.repayments ?? [];
@@ -178,11 +210,11 @@ function LoanDetail() {
         <div className="d-fiche">
           <article className={`fiche ${thump ? "thump" : ""}`} aria-label={`Fiche du prêt ${loanTitle(loan)}`}>
             <div className={`fiche-part fiche-head ${stampLabel ? "has-stamp" : ""}`}>
-              <div className="fiche-top"><span>Fiche n° {loan.id.slice(-5).toUpperCase()}</span><span className="sep">/</span><span>{money ? "Argent" : "Objet"}</span></div>
+              <div className="fiche-top"><span>Fiche n° {loan.id.slice(-5).toUpperCase()}</span><span className="sep">/</span><span>{money ? "Argent" : "Matériel"}</span></div>
               <h1 className="fiche-title">{money ? euros(loan.amountCents!) : loan.item}</h1>
               {money && moneyReason(loan) && <p className="fiche-desc">{moneyReason(loan)}</p>}
               {loan.description && <p className="fiche-desc">{loan.description}</p>}
-              <div className="fiche-state"><DueChip loan={loan} /><span>{stateText}</span></div>
+              <div className="fiche-state"><DueChip loan={loan} /><AckTag loan={loan} />{loan.ackStatus === "SIGNED" && <span className="tag brand" title="Accusé de réception signé par l'emprunteur">Accusé signé</span>}<span>{stateText}</span></div>
               {stampLabel && (
                 <div className="fiche-stamp" key={stampLabel}>
                   <Stamp tone={active ? "late" : undefined} state={!active ? stamp ?? undefined : undefined} size="lg">{stampLabel}</Stamp>
@@ -229,7 +261,7 @@ function LoanDetail() {
                     <Icon name="check" size={17} />{money ? `Solder le prêt · ${euros(rest)}` : "Marquer comme rendu"}
                   </button>
                   <div className="row">
-                    <button type="button" className="btn" disabled={!canRemind} onClick={remind}><Icon name="send" size={15} />Relancer</button>
+                    <button type="button" className="btn" disabled={!canRemind || loan.ackStatus === "REFUSED"} onClick={remind}><Icon name="send" size={15} />Relancer</button>
                     <button type="button" className="btn" onClick={() => setEdit(true)}><Icon name="pencil" size={15} />Modifier</button>
                     <Menu label="Plus d'actions" buttonClass="btn icon" button={<Icon name="more" size={18} />}>
                       {(close) => <button type="button" role="menuitem" className="menu-item danger" onClick={() => { close(); remove(); }}><Icon name="trash" size={16} />Supprimer le prêt</button>}
@@ -248,6 +280,8 @@ function LoanDetail() {
               )}
             </div>
           </section>
+
+          <AckCard loan={loan} optedOut={optedOut} busy={busy} onRequest={requestSignature} onDownload={download} />
 
           {active && (
             <section className="side-card" aria-label="Rappels automatiques">
@@ -270,6 +304,7 @@ function LoanDetail() {
         </aside>
 
         <div className="d-rest">
+          <Documents loan={loan} onDownload={download} />
           {money && active && (
             <form className="card" onSubmit={addRepayment}>
               <div className="section-label" style={{ marginBottom: 14 }}>Enregistrer un remboursement</div>
@@ -293,7 +328,7 @@ function LoanDetail() {
                 {repayments.map((r) => (
                   <tr key={r.id}>
                     <td className="mono" style={{ paddingLeft: 20, whiteSpace: "nowrap" }}>{dateFr(r.createdAt)}</td>
-                    <td className="small">{r.note ?? ""}</td>
+                    <td className="small">{[r.note, r.receipt ? `reçu n° ${r.receipt.number}` : "sans reçu signé"].filter(Boolean).join(" · ")}</td>
                     <td className="num ok-text" style={{ paddingRight: 20 }}>+{euros(r.amountCents)}</td>
                   </tr>
                 ))}
@@ -308,7 +343,80 @@ function LoanDetail() {
           )}
         </div>
       </div>
+      <SignDialog loan={loan} request={signing} onClose={() => setSigning(null)} onDone={signed} />
     </>
+  );
+}
+
+const fmtDateTime = (d: string) => `${dateFr(d)} à ${new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+
+/** Accusé de réception : état de la signature par l'emprunteur, relance ou demande, téléchargement. */
+function AckCard({ loan, optedOut, busy, onRequest, onDownload }: {
+  loan: LoanDTO; optedOut: boolean; busy: boolean; onRequest: () => void; onDownload: (d: ReceiptDTO) => void;
+}) {
+  const active = loan.status === "ACTIVE";
+  const ack = loan.receipts?.find((r) => r.kind === "LOAN");
+  const recent = !!loan.ackRequestedAt && Date.now() - new Date(loan.ackRequestedAt).getTime() < 86400000;
+  let ico: "check" | "hourglass" | "alert" | "file" = "file", tone = "", t = "", d: React.ReactNode = null, action: React.ReactNode = null;
+  if (loan.ackStatus === "SIGNED") {
+    ico = "check"; tone = "ok"; t = "Accusé de réception signé";
+    d = <>par {ack?.signerName ?? loan.borrowerName}, le {fmtDateTime(loan.ackAt ?? ack?.signedAt ?? loan.lentAt)}</>;
+    if (ack) action = <button type="button" className="btn block" onClick={() => onDownload(ack)}><Icon name="download" size={15} />Télécharger l&apos;accusé (PDF)</button>;
+  } else if (loan.ackStatus === "PENDING") {
+    ico = "hourglass"; tone = "soon"; t = active ? "En attente de la signature" : "Jamais signé";
+    d = <>{loan.ackRequestedAt ? <>Demande envoyée à {loan.borrowerEmail} le {fmtDateTime(loan.ackRequestedAt)}.</> : null}{ack && <> Une version précédente a été signée (n° {ack.number}).</>}</>;
+    if (active) action = <button type="button" className="btn block" disabled={busy || recent || optedOut} onClick={onRequest}><Icon name="send" size={15} />Renvoyer la demande</button>;
+  } else if (loan.ackStatus === "REFUSED") {
+    ico = "alert"; tone = "late"; t = "Prêt contesté par l'emprunteur";
+    d = <>le {fmtDateTime(loan.ackAt ?? loan.lentAt)}{loan.ackRefusalReason ? <> : « {loan.ackRefusalReason} ».</> : "."} Plus aucun rappel ne lui est envoyé. Corrige le prêt (une nouvelle demande partira) ou supprime-le.</>;
+  } else {
+    t = "Pas d'accusé de réception";
+    d = "Prêt enregistré avant les accusés de réception signés.";
+    if (active) action = <button type="button" className="btn block" disabled={busy || optedOut} onClick={onRequest}><Icon name="signature" size={15} />Demander la signature</button>;
+  }
+  return (
+    <section className="side-card" aria-label="Accusé de réception">
+      <div className="section-label">Accusé de réception</div>
+      <div className="stack" style={{ gap: 12 }}>
+        <div className="ack">
+          <span className={`ack-ico ${tone}`}><Icon name={ico} size={17} /></span>
+          <div style={{ minWidth: 0 }}><div className="ack-t">{t}</div><div className="ack-d">{d}</div></div>
+        </div>
+        {action}
+        {optedOut && <p className="side-note">{loan.borrowerName} a bloqué les e-mails de Prêt Matériel : ni demande de signature, ni reçu, ni rappel ne lui parviennent.</p>}
+        {!optedOut && loan.ackStatus === "PENDING" && active && recent && <p className="side-note">Nouvel envoi possible 24 h après la dernière demande.</p>}
+      </div>
+    </section>
+  );
+}
+
+/** Documents signés du prêt, à télécharger et à imprimer : Prêt Matériel ne les archive pas. */
+function Documents({ loan, onDownload }: { loan: LoanDTO; onDownload: (d: ReceiptDTO) => void }) {
+  const docs = loan.receipts ?? [];
+  if (!docs.length) return null;
+  const toPrint = docs.filter((d) => !d.downloadedAt).length;
+  return (
+    <section className="card flush" aria-labelledby="docs-title">
+      <div className="card-head"><h2 id="docs-title">Documents signés</h2><span className="mono tiny muted">{docs.length}</span></div>
+      <div className="card-body" style={{ paddingBottom: 4 }}>
+        <div className={`banner ${toPrint ? "soon" : ""}`} style={{ animation: "none" }}>
+          <Icon name="printer" size={16} />
+          <span>{toPrint ? <><strong>{toPrint > 1 ? `${toPrint} documents à imprimer` : "1 document à imprimer"}.</strong> </> : null}Garde une copie papier de chaque document : c&apos;est ta preuve. Prêt Matériel n&apos;est pas un service d&apos;archivage, et une copie t&apos;a aussi été envoyée par e-mail (<a href="/cgu#documents" target="_blank">CGU, art. 3 bis</a>).</span>
+        </div>
+      </div>
+      <ul className="docs">
+        {docs.map((d) => (
+          <li key={d.id} className="doc">
+            <span className="doc-ico"><Icon name="file" size={17} /></span>
+            <div style={{ minWidth: 0 }}>
+              <div className="doc-title">{DOC_TITLES[d.kind]}{!d.downloadedAt && <span className="tag soon">À imprimer</span>}</div>
+              <div className="doc-meta">n° {d.number} · signé par {d.signerName} le {fmtDateTime(d.signedAt)}</div>
+            </div>
+            <button type="button" className="btn small" onClick={() => onDownload(d)} aria-label={`Télécharger ${DOC_TITLES[d.kind]} n° ${d.number}`}><Icon name="download" size={14} />PDF</button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -349,6 +457,11 @@ function Timeline({ loan }: { loan: LoanDTO }) {
   const due = new Date(loan.dueAt).getTime();
   type Ev = { t: string; d?: string; at: number; kind: "done" | "late" | "soon" | "pending"; future?: boolean };
   const ev: Ev[] = [{ t: "Prêt enregistré", d: dateFr(loan.lentAt), at: new Date(loan.lentAt).getTime(), kind: "done" }];
+  for (const r of loan.receipts ?? []) {
+    if (r.kind === "LOAN") ev.push({ t: "Accusé de réception signé", d: `n° ${r.number} · ${dateFr(r.signedAt)}`, at: new Date(r.signedAt).getTime(), kind: "done" });
+  }
+  if (loan.ackStatus === "REFUSED" && loan.ackAt) ev.push({ t: "Prêt contesté par l'emprunteur", d: dateFr(loan.ackAt), at: new Date(loan.ackAt).getTime(), kind: "late" });
+  if (loan.ackStatus === "PENDING" && active) ev.push({ t: "Accusé de réception à signer", d: loan.ackRequestedAt ? `demandé le ${dateFr(loan.ackRequestedAt)}` : undefined, at: Date.now() - 1, kind: "soon" });
   for (const r of loan.repayments ?? []) {
     ev.push({ t: `Remboursement de ${euros(r.amountCents)}${r.note ? ` · ${r.note}` : ""}`, d: dateFr(r.createdAt), at: new Date(r.createdAt).getTime(), kind: "done" });
   }

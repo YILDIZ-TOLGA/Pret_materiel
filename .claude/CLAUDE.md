@@ -2,7 +2,7 @@
 
 ## Conformité légale : à vérifier pour CHAQUE fonctionnalité
 
-Le site vend des abonnements à des particuliers en France et envoie des e-mails à des tiers (les emprunteurs). Toute nouvelle fonctionnalité, modification de données ou de parcours doit rester conforme au droit **français et européen**. Avant de coder, pose-toi les questions ci-dessous ; si une réponse demande un changement, fais-le dans la même tâche (code + pages légales), ou signale-le clairement à l'utilisateur.
+Le site vend un abonnement à des professionnels (entreprises, associations) en France, fait signer électroniquement des documents et envoie des e-mails à des tiers (les emprunteurs). Toute nouvelle fonctionnalité, modification de données ou de parcours doit rester conforme au droit **français et européen**. Avant de coder, pose-toi les questions ci-dessous ; si une réponse demande un changement, fais-le dans la même tâche (code + pages légales), ou signale-le clairement à l'utilisateur.
 
 **Signalement visible** : chaque fois que tu fais cette vérification légale (ou que tu appelles l'agent `legal-expert`), commence le paragraphe correspondant de ta réponse par `[Expert Legal]`, suivi du verdict en une ligne (ex. `[Expert Legal] OK — aucune nouvelle donnée personnelle` ou `[Expert Legal] À corriger — …`).
 

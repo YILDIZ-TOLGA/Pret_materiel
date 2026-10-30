@@ -3,15 +3,15 @@ import { prisma } from "./db";
 import { LEGAL } from "./legal";
 import { BETA_LIMITS, PAID_NOTICE_DAYS } from "./limits";
 import { sendMail } from "./mail";
-import { FROM_MONTHLY_CENTS, PLANS, effectivePlan, type PlanInfo } from "./plans";
+import { MAIN_PLAN, PLANS, effectivePlan, type PlanInfo } from "./plans";
 
 /**
  * Mode du site, choisi dans l'admin (page Mode du site) :
  *  - BETA, « site testeur » : tout est gratuit, aucune offre n'est vendue, limites larges ci-dessous ;
  *  - PAID, « site payant » : offres et limites de src/lib/plans.ts.
  * Le passage au payant est programmé au moins PAID_NOTICE_DAYS jours à l'avance (CGU art. 10) et annoncé
- * par e-mail ; il ne supprime rien : au-delà de l'offre gratuite, les prêts restent consultables et
- * modifiables, seule la création (ou la réouverture) demande une offre payante.
+ * par e-mail ; il ne supprime rien : sans abonnement, les prêts restent consultables et modifiables (rappels,
+ * signatures et reçus compris), seule la création (ou la réouverture) d'un prêt demande l'offre Entreprise.
  */
 export { BETA_LIMITS, PAID_NOTICE_DAYS };
 const DAY = 86400000;
@@ -57,7 +57,7 @@ export async function limitsFor(user: Pick<User, "plan" | "planExpiresAt">) {
 /** Premier jour possible pour le passage au payant (« AAAA-MM-JJ », préavis de 30 jours). */
 export const earliestPaidDay = (now = new Date()) => parisDay(new Date(now.getTime() + PAID_NOTICE_DAYS * DAY));
 
-/** Comptes qui ont plus de prêts en cours que l'offre gratuite (ils devront payer pour en créer d'autres). */
+/** Comptes sans abonnement qui ont plus de prêts en cours que ce que permet FREE (ils devront s'abonner pour en créer d'autres). */
 export async function lendersOverFreeCap() {
   const rows = await prisma.loan.groupBy({ by: ["lenderId"], where: { status: "ACTIVE" }, _count: { _all: true } });
   const over = rows.filter((r) => r._count._all > PLANS.FREE.maxLoans).map((r) => r.lenderId);
@@ -69,7 +69,7 @@ export async function lendersOverFreeCap() {
 /**
  * Tâche planifiée (avec les rappels, toutes les heures) :
  *  - passage au payant programmé : annonce par e-mail et dans l'appli à chaque utilisateur (une fois par date) ;
- *  - date atteinte : le mode passe à PAID, et ceux qui dépassent l'offre gratuite sont prévenus dans l'appli.
+ *  - date atteinte : le mode passe à PAID, et les comptes sans abonnement qui ont des prêts en cours sont prévenus dans l'appli.
  */
 export async function runSiteMode(now = new Date()) {
   const s = await siteSettings();
@@ -79,7 +79,7 @@ export async function runSiteMode(now = new Date()) {
     await prisma.siteSetting.update({ where: { id: 1 }, data: { mode: "PAID", paidFrom: null, paidSince: now } });
     for (const id of await lendersOverFreeCap()) {
       await notify(id, "Le site est passé en mode payant",
-        `Tes prêts en cours sont conservés et restent modifiables. L'offre gratuite permet ${PLANS.FREE.maxLoans} prêts en cours : pour en créer de nouveaux, clôture des prêts rendus ou choisis une offre.`, "/abonnement");
+        `Tes prêts en cours sont conservés : rappels, signatures et reçus continuent. Pour enregistrer de nouveaux prêts, il faut l'offre ${MAIN_PLAN.name} (${MAIN_PLAN.priceLabel}).`, "/abonnement");
     }
     return { notices: 0, switched: true };
   }
@@ -97,13 +97,13 @@ export async function runSiteMode(now = new Date()) {
       title: `Bonjour ${u.name},`,
       paragraphs: [
         `Merci d'avoir utilisé ${LEGAL.siteName} pendant sa phase de test. À partir du ${date}, le site proposera des offres payantes.`,
-        `Rien ne sera supprimé : tous tes prêts et ton historique sont conservés, et tu pourras toujours les consulter, les modifier et les clôturer.`,
-        `L'offre gratuite reste disponible, avec ${PLANS.FREE.maxLoans} prêts en cours. Au-delà, il faudra clôturer des prêts rendus ou choisir une offre, à partir de ${(FROM_MONTHLY_CENTS / 100).toLocaleString("fr-FR")} € par mois, pour en créer de nouveaux.`,
+        `Rien ne sera supprimé : tous tes prêts, tes documents signés et ton historique sont conservés, et tu pourras toujours les consulter, les modifier et les clôturer. Les rappels, les signatures et les reçus continuent pour les prêts en cours.`,
+        `Pour enregistrer de nouveaux prêts, il faudra l'offre ${MAIN_PLAN.name} : ${MAIN_PLAN.priceLabel}, résiliable à tout moment depuis la page Offre.`,
         `Tu n'as rien à faire d'ici là. Les conditions qui s'appliqueront sont consultables sur ${appUrl()}/cgu.`,
       ],
       cta: { label: "Voir les offres", url: `${appUrl()}/abonnement` },
     });
-    await notify(u.id, `Passage au mode payant le ${date}`, "Tes prêts sont conservés. Au-delà de l'offre gratuite, une offre sera nécessaire pour en créer de nouveaux.", "/abonnement");
+    await notify(u.id, `Passage au mode payant le ${date}`, `Tes prêts sont conservés. L'offre ${MAIN_PLAN.name} sera nécessaire pour en créer de nouveaux.`, "/abonnement");
     await prisma.user.update({ where: { id: u.id }, data: { paidModeNoticeFor: s.paidFrom } });
   }
   return { notices: users.length, switched: false };

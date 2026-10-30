@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { publicUser } from "@/lib/auth";
 import { json, withUser } from "@/lib/api";
 import { openWithdrawal } from "@/lib/billing";
+import { termsUpToDate } from "@/lib/legal";
 import { limitsFor } from "@/lib/sitemode";
 
 export const GET = withUser(async (user) => {
@@ -17,9 +18,10 @@ export const GET = withUser(async (user) => {
   ]);
   // date limite de rétractation, tant qu'elle est ouverte (bouton « Se rétracter du contrat ici » de la page Offre)
   const withdrawalUntil = openWithdrawal(user)?.toISOString() ?? null;
-  // En phase de test, l'offre gratuite affiche les limites larges de la phase de test
+  // En phase de test, un compte sans abonnement affiche les limites larges de la phase de test
   const beta = limits.mode === "BETA" && limits.plan.id === "FREE";
   const plan = { ...limits.plan, maxLoans: limits.maxLoans, maxNewLoansPerDay: limits.maxNewLoansPerDay, ...(beta ? { name: "Phase de test" } : {}) };
   const site = { mode: limits.mode, paidFrom: limits.paidFrom };
-  return json({ user: publicUser(user), plan, activeLoans, overdueLoans, unread, withdrawalUntil, site });
+  // conditions acceptées dans une version trop ancienne : à accepter de nouveau pour enregistrer des prêts
+  return json({ user: publicUser(user), plan, activeLoans, overdueLoans, unread, withdrawalUntil, site, termsUpToDate: termsUpToDate(user) });
 });

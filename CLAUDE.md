@@ -5,26 +5,27 @@ Claude Code le lit automatiquement quand il est lancé à la racine du dépôt.
 
 ## Le produit
 
-Application web (future app iOS/Android) pour suivre ce qu'on prête : **des objets ou de l'argent**.
+Application web (future app iOS/Android) **réservée aux professionnels** (entreprises, associations, collectivités) pour suivre ce qu'ils prêtent : **du matériel ou de l'argent**, avec **accusé de réception signé** par l'emprunteur et **reçus signés** par le prêteur.
 
-- L'utilisateur crée un prêt : objet (ou montant + motif), emprunteur (nom, e-mail, tél.), date de prêt, date de retour, options de rappel.
-- L'emprunteur reçoit un **e-mail** à la création, la veille de l'échéance, puis des relances tous les 3 jours en cas de retard (8 rappels au maximum par prêt).
-- Offres Pro : `User.organization` (nom de la structure, responsable du traitement) est obligatoire avant de créer un prêt (403 `ORGANIZATION_REQUIRED`) et figure dans le pied des e-mails aux emprunteurs.
+- L'utilisateur crée un prêt : matériel (ou montant + motif), emprunteur (nom, e-mail, tél.), date de prêt, date de retour, options de rappel.
+- **Accusé de réception** (`src/lib/receipts.ts`, page publique `/signer`, `api/sign`) : à la création, l'emprunteur reçoit par e-mail un lien personnel (`src/lib/signlink.ts` : id du prêt + `Loan.ackVersion` chiffrés en AES-GCM, jamais montré au prêteur). Il y voit le récapitulatif complet et signe (tracé au doigt/souris, `SignaturePad`, ou au clavier) ou conteste (`Loan.ackStatus` : NONE pour les prêts antérieurs, PENDING, SIGNED, REFUSED). Prêt d'argent : il recopie la somme en lettres et en chiffres (`src/lib/amount-words.ts`, art. 1376 C. civ.). Modifier un champ signé (`SIGNED_FIELDS` dans `api/loans/[id]`) incrémente `ackVersion` (anciens liens → 410) et renvoie une demande. Relance automatique à 48 h (`runReminders`), renvoi manuel `api/loans/[id]/sign-request` (24 h mini). Contesté = plus aucun rappel.
+- **Reçus signés par le prêteur** : `PATCH api/loans/[id]` `repay` (reçu de remboursement) et `return` (attestation de restitution, ou solde d'un prêt d'argent) exigent `signerName`, `signature`, `accept` (`SignDialog`). Un retour attesté ne se rouvre plus ; un prêt clôturé avec documents est figé (sauf notes).
+- **Documents** (table `Receipt`) : contenu figé (`src/lib/receipt-text.ts`, même code pour l'aperçu et le texte signé), tracé, IP, navigateur, empreinte SHA-256 (`receiptHash`, JSON aux clés triées). PDF recalculé à la demande (`src/lib/pdf.ts`, pdf-lib + Schibsted Grotesk dans `assets/fonts`), envoyé en pièce jointe aux deux parties, téléchargeable (`api/receipts/[id]` pour prêteur et emprunteur inscrit, `api/sign/pdf` avec le lien). Le prêteur doit imprimer ; Prêt Matériel n'archive pas (CGU art. 3 bis). Supprimés avec le prêt.
+- L'emprunteur reçoit aussi un **e-mail** la veille de l'échéance, puis des relances tous les 3 jours en cas de retard (8 rappels au maximum par prêt, demandes de signature comprises).
+- `User.organization` (nom de la structure, responsable du traitement) est demandé à l'inscription et obligatoire pour créer un prêt (403 `ORGANIZATION_REQUIRED`) ; il figure dans les e-mails et les documents. Les comptes ouverts avant le passage au B2B doivent accepter les nouvelles CGU (`REQUIRED_TERMS_VERSION`, 403 `TERMS_UPDATE_REQUIRED`, `api/account/terms`, bandeau dans `AppShell`).
 - `/api/borrowed` renvoie une liste blanche de champs : jamais les notes privées ni l'état des relances du prêteur.
 - Liens de désinscription : `?t=<adresse chiffrée AES-GCM>` (`src/lib/optout.ts`), plus d'adresse en clair dans l'URL ; l'ancien format `?e=…&t=…` reste accepté.
 - Le jeton de session n'est gardé dans `localStorage` que dans l'appli native (`isNativeApp()` dans `src/lib/client.ts`) ; sur le site, seul le cookie httpOnly sert.
-- Garde-fous anti-abus (`src/lib/limits.ts`) : 5 e-mails max par jour vers une même adresse (tous prêteurs), nouveaux prêts par jour selon l'offre (`maxNewLoansPerDay`, compté dans `EmailLog`), pas d'adresse web dans les noms et objets. Changer l'adresse de l'emprunteur d'un prêt en cours passe par les mêmes contrôles qu'une création (`newBorrowerRefusal` dans `src/lib/loans.ts`) et lui envoie l'e-mail de confirmation. `reminderCount` couvre toute la vie du prêt : changer la date ne le remet pas à zéro. Le journal `EmailLog` porte `thirdParty` et `senderId` pour ces comptes.
+- Garde-fous anti-abus (`src/lib/limits.ts`) : 5 e-mails max par jour vers une même adresse (tous prêteurs), nouveaux prêts par jour selon l'offre (`maxNewLoansPerDay`, compté dans `EmailLog`), pas d'adresse web dans les noms et objets. Changer l'adresse de l'emprunteur d'un prêt en cours passe par les mêmes contrôles qu'une création (`newBorrowerRefusal` dans `src/lib/loans.ts`) et lui envoie la demande de signature. `reminderCount` couvre toute la vie du prêt : changer la date ne le remet pas à zéro. Le journal `EmailLog` porte `thirdParty` et `senderId` pour ces comptes.
 - Vente : au premier paiement, `sendOrderConfirmation` (`src/lib/billing.ts`) envoie la confirmation de commande (L221-13) avec les CGU/CGV en pièce jointe (copie HTML de `/cgu`). Pendant 14 jours après `User.subscriptionStartedAt`, la page Offre affiche « Se rétracter du contrat ici » (`/api/billing/withdraw`) : arrêt immédiat, remboursement Stripe automatique de tout ce qui a été payé depuis la souscription (paiements négatifs dans `Payment`), accusé de réception daté.
-- Mode du site (`src/lib/sitemode.ts`, table `SiteSetting`, page admin `/admin/site`) : « site testeur » (BETA, par défaut) = tout gratuit, jusqu'à `BETA_LIMITS` (200 prêts en cours, 50 nouveaux par jour), aucune offre vendue (checkout → 403 `SITE_IN_BETA`) ; « site payant » (PAID) = offres de `plans.ts`. Le passage au payant se programme au moins 30 jours à l'avance : `runSiteMode` (tâche horaire) envoie l'annonce par e-mail puis bascule à la date. Rien n'est supprimé : au-delà de l'offre gratuite, seuls la création et la réouverture de prêts sont bloquées. Les limites passent toujours par `limitsFor(user)`. Les scripts de test mettent le site en PAID pendant leur exécution.
+- Mode du site (`src/lib/sitemode.ts`, table `SiteSetting`, page admin `/admin/site`) : « site testeur » (BETA, par défaut) = tout gratuit, jusqu'à `BETA_LIMITS` (200 prêts en cours, 50 nouveaux par jour), aucune offre vendue (checkout → 403 `SITE_IN_BETA`) ; « site payant » (PAID) = offre de `plans.ts`. Le passage au payant se programme au moins 30 jours à l'avance : `runSiteMode` (tâche horaire) envoie l'annonce par e-mail puis bascule à la date. Rien n'est supprimé : sans abonnement, seuls la création et la réouverture de prêts sont bloquées. Les limites passent toujours par `limitsFor(user)`. Les scripts de test mettent le site en PAID pendant leur exécution.
 - Sauvegardes : en local, service `backup` (pg_dump quotidien dans `sauvegardes/`, 14 jours) ; sur Railway (sauvegardes automatiques réservées à l'offre Pro), `runBackup` (`src/lib/backup.ts`, appelé par `scripts/cron.ts`) envoie un pg_dump par jour dans le bucket « sauvegardes » (Amsterdam, variables `BACKUP_S3_*`), garde 14 jours et alerte `ADMIN_EMAIL` en cas d'échec. Le `Dockerfile` installe `postgresql-client-18` (version de la base Railway). `robots.ts`, `sitemap.ts` et `opengraph-image.tsx` dans `src/app` ; `APP_URL` est passé en argument de build Docker.
 - Si l'e-mail de l'emprunteur correspond à un compte, il reçoit aussi des **notifications dans l'appli** et voit le prêt dans « Emprunts ».
-- Le prêteur est alerté quand une échéance est dépassée. Il clôture le prêt quand l'objet revient.
-- Pour l'argent : remboursements partiels, reste dû, clôture automatique une fois soldé.
-- Page **Bilan** : ce qu'on lui doit, objets dehors, fiabilité par personne, prêts par mois, export CSV.
-- **Offres** (dans `src/lib/plans.ts`) : Gratuit = 3 prêts en cours · Perso 3 €/mois ou 30 €/an = 10 · Pro 50 12 €/mois ou 120 €/an = 50 · Pro 200 24 €/mois ou 240 €/an = 200.
-  - Règles de la grille : le prix d'un prêt baisse quand on monte d'offre (pour que cumuler des petits comptes ne soit pas rentable), et l'annuel = 10 mois payés (« 2 mois offerts », calculé, jamais écrit à la main).
-  - Les offres Pro visent les entreprises et associations : CGV articles 16 (clients pros) et 17 (accord de sous-traitance RGPD). Perso est réservé à l'usage personnel, un seul compte par personne (CGU article 2).
-  - Nouveaux prêts plafonnés par 24 h (`maxNewLoansPerDay`) : 30, 50 en Pro 50, 200 en Pro 200.
+- Le prêteur est alerté quand une échéance est dépassée. Il clôture le prêt quand le matériel revient, en signant l'attestation de restitution.
+- Pour l'argent : remboursements partiels (un reçu signé chacun), reste dû, clôture automatique une fois soldé.
+- Page **Bilan** : ce qu'on lui doit, matériel dehors, fiabilité par personne, prêts par mois, export CSV.
+- **Offre** (dans `src/lib/plans.ts`) : une seule, **Entreprise 299 € HT par an** (`ENTREPRISE_YEARLY`), 1 000 prêts en cours, 200 nouveaux par 24 h (`maxNewLoansPerDay`). `FREE` = sans abonnement (0 prêt créable hors phase de test). La migration `version_entreprise` a converti les anciennes offres (jamais vendues) en `ENTREPRISE_YEARLY`.
+  - Clients tous professionnels : CGV articles 16 (dispositions entre professionnels) et 17 (accord de sous-traitance RGPD, accepté dès l'inscription). Rétractation 14 jours et règles de reconduction appliquées volontairement à tous. Pas de médiateur de la consommation obligatoire.
 - **Admin** (`/admin`) :
   - revenus : mois, MRR, ARR, par offre ;
   - analytics maison : visiteurs, pages, sources, appareils, pays ;
@@ -39,7 +40,8 @@ L'interface et les messages sont **en français et au tutoiement**. Garde ce ton
 - **Next.js 15** (App Router), TypeScript, React 19. Le site et l'API REST sont dans le même projet.
 - **PostgreSQL + Prisma 6** (`prisma/schema.prisma`, migrations dans `prisma/migrations/`).
 - **Auth maison** : JWT HS256 (`jose`) + `bcryptjs`. Cookie `session` httpOnly sur le web, **ou** en-tête `Authorization: Bearer <token>` pour le mobile. `/api/auth/login` et `/api/auth/register` renvoient `token`.
-- **E-mails** : `nodemailer` (SMTP). Chaque envoi est journalisé dans la table `EmailLog`.
+- **E-mails** : `nodemailer` (SMTP) ou API Brevo, pièces jointes texte ou binaires (PDF). Chaque envoi est journalisé dans la table `EmailLog`.
+- **PDF** : `pdf-lib` + `@pdf-lib/fontkit`, police Schibsted Grotesk (OFL) dans `assets/fonts`, lue au démarrage depuis `process.cwd()`.
 - **Paiement** : Stripe Checkout + portail client + webhook. **Jamais testé avec de vraies clés.**
 - **UI** : composants maison, un seul `src/app/globals.css` (tokens clair/sombre), graphiques SVG maison (`src/components/Charts.tsx`). Pas de framework CSS.
 - **Mobile** : PWA (`public/manifest.webmanifest`, `public/sw.js`) + `capacitor.config.json` (à compléter avec le vrai domaine).
@@ -76,13 +78,13 @@ npm run db:seed -- --demo        # + fausses données pour voir le dashboard adm
 npm run dev
 ```
 - Vérifier : `npx tsc --noEmit` (script `npm run lint`) et `npm run build`.
-- Tests de bout en bout (serveur de dev lancé, même base) : `npm run test:securite`, `npm run test:anti-abus`, `npm run test:prets`, `npm run test:vente` et `npm run test:mode-site` (voir l'en-tête des scripts pour les variables).
+- Tests de bout en bout (serveur de dev lancé, même base) : `npm run test:securite`, `npm run test:anti-abus`, `npm run test:prets`, `npm run test:vente`, `npm run test:mode-site` et `npm run test:signatures` (voir l'en-tête des scripts pour les variables).
 - Modifier la base : éditer `prisma/schema.prisma`, puis `npx prisma migrate dev --name <nom>`, puis committer la migration.
 
 ## Structure
 
 ```
-prisma/schema.prisma        User, Loan (kind OBJECT|MONEY), Repayment, Notification, Payment, PageView, EmailLog
+prisma/schema.prisma        User, Loan (kind OBJECT|MONEY, ackStatus), Repayment, Receipt (documents signés), Notification, Payment, PageView, EmailLog
 prisma/seed.ts              admin (+ --demo : 60 faux utilisateurs, paiements, prêts, 4000 pages vues)
 scripts/cron.ts             rappels sans HTTP (npm run cron)
 
@@ -95,6 +97,12 @@ src/lib/
   limits.ts                 plafonds anti-abus (MAIL_LIMITS), affichés dans les CGU
   config-check.ts           refus de démarrer en production avec des réglages d'exemple
   loans.ts                  e-mails et notifications de prêt, runReminders() (logique des rappels)
+  receipts.ts               documents signés (accusé de réception, reçus, attestations), empreinte, envoi
+  receipt-text.ts           texte des documents (aperçu = texte signé), sans dépendance
+  pdf.ts                    PDF des documents signés (pdf-lib, police assets/fonts)
+  signlink.ts               lien personnel chiffré de l'emprunteur (/signer)
+  signature.ts              format du tracé de signature, contrôle, chemin SVG
+  amount-words.ts           montant en toutes lettres et comparaison (mention de l'art. 1376 C. civ.)
   mail.ts                   envoi SMTP + gabarit HTML
   stripe.ts                 client Stripe, demoBilling
   client.ts                 (navigateur) fetch api(), formatage €, dates, libellés
@@ -113,7 +121,7 @@ src/app/api/
   admin/stats, admin/users, admin/users/[id]
 
 src/app/  (pages, toutes "use client", elles appellent l'API)
-  /  /connexion  /inscription  /prets  /prets/nouveau  /prets/[id]
+  /  /connexion  /inscription  /prets  /prets/nouveau  /prets/[id]  /signer (public, lien de l'emprunteur)
   /bilan  /emprunts  /notifications  /abonnement  /admin  /admin/utilisateurs
 src/components/  AppShell (navigation + protection), Providers (contexte « me »),
   LoanForm, LoanList, Charts, AuthForm, AdminNav, Tracker
@@ -129,7 +137,7 @@ Voir `.env.example`. Les principales :
 - `APP_URL` (s'il commence par `https://`, le cookie devient `secure`)
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` (compte créé par le seed ; un compte inscrit avec `ADMIN_EMAIL` devient aussi ADMIN)
 - `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `MAIL_FROM`
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, et un prix par offre : `STRIPE_PRICE_PERSO_MONTHLY`, `STRIPE_PRICE_PERSO_YEARLY`, `STRIPE_PRICE_PRO50_MONTHLY`, `STRIPE_PRICE_PRO50_YEARLY`, `STRIPE_PRICE_PRO200_MONTHLY`, `STRIPE_PRICE_PRO200_YEARLY`
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, et le prix annuel de l'offre : `STRIPE_PRICE_ENTREPRISE_YEARLY`
 - `DEMO_BILLING` : sans Stripe, `true` active les offres sans payer. **Il vaut `true` par défaut dans docker-compose : à passer à `false` avant toute mise en ligne publique.**
 - `CRON_SECRET`
 
@@ -154,12 +162,12 @@ Voir `.env.example`. Les principales :
    - Sessions en base : le JWT porte `sid`, la déconnexion supprime la session, « Déconnecter les autres appareils ».
    - Limitation de débit sur login, register, mot de passe oublié, renvoi de lien, relance et track. Elle reste en mémoire (remise à zéro au redémarrage, une seule instance) : passer à Redis si plusieurs instances.
    - `DEMO_BILLING` est ignoré dès que `APP_URL` est en `https://`.
-2. **Stripe réel** : créer les 6 prix (3 produits × mensuel/annuel) et le webhook (`customer.subscription.created/updated/deleted`, `invoice.paid`, `invoice.payment_failed`), puis tester le parcours complet en mode test.
+2. **Stripe réel** : créer le prix annuel de 299 € HT (un produit « Entreprise ») et le webhook (`customer.subscription.created/updated/deleted`, `invoice.paid`, `invoice.payment_failed`), puis tester le parcours complet en mode test.
    - Le code vise l'API Stripe 2025 « basil » : `current_period_end` est lu sur l'item d'abonnement, et le prix d'une facture sur `lines.data[0].pricing.price_details.price`.
-   - Éditeur du site pendant la phase de test gratuite : **Tolga Yildiz, particulier** (éditeur non professionnel, adresse et téléphone confidentiels, communiqués à l'hébergeur : LCEN art. 6 III 2), contact `contact@codebtpsecure.cloud`. Pas de SIRET : `sellerReady()` (`src/lib/legal.ts`) bloque le passage au mode payant en production tant qu'une activité n'est pas déclarée (SIRET, adresse, téléphone, TVA, médiateur à renseigner). CGU art. 5 et 6 : service gratuit « en l'état », information claire sur le risque de perte de données (gratuit comme payant), limitation de responsabilité la plus large permise (pas pour faute lourde, dommages corporels, RGPD). CGV art. 16 : envers les clients Pro, responsabilité plafonnée au montant payé sur 12 mois. Envers les consommateurs, aucune exclusion totale n'est possible (clause abusive, art. R212-1 C. conso.) : ne pas en ajouter.
+   - Éditeur du site pendant la phase de test gratuite : **Tolga Yildiz, particulier** (éditeur non professionnel, adresse et téléphone confidentiels, communiqués à l'hébergeur : LCEN art. 6 III 2), contact `contact@codebtpsecure.cloud`. Pas de SIRET : `sellerReady()` (`src/lib/legal.ts`) bloque le passage au mode payant en production tant qu'une activité n'est pas déclarée (SIRET, adresse, téléphone, TVA à renseigner ; le service étant réservé aux professionnels, pas de médiateur de la consommation obligatoire). CGU art. 5 et 6 : service gratuit « en l'état », information claire sur le risque de perte de données (gratuit comme payant), limitation de responsabilité la plus large permise (pas pour faute lourde, dommages corporels, RGPD). CGV art. 16 : envers les clients (tous professionnels), responsabilité plafonnée au montant payé sur 12 mois. CGU art. 3 bis : signature électronique simple, obligation du client d'imprimer ses documents, pas d'archivage. Si des consommateurs devenaient clients, aucune exclusion totale ne serait possible (clause abusive, art. R212-1 C. conso.).
 3. **E-mails** : Brevo (offre gratuite limitée à 300 e-mails par jour), déclaré dans `LEGAL.processors`. **Railway bloque le SMTP sortant sur les offres Free, Trial et Hobby** : en production, l'envoi passe par l'API web de Brevo (`BREVO_API_KEY`, prioritaire dans `src/lib/mail.ts`) ; le SMTP (`SMTP_*`) reste pour Mailpit en local. Expéditeur `no-reply@codebtpsecure.cloud` (domaine authentifié dans le compte Brevo « BTPsecure »). La clé API est saisie par le propriétaire dans les variables partagées Railway.
 4. **Déploiement** : sur Railway, suivre `docs/DEPLOIEMENT-RAILWAY.md` (projet relié au dépôt GitHub, région EU West, PostgreSQL Railway, service cron `npx tsx scripts/cron.ts` toutes les heures ; le `Dockerfile` écoute sur `$PORT`). Hébergeur renseigné dans `src/lib/legal.ts` : Railway Corporation (adresse, téléphone et DPA à compléter). Sinon VPS avec `docker-compose.prod.yml` et Caddy.
-5. **Tests** : `scripts/test-securite.ts`, `scripts/test-anti-abus.ts`, `scripts/test-prets.ts`, `scripts/test-vente.ts` et `scripts/test-mode-site.ts` (de bout en bout, à lancer à la main). Manquent : webhook Stripe et remboursement Stripe réel (le test de vente passe par le paiement de démo), CI GitHub.
+5. **Tests** : `scripts/test-securite.ts`, `scripts/test-anti-abus.ts`, `scripts/test-prets.ts`, `scripts/test-vente.ts`, `scripts/test-mode-site.ts` et `scripts/test-signatures.ts` (de bout en bout, à lancer à la main). Manquent : webhook Stripe et remboursement Stripe réel (le test de vente passe par le paiement de démo), CI GitHub.
    - Dépendances : `npm audit` ne signale plus que `deepmerge-ts`, dans l'outil en ligne de commande Prisma (corrigé seulement en Prisma 7, migration lourde). `zod` est en v4, avec les messages par défaut en français (`z.config` dans `src/lib/api.ts`).
 6. **Notifications push** : `public/sw.js` gère déjà `push`, mais il n'y a ni abonnement Web Push ni envoi côté serveur. Aujourd'hui les notifications sont seulement dans l'appli, rafraîchies toutes les 60 s.
 7. **Mobile** : Capacitor (`npx cap add ios/android`, remplacer `server.url` dans `capacitor.config.json`). Attention : Apple et Google imposent leur paiement intégré pour vendre un abonnement dans l'app. Plan prévu : l'abonnement se prend sur le site.

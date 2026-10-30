@@ -66,8 +66,8 @@ export function LoanForm({ initial, submitLabel, onSubmit, onCancel }: { initial
   }
 
   const kinds: [LoanInput["kind"], IconName, string, string][] = [
-    ["OBJECT", "box", "Un objet", "Outil, livre, jeu, matériel…"],
-    ["MONEY", "banknote", "De l'argent", "Avance, resto, billet de train…"],
+    ["OBJECT", "box", "Du matériel", "Outillage, ordinateur, véhicule, matériel de sport…"],
+    ["MONEY", "banknote", "De l'argent", "Avance sur frais, acompte, dépannage…"],
   ];
 
   return (
@@ -96,17 +96,17 @@ export function LoanForm({ initial, submitLabel, onSubmit, onCancel }: { initial
                 </span>
               </label>
               <label className="field"><span>Motif <span className="opt">— optionnel</span></span>
-                <input value={v.item} onChange={set("item")} placeholder="Resto, billet de train, avance loyer…" maxLength={120} />
+                <input value={v.item} onChange={set("item")} placeholder="Avance sur frais de mission, acompte…" maxLength={120} />
               </label>
               {initial && initial.repaidCents > 0 && <p className="hint">Déjà remboursé : {euros(initial.repaidCents)}.</p>}
             </div>
           ) : (
             <div className="stack grow-in" key="object" style={{ gap: 14 }}>
               <label className="field">Désignation
-                <input value={v.item} onChange={set("item")} placeholder="Perceuse Bosch, Dune tome 1…" required maxLength={120} autoFocus={!initial} />
+                <input value={v.item} onChange={set("item")} placeholder="Perforateur Hilti TE 30, ordinateur portable n° 12…" required maxLength={120} autoFocus={!initial} />
               </label>
               {details ? (
-                <label className="field grow-in"><span>Détails <span className="opt">— état, accessoires fournis…</span></span>
+                <label className="field grow-in"><span>Détails <span className="opt">— état, accessoires, n° de série : figurent sur l&apos;accusé de réception</span></span>
                   <textarea value={v.description} onChange={set("description")} rows={2} maxLength={1000} autoFocus />
                 </label>
               ) : (
@@ -125,7 +125,7 @@ export function LoanForm({ initial, submitLabel, onSubmit, onCancel }: { initial
             <label className="field">Adresse e-mail<input type="email" value={v.borrowerEmail} onChange={set("borrowerEmail")} required autoComplete="off" /></label>
             <label className="field"><span>Téléphone <span className="opt">— optionnel</span></span><input type="tel" value={v.borrowerPhone} onChange={set("borrowerPhone")} autoComplete="off" /></label>
           </div>
-          <p className="hint">La personne reçoit un e-mail de confirmation (elle peut s&apos;en désinscrire). Préviens-la que tu utilises Prêt Matériel, et n&apos;enregistre que des personnes qui s&apos;attendent à être contactées (<a href="/cgu#utilisation" target="_blank">CGU, art. 3</a>).</p>
+          <p className="hint">La personne reçoit par e-mail l&apos;accusé de réception à signer en ligne (elle peut aussi le contester ou se désinscrire). Préviens-la que tu utilises Prêt Matériel, et n&apos;enregistre que des personnes qui s&apos;attendent à être contactées (<a href="/cgu#utilisation" target="_blank">CGU, art. 3</a>).</p>
         </section>
 
         <section className="fsec" aria-labelledby="f-when">
@@ -171,7 +171,7 @@ export function LoanForm({ initial, submitLabel, onSubmit, onCancel }: { initial
         {!initial && (
           <>
             <div className="section-label" style={{ marginTop: 10 }}>E-mail envoyé à l&apos;emprunteur</div>
-            <MailPreview v={v} lender={me?.user.name ?? "Toi"} />
+            <MailPreview v={v} lender={me?.user.organization ?? me?.user.name ?? "Ta structure"} />
           </>
         )}
       </aside>
@@ -214,7 +214,7 @@ function BorrowerName({ value, people, onChange, onPick }: { value: string; peop
       </label>
       {show && (
         <ul className="combo-list" id="borrower-list" role="listbox">
-          <li className="combo-head" role="presentation">Déjà dans ton carnet</li>
+          <li className="combo-head" role="presentation">Déjà dans ton registre</li>
           {matches.map((p, i) => (
             <li key={p.email} id={`bo-${i}`} role="option" aria-selected={i === sel} className="combo-opt"
               onMouseDown={(e) => { e.preventDefault(); pick(p); }} onMouseMove={() => setSel(i)}>
@@ -236,7 +236,7 @@ function PreviewFiche({ v }: { v: LoanInput }) {
   return (
     <div className="fiche mini">
       <div className="fiche-part fiche-head">
-        <div className="fiche-top"><span>Nouvelle fiche</span><span>{money ? "Argent" : "Objet"}</span></div>
+        <div className="fiche-top"><span>Nouvelle fiche</span><span>{money ? "Argent" : "Matériel"}</span></div>
         <div className={`fiche-title ${empty ? "placeholder" : ""}`}>{title}</div>
         {money && v.item.trim() && <p className="fiche-desc">{v.item}</p>}
         {d && <div className="fiche-state"><span className={`due ${d.tone}`}>{d.short}</span><span>{d.long}</span></div>}
@@ -251,14 +251,14 @@ function PreviewFiche({ v }: { v: LoanInput }) {
   );
 }
 
-/** Reprend le texte de l'e-mail envoyé à la création (src/lib/loans.ts, onLoanCreated). */
+/** Reprend le texte de l'e-mail envoyé à la création (src/lib/loans.ts, sendSignRequest). */
 function MailPreview({ v, lender }: { v: LoanInput; lender: string }) {
   const money = v.kind === "MONEY";
   const cents = parseCents(v.amount);
   const item = v.item.trim();
   const amount = cents ? euros(cents) : "…";
   const what = money ? (item ? `${amount} (${item})` : amount) : `« ${item || "…"} »`;
-  const subject = `${lender} vous a prêté ${money ? amount : `: ${item || "…"}`}`;
+  const subject = `${lender} vous a prêté ${money ? amount : `« ${item || "…"} »`} : accusé de réception à signer`;
   return (
     <div className="mail-prev">
       <div className="mail-prev-head">
@@ -270,10 +270,10 @@ function MailPreview({ v, lender }: { v: LoanInput; lender: string }) {
       </div>
       <div className="mail-prev-body">
         <p>Bonjour {v.borrowerName.trim() || "…"},</p>
-        <p>{lender} vous a prêté {what} le {longDate(v.lentAt)}.</p>
-        <p>Merci de {money ? "le rembourser" : "le rendre"} avant le {longDate(v.dueAt)}.</p>
-        <p>Vous recevrez un rappel si la date est dépassée.</p>
-        <p className="mail-prev-foot">En pied d&apos;e-mail : pourquoi la personne le reçoit, et un lien pour ne plus recevoir ces e-mails.</p>
+        <p>{lender} vous a prêté {what} le {longDate(v.lentAt)}, {money ? "à rembourser" : "à rendre"} le {longDate(v.dueAt)}.</p>
+        <p>Merci de vérifier le récapitulatif et de signer l&apos;accusé de réception en ligne : cela prend une minute, sans créer de compte.</p>
+        <p><span className="mail-prev-btn">Lire et signer l&apos;accusé de réception</span></p>
+        <p className="mail-prev-foot">En pied d&apos;e-mail : pourquoi la personne le reçoit, qui est responsable de ses données, et un lien pour ne plus recevoir ces e-mails.</p>
       </div>
     </div>
   );

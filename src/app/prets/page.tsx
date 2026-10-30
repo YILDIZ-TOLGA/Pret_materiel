@@ -5,9 +5,10 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { LoanRow, type LoanDTO } from "@/components/LoanList";
 import { useMe } from "@/components/Providers";
+import { SignDialog, type SignRequest, type SignResult } from "@/components/SignDialog";
 import { useToast } from "@/components/Toast";
 import { Avatar, EmptyState, PageHeader, Segmented, SkeletonRows } from "@/components/ui";
-import { api, dateShort, dueInfo, euros, isMoney, loanTitle, norm, relTime, remainingCents } from "@/lib/client";
+import { api, dateShort, downloadFile, dueInfo, euros, isMoney, loanTitle, norm, relTime, remainingCents } from "@/lib/client";
 
 type View = "ACTIVE" | "LATE" | "RETURNED";
 
@@ -24,6 +25,7 @@ function Loans() {
   const [view, setView] = useState<View>(sp.get("vue") === "retard" ? "LATE" : sp.get("vue") === "clotures" ? "RETURNED" : "ACTIVE");
   const [q, setQ] = useState("");
   const [leaving, setLeaving] = useState<Set<string>>(new Set());
+  const [signing, setSigning] = useState<{ loan: LoanDTO; request: SignRequest } | null>(null);
 
   const load = useCallback(() => api<{ loans: LoanDTO[] }>("/api/loans").then((r) => setLoans(r.loans)).catch(() => setLoans([])), []);
   useEffect(() => { load(); }, [load]);
@@ -44,22 +46,23 @@ function Loans() {
   if (!me) return null;
   const full = me.activeLoans >= me.plan.maxLoans;
 
-  /** Clôture différée : la ligne part tout de suite, l'enregistrement attend la fin du délai d'annulation. */
+  /** Clôture : le prêteur signe l'attestation de retour ou le reçu de solde, puis la ligne quitte la liste. */
   function close(l: LoanDTO) {
+    setSigning({ loan: l, request: isMoney(l) ? { kind: "REPAYMENT", amountCents: remainingCents(l) } : { kind: "RETURN" } });
+  }
+  function signed(r: SignResult) {
+    const l = signing!.loan;
+    setSigning(null);
     setLeaving((s) => new Set(s).add(l.id));
-    const t = setTimeout(() => {
-      setLoans((ls) => ls && ls.map((x): LoanDTO => (x.id === l.id ? { ...x, status: "RETURNED", returnedAt: new Date().toISOString(), repaidCents: x.amountCents ?? x.repaidCents } : x)));
+    setTimeout(() => {
+      setLoans((ls) => ls && ls.map((x) => (x.id === l.id ? r.loan : x)));
       setLeaving((s) => { const n = new Set(s); n.delete(l.id); return n; });
     }, 340);
-    toast.defer({
-      text: isMoney(l) ? `Prêt soldé : ${loanTitle(l)}` : `Prêt clôturé : « ${l.item} »`,
-      run: async () => { await api(`/api/loans/${l.id}`, { method: "PATCH", body: { action: "return" } }); await refresh(); },
-      onUndo: () => {
-        clearTimeout(t);
-        setLeaving((s) => { const n = new Set(s); n.delete(l.id); return n; });
-        setLoans((ls) => ls && ls.map((x) => (x.id === l.id ? l : x)));
-      },
-      onError: () => { load(); },
+    refresh();
+    toast.show({
+      text: isMoney(l) ? `Prêt soldé : reçu signé envoyé à ${l.borrowerName}` : `Retour attesté : document signé envoyé à ${l.borrowerName}`,
+      action: { label: "Télécharger", onClick: () => { downloadFile(`/api/receipts/${r.receipt.id}`, `${r.receipt.number}.pdf`).catch((x) => toast.show({ tone: "error", text: (x as Error).message })); } },
+      duration: 9000,
     });
   }
 
@@ -86,10 +89,10 @@ function Loans() {
 
   const actions = (l: LoanDTO) => (
     <>
-      {dueInfo(l).tone === "late" && (
+      {dueInfo(l).tone === "late" && l.ackStatus !== "REFUSED" && (
         <button type="button" className="btn small" data-tip="Envoyer une relance par e-mail" onClick={() => remind(l)}><Icon name="send" size={14} />Relancer</button>
       )}
-      <button type="button" className="btn small" data-tip={isMoney(l) ? "Tout a été remboursé" : "L'objet est revenu"} onClick={() => close(l)}>
+      <button type="button" className="btn small" data-tip={isMoney(l) ? "Signer le reçu du solde" : "Signer l'attestation de retour"} onClick={() => close(l)}>
         <Icon name="check" size={14} />{isMoney(l) ? "Soldé" : "Rendu"}
       </button>
     </>
@@ -142,7 +145,7 @@ function Loans() {
             </label>
           )}
           {full
-            ? <Link href="/abonnement" className="btn primary">Augmenter la limite</Link>
+            ? <Link href="/abonnement" className="btn primary">{me.plan.maxLoans === 0 ? "S'abonner" : "Voir l'offre"}</Link>
             : <Link href="/prets/nouveau" className="btn primary hide-m"><Icon name="plus" size={16} />Nouveau prêt</Link>}
         </>
       } />
@@ -150,8 +153,10 @@ function Loans() {
       {full && (
         <div className="banner soon" style={{ marginBottom: 20 }}>
           <Icon name="info" size={16} />
-          <span><strong>Limite de ton offre atteinte</strong> — {me.activeLoans} prêt{me.activeLoans > 1 ? "s" : ""} en cours sur {me.plan.maxLoans}. Clôture un prêt rendu ou passe à l&apos;offre supérieure.</span>
-          <Link href="/abonnement" className="btn small">Voir les offres</Link>
+          {me.plan.maxLoans === 0
+            ? <span><strong>Abonnement nécessaire</strong> — tes prêts restent consultables et continuent (rappels, signatures, reçus). Pour en enregistrer de nouveaux, choisis l&apos;offre Entreprise.</span>
+            : <span><strong>Limite de ton offre atteinte</strong> — {me.activeLoans} prêts en cours sur {me.plan.maxLoans}. Clôture un prêt rendu pour en enregistrer un nouveau.</span>}
+          <Link href="/abonnement" className="btn small">Voir l&apos;offre</Link>
         </div>
       )}
 
@@ -168,8 +173,8 @@ function Loans() {
           {nq ? (
             <EmptyState title="Aucun résultat">Aucun prêt ne correspond à « {q.trim()} ».</EmptyState>
           ) : view === "ACTIVE" ? (
-            <EmptyState title={all.length ? "Tout est rentré" : "Ton carnet est vide"} action={<Link href="/prets/nouveau" className="btn primary"><Icon name="plus" size={16} />Noter un prêt</Link>}>
-              {all.length ? "Aucun prêt en cours : tout ce que tu as prêté est revenu." : "Note ce que tu prêtes, à qui et jusqu'à quand. Les rappels partent automatiquement."}
+            <EmptyState title={all.length ? "Tout est rentré" : "Aucun prêt enregistré"} action={<Link href="/prets/nouveau" className="btn primary"><Icon name="plus" size={16} />Enregistrer un prêt</Link>}>
+              {all.length ? "Aucun prêt en cours : tout ce que tu as prêté est revenu." : "Enregistre ce que tu prêtes, à qui et jusqu'à quand. L'emprunteur signe l'accusé de réception en ligne, puis les rappels partent automatiquement."}
             </EmptyState>
           ) : view === "LATE" ? (
             <EmptyState title="Aucun retard">Tous tes prêts en cours sont dans les temps.</EmptyState>
@@ -185,6 +190,7 @@ function Loans() {
           </section>
         ))
       )}
+      {signing && <SignDialog loan={signing.loan} request={signing.request} onClose={() => setSigning(null)} onDone={signed} />}
     </>
   );
 }

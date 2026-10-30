@@ -3,14 +3,34 @@ import Link from "next/link";
 import { dueInfo, euros, isMoney, loanTitle, remainingCents } from "@/lib/client";
 import { Icon } from "./Icon";
 
-export type RepaymentDTO = { id: string; amountCents: number; note: string | null; createdAt: string };
+export type ReceiptDTO = {
+  id: string; number: string; kind: "LOAN" | "REPAYMENT" | "RETURN"; signedAt: string;
+  signerName?: string; repaymentId?: string | null;
+  /** premier téléchargement par le prêteur (null : document pas encore imprimé) */
+  downloadedAt?: string | null;
+};
+export type RepaymentDTO = { id: string; amountCents: number; note: string | null; createdAt: string; receipt?: { id: string; number: string } | null };
+export type AckStatus = "NONE" | "PENDING" | "SIGNED" | "REFUSED";
 
 export type LoanDTO = {
   id: string; kind: "OBJECT" | "MONEY"; amountCents: number | null; repaidCents: number; repayments?: RepaymentDTO[]; item: string; description: string | null; borrowerName: string; borrowerEmail: string; borrowerPhone: string | null;
   lentAt: string; dueAt: string; status: "ACTIVE" | "RETURNED"; returnedAt: string | null; autoReminder: boolean; remindBefore: boolean;
   lastReminderAt: string | null; reminderCount: number; notes: string | null; borrowerId: string | null;
-  lender?: { name: string; email: string };
+  /** accusé de réception signé par l'emprunteur */
+  ackStatus: AckStatus; ackAt: string | null; ackRequestedAt?: string | null; ackRefusalReason?: string | null;
+  receipts?: ReceiptDTO[];
+  lender?: { name: string; email: string; organization?: string | null };
+  /** emprunts : page personnelle de l'emprunteur (signature, documents) */
+  url?: string;
 };
+
+/** Étiquette de l'accusé de réception sur une ligne de prêt en cours. */
+export function AckTag({ loan }: { loan: Pick<LoanDTO, "ackStatus" | "status"> }) {
+  if (loan.status !== "ACTIVE") return null;
+  if (loan.ackStatus === "PENDING") return <span className="tag soon" title="Accusé de réception pas encore signé">À signer</span>;
+  if (loan.ackStatus === "REFUSED") return <span className="tag late" title="L'emprunteur conteste ce prêt">Contesté</span>;
+  return null;
+}
 
 export function LoanIcon({ loan, size = 18 }: { loan: Pick<LoanDTO, "kind" | "amountCents" | "item">; size?: number }) {
   return <Icon name={isMoney(loan) ? "banknote" : "box"} size={size} />;
@@ -34,6 +54,7 @@ export function LoanRow({ loan, href, who, actions, index = 0, leaving }: {
         <div className="lrow-meta">{who}</div>
       </div>
       <div className="lrow-side">
+        <AckTag loan={loan} />
         {money && loan.status === "ACTIVE" && loan.repaidCents > 0 && <span className="lrow-amt">reste {euros(remainingCents(loan))}</span>}
         <span className={`due ${d.tone}`} title={d.long}>{d.short}</span>
       </div>

@@ -27,7 +27,7 @@ export const POST = withUser(async (user, req) => {
   const active = await prisma.loan.count({ where: { lenderId: user.id, status: "ACTIVE" } });
   const { maxLoans: limit } = await limitsFor(user);
   if (active >= limit) {
-    return json({ error: `Limite atteinte : ${limit} prêt${limit > 1 ? "s" : ""} en cours avec ton offre.`, code: "LIMIT_REACHED" }, 402);
+    return json({ error: limit === 0 ? "Un abonnement est nécessaire pour enregistrer des prêts : choisis l'offre Entreprise." : `Limite atteinte : ${limit} prêts en cours avec ton offre.`, code: "LIMIT_REACHED" }, 402);
   }
   const refusal = await newBorrowerRefusal(user, data.borrowerEmail, data.borrowerName);
   if (refusal) return json({ error: refusal.error, code: refusal.code }, refusal.status);
@@ -41,8 +41,11 @@ export const POST = withUser(async (user, req) => {
       amountCents: data.kind === "MONEY" ? data.amountCents : null,
       lenderId: user.id,
       borrowerId: borrower?.id ?? null,
+      // l'emprunteur reçoit tout de suite la demande de signature de l'accusé de réception
+      ackStatus: "PENDING",
+      ackRequestedAt: new Date(),
     },
   });
-  await onLoanCreated(loan, user);
-  return json({ loan }, 201);
+  const signRequest = (await onLoanCreated(loan, user)) ? "sent" : "not_sent";
+  return json({ loan, signRequest }, 201);
 });

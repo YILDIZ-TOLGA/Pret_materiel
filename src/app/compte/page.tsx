@@ -7,8 +7,6 @@ import { useMe } from "@/components/Providers";
 import { LegalLinks } from "@/components/SiteFooter";
 import { Avatar, PageHeader, Spinner, ThemeSwitch } from "@/components/ui";
 import { API_BASE, api, authToken, dateFr, saveAuthToken } from "@/lib/client";
-import { isProPlan } from "@/lib/plans";
-import type { Plan } from "@prisma/client";
 
 export default function AccountPage() {
   const { me, refresh } = useMe();
@@ -24,7 +22,7 @@ export default function AccountPage() {
   async function saveName(e: React.FormEvent) {
     e.preventDefault();
     setBusy("name"); setErr(""); setSaved(false);
-    try { await api("/api/account", { method: "PATCH", body: { name, ...(showOrg ? { organization: org.trim() || null } : {}) } }); await refresh(); setSaved(true); }
+    try { await api("/api/account", { method: "PATCH", body: { name, ...(org.trim() ? { organization: org.trim() } : {}) } }); await refresh(); setSaved(true); }
     catch (x) { setErr((x as Error).message); }
     setBusy(null);
   }
@@ -54,30 +52,27 @@ export default function AccountPage() {
   }
 
   const paid = me.plan.id !== "FREE" && !me.user.cancelAtPeriodEnd;
-  // offres Pro : la structure est nommée dans les e-mails aux emprunteurs (elle est responsable de leurs données)
-  const showOrg = isProPlan(me.plan.id as Plan) || !!me.user.organization;
-  const unchanged = name.trim() === me.user.name && (!showOrg || org.trim() === (me.user.organization ?? ""));
+  // la structure est nommée dans les e-mails et les documents envoyés aux emprunteurs (elle est responsable de leurs données)
+  const unchanged = name.trim() === me.user.name && org.trim() === (me.user.organization ?? "");
   return (
     <>
-      <PageHeader title="Mon compte" sub="Tes informations personnelles et tes données." />
+      <PageHeader title="Mon compte" sub="Ta structure, tes informations et tes données." />
       {err && <div className="banner late" style={{ marginBottom: 20 }}><Icon name="alert" size={16} />{err}</div>}
 
       <div className="settings">
         <section className="set-row">
-          <div className="set-label"><h2>Profil</h2><p>Ton prénom{showOrg ? " et ta structure apparaissent" : " apparaît"} dans les e-mails envoyés à tes emprunteurs.</p></div>
+          <div className="set-label"><h2>Profil</h2><p>Ta structure et ton nom figurent dans les e-mails et les documents signés envoyés à tes emprunteurs.</p></div>
           <form className="card stack" onSubmit={saveName}>
             <div className="row" style={{ gap: 14 }}>
               <Avatar name={name || me.user.name} size="lg" />
               <div style={{ minWidth: 0 }}><b>{me.user.name}</b><div className="small muted truncate">{me.user.email}</div></div>
             </div>
-            <label className="field">Prénom<input value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} required maxLength={80} autoComplete="given-name" /></label>
-            {showOrg && (
-              <label className="field">
-                <span>Nom de ta structure <span className="opt">— entreprise, association, école…</span></span>
-                <input value={org} onChange={(e) => { setOrg(e.target.value); setSaved(false); }} maxLength={120} autoComplete="organization" required={isProPlan(me.plan.id as Plan)} />
-                <span className="hint">Obligatoire avec une offre Pro : ta structure est responsable des données de tes emprunteurs, elle est donc nommée dans les e-mails qu&apos;ils reçoivent.</span>
-              </label>
-            )}
+            <label className="field">
+              <span>Nom de ta structure <span className="opt">— entreprise, association, collectivité…</span></span>
+              <input value={org} onChange={(e) => { setOrg(e.target.value); setSaved(false); }} maxLength={120} autoComplete="organization" required />
+              <span className="hint">Ta structure est responsable des données de ses emprunteurs : elle est nommée dans les e-mails et les documents qu&apos;ils reçoivent.</span>
+            </label>
+            <label className="field">Ton prénom et ton nom<input value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} required maxLength={80} autoComplete="name" /></label>
             <div className="row">
               <button className="btn" disabled={busy === "name" || unchanged}>{busy === "name" ? <><Spinner />Enregistrement…</> : "Enregistrer"}</button>
               {saved && <span className="small ok-text row grow-in" style={{ gap: 6 }}><Icon name="check" size={14} />Enregistré</span>}
@@ -96,9 +91,9 @@ export default function AccountPage() {
         </section>
 
         <section className="set-row">
-          <div className="set-label"><h2>Mes données</h2><p>Profil, prêts, remboursements, emprunts, notifications et paiements.</p></div>
+          <div className="set-label"><h2>Mes données</h2><p>Profil, prêts, documents signés, remboursements, emprunts, notifications et paiements.</p></div>
           <div className="card stack">
-            <p className="small" style={{ margin: 0, color: "var(--ink-2)" }}>Télécharge l&apos;ensemble des données liées à ton compte : profil, prêts, remboursements, emprunts, notifications et paiements (fichier JSON).</p>
+            <p className="small" style={{ margin: 0, color: "var(--ink-2)" }}>Télécharge l&apos;ensemble des données liées à ton compte : profil, prêts, documents signés (contenu et éléments de preuve), remboursements, emprunts, notifications et paiements (fichier JSON). Les PDF à imprimer se téléchargent depuis chaque prêt.</p>
             <div><button type="button" className="btn" onClick={exportData} disabled={busy === "export"}>{busy === "export" ? <><Spinner />Préparation…</> : <><Icon name="download" size={16} />Télécharger mes données</>}</button></div>
             <p className="hint">Comment tes données sont utilisées : <Link href="/confidentialite">politique de confidentialité</Link>. Mesure d&apos;audience : <Link href="/cookies">gérer</Link>.</p>
           </div>
@@ -108,7 +103,7 @@ export default function AccountPage() {
           <div className="set-label"><h2>Supprimer mon compte</h2><p>Action définitive et immédiate.</p></div>
           <div className="card stack danger-zone">
             <p className="small" style={{ margin: 0, color: "var(--ink-2)" }}>
-              Suppression définitive et immédiate du compte, de tes prêts, de leur historique et de tes notifications.
+              Suppression définitive et immédiate du compte, de tes prêts, de leurs documents signés, de leur historique et de tes notifications. Garde d&apos;abord une copie imprimée de tes documents signés : Prêt Matériel ne les conserve pas après la suppression.
               {paid && " Ton abonnement est résilié immédiatement, sans remboursement de la période en cours (sauf rétractation dans les 14 jours)."}
               {" "}Les justificatifs de paiement sont conservés 10 ans sans lien avec ton compte (obligation comptable).
             </p>

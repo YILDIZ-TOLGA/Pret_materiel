@@ -37,7 +37,7 @@ export const POST = withUser(async (user, req) => {
       until
         ? `La résiliation prend effet le ${until}. D'ici là, tu gardes l'accès à toutes les fonctions de ton offre. Aucun prélèvement ne sera plus effectué.`
         : "Aucun prélèvement ne sera plus effectué.",
-      `Ensuite, ton compte repasse à l'offre gratuite (${PLANS.FREE.maxLoans} prêt${PLANS.FREE.maxLoans > 1 ? "s" : ""} en cours) : tes prêts et ton historique sont conservés.`,
+      "Ensuite, tes prêts, tes documents signés et ton historique restent consultables, et les prêts en cours continuent (rappels, reçus). Tu ne pourras simplement plus enregistrer de nouveaux prêts sans te réabonner.",
       `Une question ou un problème ? Écris-nous à ${LEGAL.editor.email}.`,
     ],
     cta: { label: "Voir mon offre", url: `${appUrl}/abonnement` },

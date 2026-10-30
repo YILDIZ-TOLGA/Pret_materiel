@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 // Aperçu affiché quand on partage un lien du site (WhatsApp, Messenger, LinkedIn, X…). Généré au build.
-export const alt = "Prêt Matériel : tu prêtes, l'appli relance.";
+export const alt = "Prêt Matériel : prêté, signé, rendu.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -21,10 +21,10 @@ export default function Image() {
           <div style={{ fontSize: 44, fontWeight: 700 }}>Prêt Matériel</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <div style={{ fontSize: 76, fontWeight: 700, lineHeight: 1.05, letterSpacing: -2 }}>Tu prêtes, l&apos;appli relance.</div>
-          <div style={{ fontSize: 34, color: INK_2, lineHeight: 1.3 }}>Objets et argent prêtés, rappels par e-mail avant et après la date de retour.</div>
+          <div style={{ fontSize: 76, fontWeight: 700, lineHeight: 1.05, letterSpacing: -2 }}>Prêté, signé, rendu.</div>
+          <div style={{ fontSize: 34, color: INK_2, lineHeight: 1.3 }}>Matériel et argent prêtés par ta structure : accusé de réception signé en ligne, reçus PDF, rappels automatiques.</div>
         </div>
-        <div style={{ display: "flex", fontSize: 28, color: BRAND, fontWeight: 600 }}>Gratuit pour commencer, sans carte bancaire</div>
+        <div style={{ display: "flex", fontSize: 28, color: BRAND, fontWeight: 600 }}>Pour les entreprises et les associations</div>
       </div>
     ),
     size,

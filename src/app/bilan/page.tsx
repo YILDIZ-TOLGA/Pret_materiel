@@ -39,7 +39,7 @@ function exportCsv(loans: LoanDTO[]) {
   const cell = (v: unknown) => `"${String(v ?? "").replace(/^([=+\-@\t\r])/, "'$1").replace(/"/g, '""')}"`;
   const head = ["Type", "Objet / motif", "Montant (€)", "Remboursé (€)", "Emprunteur", "E-mail", "Prêté le", "À rendre le", "Statut", "Rendu le"];
   const rows = loans.map((l) => [
-    l.kind === "MONEY" ? "Argent" : "Objet", l.item, l.amountCents ? (l.amountCents / 100).toFixed(2) : "", l.kind === "MONEY" ? (l.repaidCents / 100).toFixed(2) : "",
+    l.kind === "MONEY" ? "Argent" : "Matériel", l.item, l.amountCents ? (l.amountCents / 100).toFixed(2) : "", l.kind === "MONEY" ? (l.repaidCents / 100).toFixed(2) : "",
     l.borrowerName, l.borrowerEmail, dateFr(l.lentAt), dateFr(l.dueAt), l.status === "ACTIVE" ? "En cours" : "Rendu", l.returnedAt ? dateFr(l.returnedAt) : "",
   ]);
   const csv = "﻿" + [head, ...rows].map((r) => r.map(cell).join(";")).join("\n");
@@ -101,7 +101,7 @@ export default function DashboardPage() {
 
       <section className="stats kpis rise" style={{ "--i": 1, marginTop: 14 } as React.CSSProperties}>
         <Kpi label="Prêts au total" value={<CountUp value={t.loans} />} hint={`${t.active} en cours · ${t.returned} clôturé${t.returned > 1 ? "s" : ""}`} />
-        <Kpi label="Personnes" value={<CountUp value={t.people} />} hint="dans ton carnet" />
+        <Kpi label="Personnes" value={<CountUp value={t.people} />} hint="dans ton registre" />
         <Kpi label="Durée moyenne" value={t.avgDays == null ? "—" : `${Math.round(t.avgDays)} j`} hint="avant le retour" />
         {hasMoney && <Kpi label="Argent prêté" value={euros(t.moneyLentCents)} hint={`${euros(t.moneyRepaidCents)} remboursés`} />}
       </section>

@@ -3,13 +3,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { IntervalToggle, PlanCard } from "@/components/PlanCards";
+import { PlanCard } from "@/components/PlanCards";
 import { useMe } from "@/components/Providers";
 import { Meter, PageHeader, Spinner } from "@/components/ui";
 import { api, dateFr, euros } from "@/lib/client";
 import { LEGAL } from "@/lib/legal";
 import type { Plan } from "@prisma/client";
-import { PLANS, TIERS, yearlySaving, type Interval } from "@/lib/plans";
+import { MAIN_PLAN } from "@/lib/plans";
 
 export default function BillingPage() {
   return <Suspense><Billing /></Suspense>;
@@ -23,7 +23,6 @@ function Billing() {
   const [accept, setAccept] = useState(false);
   const [cancelStep, setCancelStep] = useState(false);
   const [canceled, setCanceled] = useState(false);
-  const [picked, setPeriod] = useState<Interval | null>(null);
   const [withdrawStep, setWithdrawStep] = useState(false);
   const [withdrawn, setWithdrawn] = useState<{ refundedCents: number; refundOk: boolean } | null>(null);
   useEffect(() => { if (sp.get("success")) refresh(); }, [sp, refresh]);
@@ -57,13 +56,11 @@ function Billing() {
   }
 
   const current = me.plan.id as Plan;
-  // la bascule s'ouvre sur la période de l'offre actuelle
-  const period = picked ?? (PLANS[current].interval === "year" ? "year" : "month");
   const renewal = me.user.planExpiresAt && current !== "FREE" ? dateFr(me.user.planExpiresAt) : null;
   const max = me.plan.maxLoans;
   return (
     <>
-      <PageHeader title="Offre" sub="Mensuel sans engagement, résiliable à tout moment." />
+      <PageHeader title="Offre" sub={`Une seule offre pour les professionnels : ${MAIN_PLAN.priceLabel}, résiliable à tout moment.`} />
       <div className="stack">
         {sp.get("success") && <div className="banner ok"><Icon name="check" size={16} />Paiement confirmé. Ton abonnement est actif.</div>}
         {sp.get("canceled") && <div className="banner soon"><Icon name="info" size={16} />Paiement annulé. Aucun montant n&apos;a été débité.</div>}
@@ -74,17 +71,20 @@ function Billing() {
             <div className="section-label">Offre actuelle</div>
             <div className="plan-now-name">{me.plan.name}</div>
             <div className="plan-now-meta">
-              {max} prêt{max > 1 ? "s" : ""} en cours max{renewal && (me.user.cancelAtPeriodEnd ? ` · résilié, actif jusqu'au ${renewal}` : ` · renouvellement le ${renewal}`)}
+              {max > 0 ? `${max.toLocaleString("fr-FR")} prêts en cours max` : "Tes prêts restent consultables ; un abonnement est nécessaire pour en enregistrer de nouveaux"}
+              {renewal && (me.user.cancelAtPeriodEnd ? ` · résilié, actif jusqu'au ${renewal}` : ` · renouvellement le ${renewal}`)}
             </div>
           </div>
           <div className="plan-now-actions">
             {me.user.stripeSubscriptionId && <button type="button" className="btn" disabled={!!busy} onClick={() => go("/api/billing/portal", {}, "portal")}><Icon name="card" size={15} />Factures et moyen de paiement</button>}
             {current !== "FREE" && !me.user.cancelAtPeriodEnd && !cancelStep && <button type="button" className="btn danger" disabled={!!busy} onClick={() => setCancelStep(true)}>Résilier votre contrat</button>}
           </div>
-          <div className="plan-now-use">
-            <div className="row"><span>Prêts en cours</span><span className="mono">{me.activeLoans} / {max}</span></div>
-            <Meter value={me.activeLoans / Math.max(1, max)} tone={me.activeLoans >= max ? "full" : undefined} />
-          </div>
+          {max > 0 && (
+            <div className="plan-now-use">
+              <div className="row"><span>Prêts en cours</span><span className="mono">{me.activeLoans} / {max}</span></div>
+              <Meter value={me.activeLoans / max} tone={me.activeLoans >= max ? "full" : undefined} />
+            </div>
+          )}
         </section>
 
         {withdrawn && (
@@ -108,7 +108,7 @@ function Billing() {
                 <table className="tbl kv"><tbody>
                   <tr><td>Titulaire</td><td>{me.user.name} ({me.user.email})</td></tr>
                   <tr><td>Contrat</td><td>Abonnement {me.plan.name} — {me.plan.priceLabel}</td></tr>
-                  <tr><td>Effet</td><td>Arrêt immédiat, retour à l&apos;offre gratuite. Tes prêts sont conservés.</td></tr>
+                  <tr><td>Effet</td><td>Arrêt immédiat de l&apos;abonnement. Tes prêts et tes documents signés sont conservés.</td></tr>
                   <tr><td>Remboursement</td><td>Intégral, sur le moyen de paiement utilisé, sous 14 jours au plus</td></tr>
                   <tr><td>Accusé de réception</td><td>Envoyé à {me.user.email}</td></tr>
                 </tbody></table>
@@ -129,7 +129,7 @@ function Billing() {
               <tr><td>Titulaire</td><td>{me.user.name} ({me.user.email})</td></tr>
               <tr><td>Contrat</td><td>Abonnement {me.plan.name} — {me.plan.priceLabel}</td></tr>
               <tr><td>Fin de l&apos;abonnement</td><td>{renewal ? `le ${renewal}, à la fin de la période déjà payée` : "immédiate"}</td></tr>
-              <tr><td>Ensuite</td><td>Retour à l&apos;offre gratuite ({PLANS.FREE.maxLoans} prêt{PLANS.FREE.maxLoans > 1 ? "s" : ""} en cours). Aucun prélèvement supplémentaire. Tes prêts sont conservés.</td></tr>
+              <tr><td>Ensuite</td><td>Aucun prélèvement supplémentaire. Tes prêts et tes documents signés restent consultables ; tu ne pourras plus en enregistrer de nouveaux sans te réabonner.</td></tr>
             </tbody></table>
             <div className="row">
               <button type="button" className="btn danger solid" disabled={!!busy} onClick={cancel}>{busy === "cancel" ? <><Spinner />Un instant…</> : "Confirmer la résiliation"}</button>
@@ -143,36 +143,29 @@ function Billing() {
         <section className="card stack" style={{ marginTop: 24 }} aria-labelledby="beta-title">
           <h2 id="beta-title">Phase de test : tout est gratuit</h2>
           <p className="small" style={{ margin: 0, color: "var(--ink-2)" }}>
-            Pendant la phase de test, {me.plan.maxLoans} prêts en cours sont possibles sans payer, et aucune offre n&apos;est en vente.
+            Pendant la phase de test, {me.plan.maxLoans} prêts en cours sont possibles sans payer, accusés de réception et reçus signés compris, et rien n&apos;est vendu.
             {me.site.paidFrom
-              ? <> Le site passe en mode payant le <strong>{dateFr(me.site.paidFrom)}</strong> : tu gardes tous tes prêts, tu peux toujours les consulter, les modifier et les clôturer. Au-delà de {PLANS.FREE.maxLoans} prêts en cours, il faudra une offre pour en créer de nouveaux.</>
-              : <> Si le site passe un jour en mode payant, tu seras prévenu par e-mail au moins 30 jours avant, et rien ne sera supprimé.</>}
+              ? <> Le site passe en mode payant le <strong>{dateFr(me.site.paidFrom)}</strong> : tu gardes tous tes prêts et tes documents, tu peux toujours les consulter, les modifier et les clôturer. Pour en enregistrer de nouveaux, il faudra l&apos;offre {MAIN_PLAN.name} ({MAIN_PLAN.priceLabel}).</>
+              : <> Ensuite, l&apos;offre {MAIN_PLAN.name} coûtera {MAIN_PLAN.priceLabel}. Tu seras prévenu par e-mail au moins 30 jours avant, et rien ne sera supprimé.</>}
           </p>
-          <p className="hint">Les offres prévues : <Link href="/#tarifs">voir les tarifs</Link>.</p>
+          <p className="hint">Ce que comprend l&apos;offre : <Link href="/#tarifs">voir le tarif</Link>.</p>
         </section>
       ) : <>
-      <div className="sec-head"><h2>Changer d&apos;offre</h2></div>
-      <div className="consent">
-        <label className="check">
-          <input type="checkbox" checked={accept} onChange={(e) => { setAccept(e.target.checked); setErr(""); }} />
-          <span>J&apos;accepte les <Link href="/cgu#vente" target="_blank">conditions générales de vente</Link> (pour une offre Pro, avec l&apos;<Link href="/cgu#sous-traitance" target="_blank">accord de sous-traitance des données</Link>) et je demande que mon abonnement commence immédiatement. Je garde mon droit de rétractation de 14 jours, avec remboursement intégral.</span>
-        </label>
+      <div className="sec-head"><h2>{current === MAIN_PLAN.id ? "Ton abonnement" : "S'abonner"}</h2></div>
+      <div className="plans solo">
+        <PlanCard plan={MAIN_PLAN.id} current={current === MAIN_PLAN.id} featured>
+          {current !== MAIN_PLAN.id && (
+            <label className="check small" style={{ marginTop: 4 }}>
+              <input type="checkbox" checked={accept} onChange={(e) => { setAccept(e.target.checked); setErr(""); }} />
+              <span>J&apos;accepte, pour le compte de ma structure, les <Link href="/cgu#vente" target="_blank">conditions générales de vente</Link> et l&apos;<Link href="/cgu#sous-traitance" target="_blank">accord de sous-traitance des données</Link>, et je demande que l&apos;abonnement commence immédiatement. La rétractation reste possible 14 jours, avec remboursement intégral.</span>
+            </label>
+          )}
+          <button type="button" className={`btn ${current === MAIN_PLAN.id ? "" : "primary"} block`} disabled={current === MAIN_PLAN.id || !!busy} onClick={() => choose(MAIN_PLAN.id)}>
+            {busy === MAIN_PLAN.id ? <><Spinner />Redirection…</> : current === MAIN_PLAN.id ? "Offre actuelle" : `S'abonner : ${MAIN_PLAN.priceLabel}`}
+          </button>
+        </PlanCard>
       </div>
-      <div className="plans-bar" style={{ marginTop: 14 }}><IntervalToggle value={period} onChange={setPeriod} /></div>
-      <div className="plans">
-        {TIERS.map((t) => {
-          const id = t[period];
-          const isCurrent = current === id;
-          return (
-            <PlanCard key={t.id} plan={id} title={t.name} audience={t.audience} pro={t.pro} tag={period === "year" ? yearlySaving(t) : null} current={isCurrent}>
-              <button type="button" className={`btn ${isCurrent ? "" : "primary"} block`} disabled={isCurrent || !!busy} onClick={() => choose(id)}>
-                {busy === id ? <><Spinner />Redirection…</> : isCurrent ? "Offre actuelle" : "Continuer vers le paiement"}
-              </button>
-            </PlanCard>
-          );
-        })}
-      </div>
-      <p className="hint" style={{ marginTop: 16 }}>Prix TTC. {LEGAL.vatMention}. Paiement sécurisé par Stripe : carte bancaire, PayPal, Apple Pay, Google Pay. Abonnement renouvelé automatiquement, résiliable à tout moment depuis cette page.</p>
+      <p className="hint" style={{ marginTop: 16 }}>Prix hors taxes. {LEGAL.vatMention}. Paiement sécurisé par Stripe : carte bancaire, prélèvement SEPA, PayPal, Apple Pay, Google Pay. Abonnement annuel reconduit automatiquement (tu es prévenu par e-mail un à trois mois avant), résiliable à tout moment depuis cette page.</p>
       </>}
     </>
   );

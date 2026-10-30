@@ -6,7 +6,7 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 
 1. **Remplir `src/lib/legal.ts`** : identité de l'éditeur (nom, forme juridique, adresse, SIRET, e-mail, téléphone), hébergeur, prestataire e-mail, médiateur. Tant que c'est vide, les pages affichent « [À COMPLÉTER] ».
 2. **Statut** : pendant la phase de test gratuite, le site est édité par Tolga Yildiz, particulier (éditeur non professionnel : adresse et téléphone communiqués à l'hébergeur, LCEN art. 6 III 2). **Pour vendre**, il faut une activité déclarée (micro-entreprise ou société) : renseigner alors SIRET, adresse, téléphone, TVA et médiateur dans `src/lib/legal.ts` (le passage au payant est bloqué sinon). La boîte `contact@codebtpsecure.cloud` doit exister et être relevée (demandes RGPD sous 1 mois).
-3. **Adhérer à un médiateur de la consommation** (obligatoire pour vendre à des particuliers, ~50 à 150 €/an). Liste : https://www.economie.gouv.fr/mediation-conso — puis renseigner `mediator` dans `legal.ts`.
+3. **Médiateur de la consommation** : le service est réservé aux professionnels (CGU art. 2), l'adhésion n'est donc plus obligatoire. Un compte manifestement ouvert par un particulier pour un usage personnel peut être clôturé (CGU art. 2 et 7). Si tu adhères quand même à un médiateur, renseigne `mediator` dans `legal.ts`.
 4. **Vérifier la mention TVA** (`vatMention`) : « TVA non applicable, art. 293 B du CGI » en franchise de TVA ; sinon mettre ton n° de TVA.
 5. **Relire l'article L215-1 dans les CGV** (section 14 de `/cgu`) contre le texte officiel sur Légifrance : la loi impose qu'il soit reproduit **intégralement** (art. L215-4). Le texte a été repris de mémoire et peut avoir été modifié depuis.
 6. **Signer les contrats de sous-traitance (DPA)** avec l'hébergeur, Stripe et le prestataire SMTP (souvent accepté automatiquement dans leurs conditions : vérifie) ; ajuster la liste `processors` dans `legal.ts`.
@@ -14,11 +14,14 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 8. **Stripe** : renseigner l'URL des CGV et de la politique de confidentialité dans *Paramètres → Informations publiques*, et activer les e-mails de reçu. Mettre `DEMO_BILLING=false`.
 9. **Rappels / purge** : le service `cron` (ou l'appel horaire à `/api/cron/reminders`) doit tourner en production : c'est lui qui applique les durées de conservation et envoie les préavis obligatoires.
 10. **Tenir à jour le registre des traitements** ci-dessous (obligatoire, à garder en interne, à montrer à la CNIL en cas de contrôle).
-11. **Offres Pro (entreprises, associations)** :
-    - faire relire par un avocat l'article 16 (clients professionnels) et l'article 17 (accord de sous-traitance, art. 28 RGPD) des CGV ;
+11. **Clients professionnels (tous les clients)** :
+    - faire relire par un avocat l'article 16 (dispositions entre professionnels) et l'article 17 (accord de sous-traitance, art. 28 RGPD) des CGV ;
     - tenir le **registre des activités de sous-traitance** (art. 30.2 RGPD, tableau plus bas) ;
-    - **facturation électronique** : depuis le 1er septembre 2026, toute entreprise, micro comprise, doit pouvoir recevoir des factures électroniques (choisir une plateforme agréée) ; à partir du 1er septembre 2027, les factures aux entreprises françaises devront être émises en format structuré via cette plateforme. La facture PDF de Stripe ne suffira plus pour les clients Pro ;
-    - dans Stripe, configurer le portail client pour permettre le changement entre les 6 offres.
+    - **facturation électronique** : depuis le 1er septembre 2026, toute entreprise, micro comprise, doit pouvoir recevoir des factures électroniques (choisir une plateforme agréée) ; à partir du 1er septembre 2027, les factures aux entreprises françaises devront être émises en format structuré via cette plateforme. Tous les clients étant professionnels, la facture PDF de Stripe ne suffira plus ;
+    - dans Stripe, créer un seul prix annuel de 299 € HT (`STRIPE_PRICE_ENTREPRISE_YEARLY`) et vérifier le réglage de TVA (prix hors taxes, TVA en sus si tu y es assujetti).
+12. **Signature électronique et documents signés** : faire relire par un avocat l'article 3 bis des CGU (valeur d'une signature électronique simple, obligation pour le client d'imprimer ses documents, absence d'archivage) et le texte des documents (`src/lib/receipt-text.ts`). Pour des prêts importants, une signature électronique avancée ou qualifiée (prestataire certifié) donnerait une preuve plus forte : c'est une évolution possible, avec un sous-traitant de plus.
+13. **Comptes déjà ouverts** : le passage au service réservé aux professionnels est une modification importante des CGU (art. 10). Le code bloque seulement la création de prêts tant que les nouvelles conditions ne sont pas acceptées (bandeau dans l'appli) ; prévenir aussi ces comptes par e-mail, et laisser aux particuliers le temps d'exporter leurs données ou de supprimer leur compte.
+14. **Prêts d'argent consentis par les clients** : l'article 3 des CGU rappelle au client le monopole bancaire (L511-5 du Code monétaire et financier) et les règles du crédit à la consommation. Faire confirmer par un avocat que le service, simple outil de suivi et de preuve (il n'accorde, ne présente ni ne négocie aucun crédit, et aucune somme n'y transite), n'exerce aucune activité réglementée.
 
 ## Ce qui est en place dans le code
 
@@ -31,17 +34,23 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 | Liens légaux sur toutes les pages publiques et dans l'appli | `SiteFooter`, page Mon compte |
 | Acceptation des CGU à l'inscription, avec date et version enregistrées | `api/auth/register`, champs `termsAcceptedAt` / `termsVersion` |
 | Acceptation des CGV + demande d'exécution immédiate avant paiement (L221-25) | page Offre, `api/billing/checkout`, champ `salesTermsAcceptedAt` |
-| Mention TTC / TVA à côté des prix | page d'accueil, page Offre, CGV |
+| Prix hors taxes et mention de TVA à côté des prix | page d'accueil, page Offre, CGV |
+| Service réservé aux professionnels : nom de la structure et déclaration d'agir pour elle à l'inscription, nouvelles conditions à accepter par les comptes déjà ouverts avant de créer un prêt | `api/auth/register`, `api/account/terms`, `REQUIRED_TERMS_VERSION` dans `src/lib/legal.ts`, bandeau de l'appli ; CGU art. 2 |
+| Accusé de réception signé en ligne par l'emprunteur, sans compte (signature électronique simple, art. 1366 et 1367 C. civ., règlement eIDAS) ; contestation possible ; information art. 13 RGPD sur la page de signature | `/signer`, `api/sign`, `src/lib/receipts.ts` ; CGU art. 3 bis |
+| Prêt d'argent : somme écrite par l'emprunteur en lettres et en chiffres, vérifiée (art. 1376 et 1174 C. civ.) | `src/lib/amount-words.ts`, `api/sign` |
+| Reçus de remboursement et attestations de restitution signés par le prêteur, PDF envoyé aux deux parties | `api/loans/[id]` (`repay`, `return`), `src/lib/pdf.ts` |
+| Documents figés et vérifiables : contenu lu, tracé, nom saisi, date, IP, navigateur, empreinte SHA-256 recalculable ; une modification du prêt demande une nouvelle signature sans toucher aux documents signés | table `Receipt`, `receiptHash` ; `api/loans/[id]` |
+| Obligation pour le client d'imprimer ses documents, absence d'archivage : écrites dans les CGU (art. 3 bis), rappelées dans l'appli (« À imprimer »), dans chaque e-mail et sur chaque PDF | `src/app/prets/[id]/page.tsx`, `src/lib/receipts.ts`, `src/lib/pdf.ts` |
+| Liens de signature chiffrés (AES-GCM), jamais montrés au prêteur, caducs après modification du prêt ; documents accessibles au seul prêteur et à l'emprunteur | `src/lib/signlink.ts`, `api/receipts/[id]`, `api/sign/pdf` |
+| Prêt contesté par l'emprunteur : plus aucun rappel, prêteur prévenu | `api/sign` (`refuse`), `runReminders` |
 | Phase de test gratuite puis passage au payant annoncé au moins 30 jours avant, par e-mail et dans l'appli, sans suppression de données (CGU art. 1 bis et 10) | page admin « Mode du site », `src/lib/sitemode.ts` (`runSiteMode` dans la tâche horaire) |
 | Confirmation de commande sur support durable (L221-13) : informations précontractuelles, demande d'exécution immédiate, délai et formulaire de rétractation, CGU/CGV acceptées en pièce jointe | `src/lib/billing.ts` (`sendOrderConfirmation`), envoyée au premier paiement (webhook `invoice.paid`, `billing_reason = subscription_create`) |
 | Fonction de rétractation en ligne (directive 2023/2673, art. 11 bis de la directive 2011/83 ; transposition française à vérifier) : bouton « Se rétracter du contrat ici » pendant 14 jours, confirmation, arrêt immédiat, remboursement intégral automatique, accusé de réception daté | page Offre, `api/billing/withdraw`, `User.subscriptionStartedAt` |
 | Sécurité (art. 32) : sauvegardes quotidiennes de la base, gardées 14 jours | en ligne : `src/lib/backup.ts` (tâche horaire, une copie par jour dans le bucket Railway « sauvegardes », Amsterdam, alerte e-mail à `ADMIN_EMAIL` en cas d'échec) ; en local : service `backup` de `docker-compose.yml`, dossier `sauvegardes/` (hors Git et hors image) |
 | Résiliation en 3 clics + e-mail de confirmation (L215-1-1, décret 2023-417) | bouton « Résilier votre contrat » → « Confirmer la résiliation », `api/billing/cancel` |
-| Préavis de reconduction des abonnements annuels (loi Chatel, L215-1) | `src/lib/retention.ts`, e-mail 35 à 75 jours avant l'échéance, pour toutes les offres annuelles (Perso et Pro) |
-| Remise annuelle exacte (pas de prix de référence trompeur) | « 2 mois offerts » calculé à partir des prix (`yearlySaving` dans `src/lib/plans.ts`), jamais écrit à la main |
-| Offres Pro : clauses entre professionnels (pénalités de retard, indemnité de 40 €, prix HT) et accord de sous-traitance (art. 28 RGPD) | `/cgu`, articles 16 et 17 ; acceptés avec la case des CGV de la page Offre |
-| Offres Pro : facture au nom de la structure (nom, adresse, n° de TVA) | `api/billing/checkout` (collecte par Stripe Checkout) |
-| Un seul compte par personne, offre Perso réservée à l'usage personnel | `/cgu`, article 2 |
+| Préavis de reconduction de l'abonnement annuel (loi Chatel, L215-1, appliquée à tous les clients) | `src/lib/retention.ts`, e-mail 35 à 75 jours avant l'échéance |
+| Clauses entre professionnels (pénalités de retard, indemnité de 40 €, prix HT, plafond de responsabilité) et accord de sous-traitance (art. 28 RGPD) | `/cgu`, articles 16 et 17 ; acceptés avec les CGU à l'inscription, puis avec la case des CGV de la page Offre |
+| Facture au nom de la structure (nom, adresse, n° de TVA) | `api/billing/checkout` (collecte par Stripe Checkout) |
 | Sécurité (art. 32) : pas d'envoi massif à des tiers | nouveaux prêts plafonnés par 24 h selon l'offre (`maxNewLoansPerDay`, `api/loans`), plafond écrit dans les CGU |
 | Droit d'accès / portabilité (art. 15, 20) | Mon compte → « Télécharger mes données » (`api/account/export`) |
 | Droit de rectification (art. 16) | Mon compte → prénom, adresse e-mail (confirmée par lien), mot de passe |
@@ -59,7 +68,7 @@ Ce document liste ce qui est déjà fait dans le code, et **ce qu'il te reste à
 | Sécurité (art. 32) : en-têtes HTTP (CSP, anti-iframe, nosniff, HSTS via Caddy) | `next.config.mjs`, `Caddyfile` |
 | Notes privées du prêteur jamais envoyées à l'emprunteur (liste blanche des champs) | `api/borrowed`, `api/account/export` |
 | Pas d'adresse e-mail en clair dans les liens de désinscription (jeton chiffré AES-GCM) | `src/lib/optout.ts` |
-| Offres Pro : la structure (responsable du traitement) est nommée dans les e-mails aux emprunteurs, obligatoire avant le premier prêt | `User.organization`, `src/lib/mail.ts`, `src/lib/loans.ts` ; CGV art. 17 |
+| La structure (responsable du traitement) est nommée dans les e-mails et les documents envoyés aux emprunteurs ; obligatoire dès l'inscription | `User.organization`, `src/lib/mail.ts`, `src/lib/loans.ts`, `src/lib/pdf.ts` ; CGV art. 17 |
 | Protection des emprunteurs contre les envois abusifs : 5 e-mails max par jour et par adresse, nombre de prêts créés par jour limité selon l'offre (compté dans le journal des e-mails), 8 rappels max par prêt, pas de lien internet dans les noms et objets (anti-hameçonnage) | `src/lib/limits.ts`, `src/lib/mail.ts`, `src/lib/validation.ts` ; annoncé dans les CGU (art. 3) et la politique de confidentialité |
 
 ## Registre des traitements (RGPD art. 30)
@@ -68,28 +77,29 @@ Responsable du traitement : *(identité de l'éditeur, voir `legal.ts`)*. Pas de
 
 | Traitement | Finalité | Base légale | Personnes | Données | Destinataires | Durée | Transfert hors UE |
 |---|---|---|---|---|---|---|---|
-| Gestion des comptes | Fournir le service | Contrat | Utilisateurs | Prénom, nom de la structure (offres Pro), e-mail (et nouvelle adresse en attente), date de confirmation de l'e-mail, mot de passe chiffré, dates de connexion et d'acceptation des CGU | Éditeur, hébergeur | Jusqu'à suppression ; 3 ans d'inactivité | Non (si hébergeur UE) |
+| Gestion des comptes | Fournir le service | Contrat | Utilisateurs (personnes qui agissent pour une structure cliente) | Prénom et nom, nom de la structure, e-mail (et nouvelle adresse en attente), date de confirmation de l'e-mail, mot de passe chiffré, dates de connexion, date et version des CGU acceptées | Éditeur, hébergeur | Jusqu'à suppression ; 3 ans d'inactivité | Non (si hébergeur UE) |
 | Sécurité des comptes | Sessions, confirmation d'adresse, réinitialisation du mot de passe | Contrat / intérêt légitime (art. 32) | Utilisateurs | Sessions (dates), empreinte des liens envoyés, adresse de destination du lien | Éditeur, hébergeur, prestataire SMTP | Sessions 30 jours ; liens 48 h (confirmation) / 1 h (mot de passe) | Selon prestataire SMTP |
 | Suivi des prêts | Fournir le service | Contrat | Utilisateurs | Prêts, montants, dates, notes | Éditeur, hébergeur ; emprunteur (partiel) | Prêt clôturé : 5 ans | Non |
-| Rappels aux emprunteurs | Relancer pour la restitution | Intérêt légitime | Emprunteurs (tiers) | Nom, e-mail, téléphone, objet/montant, dates | Éditeur, hébergeur, prestataire SMTP | Durée du prêt (+5 ans après clôture) | Selon prestataire SMTP |
+| Rappels aux emprunteurs (pour le compte des clients) | Demander la signature, envoyer les copies des documents, relancer pour la restitution | Intérêt légitime du client | Emprunteurs (tiers) | Nom, e-mail, téléphone, matériel/montant, dates | Éditeur, hébergeur, prestataire e-mail | Durée du prêt (+5 ans après clôture) | Selon prestataire e-mail |
+| Documents signés (pour le compte des clients) | Preuve du prêt (accusé de réception), des remboursements et de la restitution | Exécution du contrat de prêt et intérêt légitime des parties | Emprunteurs, utilisateurs signataires | Nom saisi, tracé de la signature, somme écrite en lettres et en chiffres, date et heure, adresse IP, navigateur, empreinte SHA-256, motif d'une contestation | Éditeur, hébergeur ; le PDF est envoyé aux deux parties | Ceux du prêt (supprimés avec lui, au plus 5 ans après la clôture) | Selon prestataire e-mail |
 | Liste d'opposition | Respecter les désinscriptions | Obligation légale (art. 21) | Emprunteurs | E-mail | Éditeur, hébergeur | Tant que nécessaire | Non |
 | Abonnements et paiements | Facturer | Contrat / obligation légale | Clients | Offre, montants, identifiants Stripe | Éditeur, Stripe | 10 ans (comptabilité) | Oui (Stripe, DPF + CCT) |
 | Mesure d'audience | Statistiques de fréquentation | Intérêt légitime (exemption CNIL) | Visiteurs | Page, référent, appareil, navigateur, pays, identifiant aléatoire | Éditeur, hébergeur | 25 mois | Non |
 | Sauvegardes de la base | Restaurer le service après un incident | Intérêt légitime / sécurité (art. 32) | Toutes | Copie complète de la base | Éditeur, hébergeur (Railway, stockage à Amsterdam) | 14 jours (une donnée supprimée disparaît des sauvegardes au plus tard 14 jours après) | Non (si hébergeur UE) |
 | Journal des e-mails | Preuve d'envoi, support, limitation des envois abusifs vers les emprunteurs (nombre de prêts créés par compte et d'e-mails par destinataire sur 24 h) | Intérêt légitime | Utilisateurs, emprunteurs | Destinataire, objet, résultat, compte du prêteur à l'origine de l'envoi (e-mails aux emprunteurs) | Éditeur, hébergeur | 12 mois (lien avec le compte supprimé avec celui-ci) | Non |
-| Sécurité | Bloquer les attaques par force brute et les envois abusifs | Intérêt légitime | Visiteurs | Adresse IP, et adresse e-mail saisie sur « mot de passe oublié » (en mémoire uniquement) | — | Quelques minutes à 1 h | Non |
+| Sécurité | Bloquer les attaques par force brute et les envois abusifs | Intérêt légitime | Visiteurs | Adresse IP, et adresse e-mail saisie sur « mot de passe oublié » (en mémoire uniquement ; l'IP n'est enregistrée qu'au moment d'une signature, voir « Documents signés ») | — | Quelques minutes à 1 h | Non |
 
-### Registre des activités de sous-traitance (RGPD art. 30.2) : offres Pro
+### Registre des activités de sous-traitance (RGPD art. 30.2)
 
-Pour les clients Pro, l'éditeur est **sous-traitant** des données de leurs emprunteurs (voir l'article 17 des CGV).
+Pour tous ses clients (des structures), l'éditeur est **sous-traitant** des données de leurs emprunteurs (voir l'article 17 des CGV).
 
 | Responsable de traitement | Catégories de traitements | Sous-traitants ultérieurs | Transfert hors UE | Sécurité |
 |---|---|---|---|---|
-| Chaque client Pro (structure) : nom et contact dans Stripe et dans le compte | Enregistrement des prêts, envoi des e-mails de confirmation, de rappel et de relance aux emprunteurs, bilan, export | Hébergeur, prestataire SMTP (voir `LEGAL.processors`) | Selon prestataire SMTP | Mêmes mesures que ci-dessous |
+| Chaque client (structure) : nom dans le compte et dans Stripe | Enregistrement des prêts ; demande et recueil de la signature électronique des accusés de réception ; établissement et envoi des documents signés (accusés, reçus, attestations) avec leurs éléments de preuve ; e-mails de rappel et de relance ; bilan, export | Hébergeur, prestataire e-mail (voir `LEGAL.processors`) | Selon prestataire e-mail | Mêmes mesures que ci-dessous |
 
-Mesures de sécurité : HTTPS, mots de passe bcrypt, adresse e-mail confirmée, sessions révocables, cookie HttpOnly, limitation des tentatives, accès admin restreint, base non exposée sur Internet (Docker : port lié à 127.0.0.1).
+Mesures de sécurité : HTTPS, mots de passe bcrypt, adresse e-mail confirmée, sessions révocables, cookie HttpOnly, limitation des tentatives (connexion, signature), liens de signature chiffrés et jamais montrés au prêteur, empreinte SHA-256 de chaque document signé, accès admin restreint, base non exposée sur Internet (Docker : port lié à 127.0.0.1).
 
 ## En cas de demande ou d'incident
 
-- **Demande RGPD par e-mail** : répondre sous **1 mois**. Suppression des données d'un emprunteur : supprimer les prêts le concernant, supprimer ses lignes du journal (`DELETE FROM "EmailLog" WHERE "to" = '<adresse>'`) et ajouter son e-mail à la table `EmailOptOut` (seule trace conservée, pour ne plus jamais lui écrire). Pour un client Pro, prévenir la structure (responsable du traitement).
+- **Demande RGPD par e-mail** : répondre sous **1 mois**. Les données d'un emprunteur appartiennent à la structure qui lui a prêté (responsable du traitement) : lui transmettre la demande. Suppression demandée par la structure ou imposée : supprimer les prêts concernés (leurs documents signés partent avec eux : la structure doit avoir gardé sa copie), supprimer les lignes du journal (`DELETE FROM "EmailLog" WHERE "to" = '<adresse>'`) et ajouter l'e-mail à la table `EmailOptOut` (seule trace conservée, pour ne plus jamais lui écrire).
 - **Fuite de données** : notifier la CNIL sous **72 h** (https://notifications.cnil.fr) et documenter l'incident, même s'il n'est pas notifié.
